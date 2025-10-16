@@ -3981,7 +3981,7 @@ ImTextureData* ImFontAtlasTextureAdd(ImFontAtlas* atlas, int w, int h)
 
 #if 0
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../stb/stb_image_write.h"
+#include "stb/stb_image_write.h"
 static void ImFontAtlasDebugWriteTexToDisk(ImTextureData* tex, const char* description)
 {
     ImGuiContext& g = *GImGui;
