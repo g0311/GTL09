@@ -49,10 +49,8 @@ cbuffer DecalBuffer : register(b6)
 Texture2D g_DecalTexColor : register(t0);
 TextureCubeArray g_ShadowAtlasCube : register(t8);
 Texture2D g_ShadowAtlas2D : register(t9);
-Texture2D<float2> g_VSMShadowAtlas : register(t10);
 SamplerState g_Sample : register(s0);
 SamplerComparisonState g_ShadowSample : register(s2);
-SamplerState g_VSMSampler : register(s3);
 
 // --- 입출력 구조체 ---
 struct VS_INPUT
@@ -117,12 +115,12 @@ PS_INPUT mainVS(VS_INPUT input)
             baseColor,
             specPower,
             output.position,
-            g_ShadowSample,
+            g_Sample,
             g_ShadowAtlas2D,
             g_ShadowAtlasCube,
             g_ShadowAtlasCube,
-            g_VSMShadowAtlas,
-            g_VSMSampler
+            g_ShadowAtlas2D,
+            g_Sample
         );
 
         output.litColor = float4(litColor, 1.0f);
@@ -187,12 +185,12 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
         baseColor,
         specPower,
         input.position,
-        g_ShadowSample,
+        g_Sample,
         g_ShadowAtlas2D,
         g_ShadowAtlasCube,
         g_ShadowAtlasCube,
-        g_VSMShadowAtlas,
-        g_VSMSampler
+        g_ShadowAtlas2D,
+        g_Sample
     );
 
     float4 finalColor = float4(litColor, decalTexture.a * DecalOpacity);

@@ -83,11 +83,9 @@ Texture2D g_NormalTexColor : register(t1);
 Texture2D g_DirectionalShadowMap : register(t5);
 TextureCubeArray<float2> g_ShadowAtlasCube : register(t8);
 Texture2D<float2> g_ShadowAtlas2D : register(t9);
-Texture2D<float2> g_VSMShadowAtlas : register(t10);
 SamplerState g_Sample : register(s0);
 SamplerState g_Sample2 : register(s1);
 SamplerComparisonState g_ShadowSample : register(s2);
-SamplerState g_VSMSampler : register(s3);
 
 // --- 공통 조명 시스템 include ---
 #include "../Common/LightStructures.hlsl"
@@ -514,13 +512,13 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 
             if (lightType == 0)  // Point Light
             {
-                litColor += CalculatePointLight(g_PointLightList[lightIdx], Input.WorldPos, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlasCube, g_Sample);
+                litColor += CalculatePointLight(g_PointLightList[lightIdx], Input.WorldPos, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlasCube, g_Sample, g_ShadowAtlasCube, g_Sample);
             }
             else if (lightType == 1)  // Spot Light
             {
                 litColor +=  CalculateSpotLight(g_SpotLightList[lightIdx], Input.WorldPos, normal,
                     float3(0, 0, 0), baseColor, false,
-                    0.0f, g_ShadowAtlas2D, g_Sample, g_VSMShadowAtlas, g_VSMSampler);
+                    0.0f, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
             }
         }
     }
@@ -529,7 +527,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
         // 타일 컴링 비활성화: 모든 라이트 순회 (기존 방식)
         for (int i = 0; i < PointLightCount; i++)
         {
-            litColor += CalculatePointLight(g_PointLightList[i], Input.WorldPos, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlasCube, g_Sample);
+            litColor += CalculatePointLight(g_PointLightList[i], Input.WorldPos, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlasCube, g_Sample, g_ShadowAtlasCube, g_Sample);
         }
 
         [loop]
@@ -537,7 +535,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
         {
             litColor +=  CalculateSpotLight(g_SpotLightList[j], Input.WorldPos, normal,
                     float3(0, 0, 0), baseColor, false,
-                    0.0f, g_ShadowAtlas2D, g_Sample, g_VSMShadowAtlas, g_VSMSampler);
+                    0.0f, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
         }
     }
 
@@ -601,7 +599,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     litColor += CalculateAmbientLight(AmbientLight, Ka);
 
     // Directional light (diffuse + specular)
-    float3 DirectionalLightColor = CalculateDirectionalLight(DirectionalLight, Input.WorldPos, ViewPos.xyz, normal, viewDir, baseColor, true, specPower, g_ShadowAtlas2D, g_Sample);
+    float3 DirectionalLightColor = CalculateDirectionalLight(DirectionalLight, Input.WorldPos, ViewPos.xyz, normal, viewDir, baseColor, true, specPower, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
    
     
     litColor += DirectionalLightColor;
@@ -626,22 +624,22 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 
             if (lightType == 0)  // Point Light
             {
-                litColor += CalculatePointLight(g_PointLightList[lightIdx], Input.WorldPos, normal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample);
+                litColor += CalculatePointLight(g_PointLightList[lightIdx], Input.WorldPos, normal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample, g_ShadowAtlasCube, g_Sample);
             }
             else if (lightType == 1)  // Spot Light
             {
                 litColor +=  CalculateSpotLight(g_SpotLightList[lightIdx], Input.WorldPos, normal,
                     viewDir, baseColor, true,
-                    specPower, g_ShadowAtlas2D, g_Sample, g_VSMShadowAtlas, g_VSMSampler);
+                    specPower, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
             }
         }
     }
     else
     {
-        // 타일 컴링 비활성화: 모든 라이트 순회 (기존 방식)
+        // 타일 컴링 비활성화: 모든 라이트 순회
         for (int i = 0; i < PointLightCount; i++)
         {
-            litColor += CalculatePointLight(g_PointLightList[i], Input.WorldPos, normal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample);
+            litColor += CalculatePointLight(g_PointLightList[i], Input.WorldPos, normal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample, g_ShadowAtlasCube, g_Sample);
         }
         
         [loop]
@@ -649,7 +647,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
         {
             litColor +=  CalculateSpotLight(g_SpotLightList[j], Input.WorldPos, normal,
                     viewDir, baseColor, true,
-                    specPower, g_ShadowAtlas2D, g_Sample, g_VSMShadowAtlas, g_VSMSampler);
+                    specPower, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
         }
     }
 
