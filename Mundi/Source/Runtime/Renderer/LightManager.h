@@ -97,10 +97,12 @@ struct FPointLightInfo
     uint32 bUseInverseSquareFalloff; // 4 bytes
     uint32 bCastShadows;     // 4 bytes (0 or 1)
     int32 ShadowArrayIndex;  // 4 bytes (t8 TextureCubeArray의 슬라이스 인덱스, -1=섹도우 없음)
+    int32 SampleCount;       // 4 bytes
     float ShadowBias;        // 4 bytes
     float ShadowSlopeBias;   // 4 bytes
     float ShadowSharpen;     // 4 bytes
-    // Total: 60 bytes
+    float Padding;           // 4 bytes
+    // Total: 64 bytes
 };
 
 struct FSpotLightInfo

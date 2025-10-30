@@ -87,7 +87,7 @@ protected:
 	float PreviousInnerConeAngle = 30.0f;
 	float PreviousOuterConeAngle = 45.0f;
 
-	int32 SampleCount = 4;
+	int32 SampleCount = 16;
 	FMatrix WarpMatrix = FMatrix::Identity();
 
 

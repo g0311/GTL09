@@ -76,6 +76,7 @@ FPointLightInfo UPointLightComponent::GetLightInfo() const
 	Info.bUseInverseSquareFalloff = IsUsingInverseSquareFalloff() ? 1u : 0u;
 	Info.bCastShadows = 0u;		// UpdateLightBuffer 에서 초기화 해줌
 	Info.ShadowArrayIndex = -1; // UpdateLightBuffer 에서 초기화 해줌
+	Info.SampleCount = 16;
 	Info.ShadowBias = GetShadowBias();
 	Info.ShadowSlopeBias = GetShadowSlopeBias();
 	Info.ShadowSharpen = GetShadowSharpen();

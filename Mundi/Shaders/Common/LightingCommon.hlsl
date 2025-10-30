@@ -237,6 +237,7 @@ static const float2 PoissonDisk[16] = {
     float2(-0.354784, -0.320412), float2(0.166412, -0.244837)
 };
 
+
 //================================================================================================
 // 2D Shadow Map Sampling (Directional/Spot Light)
 //================================================================================================
@@ -339,7 +340,7 @@ float CalculateSpotLightShadowFactor(
         
         float Width, Height;
         ShadowMap.GetDimensions(Width, Height);
-        float2 FilterRadiusUV = (1.5f / ShadowMapData.ShadowSharpen) / float2(Width, Height);
+        float2 FilterRadiusUV = (1.5f * ShadowMapData.ShadowSharpen) / float2(Width, Height);
         
         return SampleShadow2D_PCF(PixelDepth, AtlasUV, ShadowMapData.SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
     }
@@ -401,7 +402,7 @@ float CalculatePointLightShadowFactor(
     
     float Width, Height, Elements;
     ShadowMapCube.GetDimensions(Width, Height, Elements);
-    float filterRadiusTexel = (1.5f / ShadowSharpen) / Width;
+    float filterRadiusTexel = (1.5f * ShadowSharpen) / Width;
     
     return SampleShadowCube_PCF(PixelDepth, cubemapDir, LightIndex, SampleCount, filterRadiusTexel, ShadowMapCube, ShadowSampler);
 }
@@ -465,7 +466,7 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 Normal, float3 LightDir, floa
             
             float PixelDepth = CurUV.z - totalBias;
             
-            float2 sharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[CurIdx].ShadowSharpen;
+            float2 sharpenedFilterRadius = FilterRadiusUV * DirectionalLight.Cascades[CurIdx].ShadowSharpen;
             return SampleShadow2D_PCF(PixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, sharpenedFilterRadius, ShadowMap, ShadowSampler);
         }
         return 0.0f;
@@ -501,7 +502,7 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 Normal, float3 LightDir, floa
     float totalBias = DirectionalLight.Cascades[CurIdx].ShadowBias + slopeBias;
     
     float CurPixelDepth = CurUV.z - totalBias;
-    float2 curSharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[CurIdx].ShadowSharpen;
+    float2 curSharpenedFilterRadius = FilterRadiusUV * DirectionalLight.Cascades[CurIdx].ShadowSharpen;
     float CurShadowFactor = SampleShadow2D_PCF(CurPixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, curSharpenedFilterRadius, ShadowMap, ShadowSampler);
     
     // Cascade 블렌딩
@@ -516,7 +517,7 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 Normal, float3 LightDir, floa
         float prevTotalBias = DirectionalLight.Cascades[PrevIdx].ShadowBias + prevSlopeBias;
         
         float PrevPixelDepth = PrevUV.z - prevTotalBias;
-        float2 prevSharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[PrevIdx].ShadowSharpen;
+        float2 prevSharpenedFilterRadius = FilterRadiusUV * DirectionalLight.Cascades[PrevIdx].ShadowSharpen;
         float PrevShadowFactor = SampleShadow2D_PCF(PrevPixelDepth, PrevAtlasUV, DirectionalLight.Cascades[PrevIdx].SampleCount, prevSharpenedFilterRadius, ShadowMap, ShadowSampler);
         
         return lerp(PrevShadowFactor, CurShadowFactor, LerpValue);
@@ -691,9 +692,8 @@ float3 CalculatePointLight(
     if (light.bCastShadows)
     {
 #if SHADOW_AA_TECHNIQUE == 1
-        int sampleCount = 4;
         float shadowFactor = CalculatePointLightShadowFactor(
-            worldPos, normal, light.Position, light.AttenuationRadius, light.LightIndex, sampleCount,
+            worldPos, normal, light.Position, light.AttenuationRadius, light.LightIndex, light.SampleCount,
             light.ShadowBias, light.ShadowSlopeBias, light.ShadowSharpen,
             ShadowMapCube, ShadowSampler);
         diffuse *= shadowFactor;

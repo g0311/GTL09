@@ -407,8 +407,10 @@ PS_OUTPUT mainPS(PS_INPUT Input)
         if (g_PointLightList[i].bCastShadows)
         {
             shadowFactor *= CalculatePointLightShadowFactor(
-                Input.WorldPos, g_PointLightList[i].Position, g_PointLightList[i].AttenuationRadius,
-                g_PointLightList[i].LightIndex, 16, g_ShadowAtlasCube, g_Sample);
+                Input.WorldPos, Input.Normal, g_PointLightList[i].Position, g_PointLightList[i].AttenuationRadius,
+                g_PointLightList[i].LightIndex, g_PointLightList[i].SampleCount,
+                g_PointLightList[i].ShadowBias, g_PointLightList[i].ShadowSlopeBias, g_PointLightList[i].ShadowSharpen,
+                g_ShadowAtlasCube, g_Sample);
         }
     }
     
