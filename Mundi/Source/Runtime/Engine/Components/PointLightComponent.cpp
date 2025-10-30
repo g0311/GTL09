@@ -53,6 +53,8 @@ void UPointLightComponent::GetShadowRenderRequests(FSceneView* View, TArray<FSha
 		ShadowRenderRequest.LightOwner = this;
 		ShadowRenderRequest.ViewMatrix = LightViews[i];
 		ShadowRenderRequest.ProjectionMatrix = LightProjection;
+		ShadowRenderRequest.WorldLocation = LightPosition;
+		ShadowRenderRequest.Radius = LightRadius;
 		ShadowRenderRequest.Size = ShadowResolutionScale;
 		ShadowRenderRequest.SubViewIndex = i;
 		ShadowRenderRequest.AtlasScaleOffset = 0;

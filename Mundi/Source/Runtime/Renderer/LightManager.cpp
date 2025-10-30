@@ -26,50 +26,48 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 		RHIDevice->CreateStructuredBufferSRV(SpotLightBuffer, &SpotLightBufferSRV);
 	}
 
-	// --- 2. 2D Atlas (t9) ---
+	// --- 2. 2D Atlas (t9) - RTV 사용 ---
 	if (!ShadowAtlasTexture2D)
 	{
-		// 헬퍼 함수를 사용하는 대신, 여기서 직접 생성합니다.
-		ID3D11Device* Device = RHIDevice->GetDevice(); // RHI에서 Device 가져오기
+		ID3D11Device* Device = RHIDevice->GetDevice();
 
-		// 2.1. 텍스처 생성 (TYPELESS 포맷)
+		// 2.1. 텍스처 생성 (RG32F 포맷으로 depth, depth^2 저장)
 		D3D11_TEXTURE2D_DESC TexDesc = {};
 		TexDesc.Width = ShadowAtlasSize2D;
 		TexDesc.Height = ShadowAtlasSize2D;
 		TexDesc.MipLevels = 1;
 		TexDesc.ArraySize = 1;
-		TexDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // DSV/SRV 바인딩을 위해 Typeless
+		TexDesc.Format = DXGI_FORMAT_R32G32_FLOAT; // depth, depth^2 저장
 		TexDesc.SampleDesc.Count = 1;
 		TexDesc.SampleDesc.Quality = 0;
 		TexDesc.Usage = D3D11_USAGE_DEFAULT;
-		TexDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+		TexDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
 		HRESULT hr = Device->CreateTexture2D(&TexDesc, nullptr, &ShadowAtlasTexture2D);
 		if (FAILED(hr))
 		{
 			UE_LOG("FLightManager::Initialize: CreateTexture2D for ShadowAtlas2D failed!");
-			// 실패 시 리소스들을 nullptr로 안전하게 처리
 			ShadowAtlasTexture2D = nullptr;
-			ShadowAtlasDSV2D = nullptr;
+			ShadowAtlasRTV2D = nullptr;
 			ShadowAtlasSRV2D = nullptr;
-			return; // 혹은 적절한 오류 처리
+			return;
 		}
 
-		// 2.2. DSV (DepthStencilView) 생성
-		D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 뎁스 쓰기용 포맷
-		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Texture2D.MipSlice = 0;
+		// 2.2. RTV (RenderTargetView) 생성
+		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+		rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		rtvDesc.Texture2D.MipSlice = 0;
 
-		hr = Device->CreateDepthStencilView(ShadowAtlasTexture2D, &dsvDesc, &ShadowAtlasDSV2D);
+		hr = Device->CreateRenderTargetView(ShadowAtlasTexture2D, &rtvDesc, &ShadowAtlasRTV2D);
 		if (FAILED(hr))
 		{
-			UE_LOG("FLightManager::Initialize: CreateDepthStencilView for ShadowAtlas2D failed!");
+			UE_LOG("FLightManager::Initialize: CreateRenderTargetView for ShadowAtlas2D failed!");
 		}
 
 		// 2.3. SRV (ShaderResourceView) 생성
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS; // 뎁스 읽기용 포맷
+		srvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.MipLevels = 1;
@@ -79,9 +77,26 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 		{
 			UE_LOG("FLightManager::Initialize: CreateShaderResourceView for ShadowAtlas2D failed!");
 		}
+
+		// 2.4. Depth Buffer 생성
+		D3D11_TEXTURE2D_DESC DepthDesc = {};
+		DepthDesc.Width = ShadowAtlasSize2D;
+		DepthDesc.Height = ShadowAtlasSize2D;
+		DepthDesc.MipLevels = 1;
+		DepthDesc.ArraySize = 1;
+		DepthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DepthDesc.SampleDesc.Count = 1;
+		DepthDesc.Usage = D3D11_USAGE_DEFAULT;
+		DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+		hr = Device->CreateTexture2D(&DepthDesc, nullptr, &ShadowDepthTexture2D);
+		if (SUCCEEDED(hr))
+		{
+			Device->CreateDepthStencilView(ShadowDepthTexture2D, nullptr, &ShadowDepthDSV2D);
+		}
 	}
 
-	// --- 3. Cube Map Atlas (t8) ---
+	// --- 3. Cube Map Atlas (t8) - RTV 사용 ---
 	if (!ShadowAtlasTextureCube)
 	{
 		// 3.1. 큐브맵 배열 리소스 생성 (TextureCubeArray)
@@ -90,17 +105,17 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 		CubeDesc.Height = AtlasSizeCube;
 		CubeDesc.MipLevels = 1;
 		CubeDesc.ArraySize = CubeArrayCount * 6; // D3D11에서 큐브맵 배열은 ArraySize = N * 6
-		CubeDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // 뎁스 포맷
+		CubeDesc.Format = DXGI_FORMAT_R32G32_FLOAT; // RG32F 포맷으로 depth, depth^2 저장
 		CubeDesc.SampleDesc.Count = 1;
 		CubeDesc.Usage = D3D11_USAGE_DEFAULT;
-		CubeDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+		CubeDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 		CubeDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // 큐브맵 플래그
 
 		RHIDevice->GetDevice()->CreateTexture2D(&CubeDesc, nullptr, &ShadowAtlasTextureCube);
 
 		// 3.2. SRV 생성 (t8 바인딩용)
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		srvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
 		srvDesc.TextureCubeArray.MostDetailedMip = 0;
 		srvDesc.TextureCubeArray.MipLevels = 1;
@@ -109,8 +124,8 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 
 		RHIDevice->GetDevice()->CreateShaderResourceView(ShadowAtlasTextureCube, &srvDesc, &ShadowAtlasSRVCube);
 
-		// 3.3. 각 면(Face)에 대한 DSV 생성 (Pass 1 렌더링용)
-		ShadowCubeFaceDSVs.SetNum(CubeArrayCount * 6);
+		// 3.3. 각 면(Face)에 대한 RTV 생성 (Pass 1 렌더링용)
+		ShadowCubeFaceRTVs.SetNum(CubeArrayCount * 6);
 		ShadowCubeFaceSRVs.SetNum(CubeArrayCount * 6);
 		for (uint32 SliceIndex = 0; SliceIndex < CubeArrayCount; ++SliceIndex)
 		{
@@ -118,19 +133,19 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 			{
 				uint32 Index = (SliceIndex * 6) + FaceIndex;
 				
-				// DSV 생성
-				D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-				dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-				dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
-				dsvDesc.Texture2DArray.MipSlice = 0;
-				dsvDesc.Texture2DArray.FirstArraySlice = Index;
-				dsvDesc.Texture2DArray.ArraySize = 1; // 각 DSV는 1개의 면만 참조
+				// RTV 생성
+				D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+				rtvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+				rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+				rtvDesc.Texture2DArray.MipSlice = 0;
+				rtvDesc.Texture2DArray.FirstArraySlice = Index;
+				rtvDesc.Texture2DArray.ArraySize = 1; // 각 RTV는 1개의 면만 참조
 
-				RHIDevice->GetDevice()->CreateDepthStencilView(ShadowAtlasTextureCube, &dsvDesc, &ShadowCubeFaceDSVs[Index]);
+				RHIDevice->GetDevice()->CreateRenderTargetView(ShadowAtlasTextureCube, &rtvDesc, &ShadowCubeFaceRTVs[Index]);
 				
 				// SRV 생성 (각 면을 2D 텍스처로 읽을 수 있도록)
 				D3D11_SHADER_RESOURCE_VIEW_DESC srvFaceDesc = {};
-				srvFaceDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				srvFaceDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
 				srvFaceDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
 				srvFaceDesc.Texture2DArray.MostDetailedMip = 0;
 				srvFaceDesc.Texture2DArray.MipLevels = 1;
@@ -140,65 +155,25 @@ void FLightManager::Initialize(D3D11RHI* RHIDevice)
 				RHIDevice->GetDevice()->CreateShaderResourceView(ShadowAtlasTextureCube, &srvFaceDesc, &ShadowCubeFaceSRVs[Index]);
 			}
 		}
-	}
 
-	if (!VSMShadowAtlasSRV2D)
-	{
-		D3D11_TEXTURE2D_DESC VSMDesc = {};
-		VSMDesc.Width = ShadowAtlasSize2D;
-		VSMDesc.Height = ShadowAtlasSize2D;
-		VSMDesc.MipLevels = 1;
-		VSMDesc.ArraySize = 1;
-		VSMDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-		VSMDesc.SampleDesc.Count = 1;
-		VSMDesc.SampleDesc.Quality = 0;
-		VSMDesc.Usage = D3D11_USAGE_DEFAULT;
-		VSMDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		// 3.4. Depth Buffer 생성 (Cube용)
+		D3D11_TEXTURE2D_DESC DepthDesc = {};
+		DepthDesc.Width = AtlasSizeCube;
+		DepthDesc.Height = AtlasSizeCube;
+		DepthDesc.MipLevels = 1;
+		DepthDesc.ArraySize = 1;
+		DepthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DepthDesc.SampleDesc.Count = 1;
+		DepthDesc.Usage = D3D11_USAGE_DEFAULT;
+		DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
-		HRESULT hr = RHIDevice->GetDevice()->CreateTexture2D(&VSMDesc, nullptr, &VSMShadowAtlasTexture2D);
-		if (FAILED(hr))
+		HRESULT hr = RHIDevice->GetDevice()->CreateTexture2D(&DepthDesc, nullptr, &ShadowDepthTextureCube);
+		if (SUCCEEDED(hr))
 		{
-			UE_LOG("FLightManager::Initialize: CreateTexture2D for VSMShadowAtlas2D failed!");
-			// 실패 시 리소스들을 nullptr로 안전하게 처리
-			VSMShadowAtlasTexture2D = nullptr;
-			VSMShadowAtlasRTV2D = nullptr;
-			VSMShadowAtlasSRV2D = nullptr;
-			return; // 혹은 적절한 오류 처리
-		}
-
-		D3D11_RENDER_TARGET_VIEW_DESC RTVDesc = {};
-		RTVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-		RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		RTVDesc.Texture2D.MipSlice = 0;
-
-		hr = RHIDevice->GetDevice()->CreateRenderTargetView(VSMShadowAtlasTexture2D, &RTVDesc, &VSMShadowAtlasRTV2D);
-		if (FAILED(hr))
-		{
-			UE_LOG("FLightManager::Initialize: CreateTexture2D for VSMShadowAtlasRTV2D failed!");
-			// 실패 시 리소스들을 nullptr로 안전하게 처리
-			VSMShadowAtlasTexture2D = nullptr;
-			VSMShadowAtlasRTV2D = nullptr;
-			VSMShadowAtlasSRV2D = nullptr;
-			return; // 혹은 적절한 오류 처리
-		}
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-		SRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		SRVDesc.Texture2D.MostDetailedMip = 0;
-		SRVDesc.Texture2D.MipLevels = 1;
-
-		hr = RHIDevice->GetDevice()->CreateShaderResourceView(VSMShadowAtlasTexture2D, &SRVDesc, &VSMShadowAtlasSRV2D);
-		if (FAILED(hr))
-		{
-			UE_LOG("FLightManager::Initialize: CreateTexture2D for VSMShadowAtlasSRV2D failed!");
-			// 실패 시 리소스들을 nullptr로 안전하게 처리
-			VSMShadowAtlasTexture2D = nullptr;
-			VSMShadowAtlasRTV2D = nullptr;
-			VSMShadowAtlasSRV2D = nullptr;
-			return; // 혹은 적절한 오류 처리
+			RHIDevice->GetDevice()->CreateDepthStencilView(ShadowDepthTextureCube, nullptr, &ShadowDepthDSVCube);
 		}
 	}
+
 }
 
 void FLightManager::Release()
@@ -227,38 +202,26 @@ void FLightManager::Release()
 	
 	// 2D Atlas Release
 	if (ShadowAtlasSRV2D) { ShadowAtlasSRV2D->Release(); ShadowAtlasSRV2D = nullptr; }
-	if (ShadowAtlasDSV2D) { ShadowAtlasDSV2D->Release(); ShadowAtlasDSV2D = nullptr; }
+	if (ShadowAtlasRTV2D) { ShadowAtlasRTV2D->Release(); ShadowAtlasRTV2D = nullptr; }
 	if (ShadowAtlasTexture2D) { ShadowAtlasTexture2D->Release(); ShadowAtlasTexture2D = nullptr; }
+	if (ShadowDepthDSV2D) { ShadowDepthDSV2D->Release(); ShadowDepthDSV2D = nullptr; }
+	if (ShadowDepthTexture2D) { ShadowDepthTexture2D->Release(); ShadowDepthTexture2D = nullptr; }
 
 	// Cube Atlas Release
 	if (ShadowAtlasSRVCube) { ShadowAtlasSRVCube->Release(); ShadowAtlasSRVCube = nullptr; }
-	for (auto* dsv : ShadowCubeFaceDSVs)
+	for (auto* rtv : ShadowCubeFaceRTVs)
 	{
-		if (dsv) dsv->Release();
+		if (rtv) rtv->Release();
 	}
-	ShadowCubeFaceDSVs.clear();
+	ShadowCubeFaceRTVs.clear();
 	for (auto* srv : ShadowCubeFaceSRVs)
 	{
 		if (srv) srv->Release();
 	}
 	ShadowCubeFaceSRVs.clear();
 	if (ShadowAtlasTextureCube) { ShadowAtlasTextureCube->Release(); ShadowAtlasTextureCube = nullptr; }
-
-	if (VSMShadowAtlasRTV2D)
-	{
-		VSMShadowAtlasRTV2D->Release();
-		VSMShadowAtlasRTV2D = nullptr;
-	}
-	if (VSMShadowAtlasSRV2D)
-	{
-		VSMShadowAtlasSRV2D->Release();
-		VSMShadowAtlasSRV2D = nullptr;
-	}
-	if (VSMShadowAtlasTexture2D)
-	{
-		VSMShadowAtlasTexture2D->Release();
-		VSMShadowAtlasTexture2D = nullptr;
-	}
+	if (ShadowDepthDSVCube) { ShadowDepthDSVCube->Release(); ShadowDepthDSVCube = nullptr; }
+	if (ShadowDepthTextureCube) { ShadowDepthTextureCube->Release(); ShadowDepthTextureCube = nullptr; }
 }
 
 void FLightManager::UpdateLightBuffer(D3D11RHI* RHIDevice)
@@ -366,11 +329,6 @@ void FLightManager::UpdateLightBuffer(D3D11RHI* RHIDevice)
 		RHIDevice->GetDeviceContext()->PSSetShaderResources(9, 1, &ShadowAtlasSRV2D);
 	}
 
-	if (VSMShadowAtlasSRV2D)
-	{
-		RHIDevice->GetDeviceContext()->PSSetShaderResources(10, 1, &VSMShadowAtlasSRV2D);
-	}
-
 	// 7.2. 라이트 버퍼 (t3, t4)
 	ID3D11ShaderResourceView* LightSRVs[2] = { PointLightBufferSRV, SpotLightBufferSRV };
 	RHIDevice->GetDeviceContext()->PSSetShaderResources(3, 2, LightSRVs);
@@ -422,12 +380,12 @@ void FLightManager::SetShadowCubeMapData(ULightComponent* Light, int32 SliceInde
 	bHaveToUpdate = true;
 }
 
-ID3D11DepthStencilView* FLightManager::GetShadowCubeFaceDSV(UINT SliceIndex, UINT FaceIndex) const
+ID3D11RenderTargetView* FLightManager::GetShadowCubeFaceRTV(UINT SliceIndex, UINT FaceIndex) const
 {
 	UINT Index = (SliceIndex * 6) + FaceIndex;
-	if (Index < ShadowCubeFaceDSVs.Num())
+	if (Index < ShadowCubeFaceRTVs.Num())
 	{
-		return ShadowCubeFaceDSVs[Index];
+		return ShadowCubeFaceRTVs[Index];
 	}
 	return nullptr;
 }
@@ -442,20 +400,22 @@ ID3D11ShaderResourceView* FLightManager::GetShadowCubeFaceSRV(UINT SliceIndex, U
 	return nullptr;
 }
 
-void FLightManager::ClearAllDepthStencilView(D3D11RHI* RHIDevice)
+void FLightManager::ClearAllRenderTargetView(D3D11RHI* RHIDevice)
 {
-	ID3D11DepthStencilView* AtlasDSV2D = GetShadowAtlasDSV2D();
-	if (AtlasDSV2D)
+	float ClearColor[4] = { 1.0f, 1.0f, 0.0f, 0.0f }; // R=depth, G=depth^2 초기값
+	
+	ID3D11RenderTargetView* AtlasRTV2D = GetShadowAtlasRTV2D();
+	if (AtlasRTV2D)
 	{
-		RHIDevice->GetDeviceContext()->ClearDepthStencilView(AtlasDSV2D, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
+		RHIDevice->GetDeviceContext()->ClearRenderTargetView(AtlasRTV2D, ClearColor);
 	}
 
-	// NOTE: 추후 CubeArrayMasterDSV 로 한번에 clear 하도록 교체
-	for (ID3D11DepthStencilView* faceDSV : ShadowCubeFaceDSVs)
+	// 모든 큐브맵 면 클리어
+	for (ID3D11RenderTargetView* faceRTV : ShadowCubeFaceRTVs)
 	{
-		if (faceDSV)
+		if (faceRTV)
 		{
-			RHIDevice->GetDeviceContext()->ClearDepthStencilView(faceDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+			RHIDevice->GetDeviceContext()->ClearRenderTargetView(faceRTV, ClearColor);
 		}
 	}
 	

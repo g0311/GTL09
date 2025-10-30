@@ -27,7 +27,8 @@ struct FShadowMapData // 112 bytes
     FVector4 AtlasScaleOffset; // 16
     FVector WorldPosition; // 12
     int32 SampleCount; // 4
-    float Padding[4]; //16
+    float Radius; // 4
+    float Padding[3]; //12
 };
 
 struct FShadowRenderRequest
@@ -127,24 +128,25 @@ public:
     void SetDirtyFlag();
     
 
-    // --- 섀도우 데이터 수신 함수 (FSceneRenderer가 호출) ---
-    void SetShadowMapData(ULightComponent* Light, int32 SubViewIndex, const FShadowMapData& Data);
-    void SetShadowCubeMapData(ULightComponent* Light, int32 SliceIndex);
+	// --- 섀도우 데이터 수신 함수 (FSceneRenderer가 호출) ---
+	void SetShadowMapData(ULightComponent* Light, int32 SubViewIndex, const FShadowMapData& Data);
+	void SetShadowCubeMapData(ULightComponent* Light, int32 SliceIndex);
 
-    // --- 섀도우 리소스 접근자 (FSceneRenderer가 사용) ---
-    ID3D11DepthStencilView* GetShadowAtlasDSV2D() const { return ShadowAtlasDSV2D; }
-    ID3D11ShaderResourceView* GetShadowAtlasSRV2D() const { return ShadowAtlasSRV2D; }
-    float GetShadowAtlasSize2D() const { return ShadowAtlasSize2D; }
-    uint32 GetShadowCubeArraySize() const { return AtlasSizeCube; }
-    uint32 GetShadowCubeArrayCount() const { return CubeArrayCount; }
-    ID3D11DepthStencilView* GetShadowCubeFaceDSV(UINT SliceIndex, UINT FaceIndex) const; // (구현 필요)
-    bool GetCachedShadowData(ULightComponent* Light, int32 SubViewIndex, FShadowMapData& OutData) const;
-    bool GetCachedShadowCubeSliceIndex(ULightComponent* Light, int32& OutSliceIndex) const;
-    ID3D11ShaderResourceView* GetShadowAtlasSRVCube() const { return ShadowAtlasSRVCube; }
-    ID3D11ShaderResourceView* GetShadowCubeFaceSRV(UINT SliceIndex, UINT FaceIndex) const; // Cube의 각 면을 2D SRV로 반환
+	// --- 섀도우 리소스 접근자 (FSceneRenderer가 사용) ---
+	ID3D11RenderTargetView* GetShadowAtlasRTV2D() const { return ShadowAtlasRTV2D; }
+	ID3D11ShaderResourceView* GetShadowAtlasSRV2D() const { return ShadowAtlasSRV2D; }
+	ID3D11DepthStencilView* GetShadowDepthDSV2D() const { return ShadowDepthDSV2D; }
+	ID3D11DepthStencilView* GetShadowDepthDSVCube() const { return ShadowDepthDSVCube; }
+	float GetShadowAtlasSize2D() const { return ShadowAtlasSize2D; }
+	uint32 GetShadowCubeArraySize() const { return AtlasSizeCube; }
+	uint32 GetShadowCubeArrayCount() const { return CubeArrayCount; }
+	ID3D11RenderTargetView* GetShadowCubeFaceRTV(UINT SliceIndex, UINT FaceIndex) const;
+	bool GetCachedShadowData(ULightComponent* Light, int32 SubViewIndex, FShadowMapData& OutData) const;
+	bool GetCachedShadowCubeSliceIndex(ULightComponent* Light, int32& OutSliceIndex) const;
+	ID3D11ShaderResourceView* GetShadowAtlasSRVCube() const { return ShadowAtlasSRVCube; }
+	ID3D11ShaderResourceView* GetShadowCubeFaceSRV(UINT SliceIndex, UINT FaceIndex) const; // Cube의 각 면을 2D SRV로 반환
 
-    void ClearAllDepthStencilView(D3D11RHI* RHIDevice);
-    ID3D11RenderTargetView* GetVSMShadowAtlasRTV2D() const { return VSMShadowAtlasRTV2D; }
+	void ClearAllRenderTargetView(D3D11RHI* RHIDevice);
 
     void AllocateAtlasRegions2D(TArray<FShadowRenderRequest>& InOutRequests2D);
     void AllocateAtlasCubeSlices(TArray<FShadowRenderRequest>& InOutRequestsCube);
@@ -172,27 +174,25 @@ private:
     bool bSpotLightDirty = true;
     bool bShadowDataDirty = true;
 
-    // --- 섀도우 리소스 ---
-    // Atlas 1: 2D 아틀라스 (Spot/Dir용)
-    ID3D11Texture2D* ShadowAtlasTexture2D = nullptr;
-    ID3D11DepthStencilView* ShadowAtlasDSV2D = nullptr;
-    ID3D11ShaderResourceView* ShadowAtlasSRV2D = nullptr; // t9
-    uint32 ShadowAtlasSize2D = 8192;
+	// --- 섀도우 리소스 ---
+	// Atlas 1: 2D 아틀라스 (Spot/Dir용) - RTV만 사용
+	ID3D11Texture2D* ShadowAtlasTexture2D = nullptr;
+	ID3D11RenderTargetView* ShadowAtlasRTV2D = nullptr;
+	ID3D11ShaderResourceView* ShadowAtlasSRV2D = nullptr; // t9
+	ID3D11Texture2D* ShadowDepthTexture2D = nullptr;
+	ID3D11DepthStencilView* ShadowDepthDSV2D = nullptr;
+	uint32 ShadowAtlasSize2D = 8192;
 
-    // Atlas 2: 큐브맵 아틀라스 (Point Light용)
-    ID3D11Texture2D* ShadowAtlasTextureCube = nullptr; // TextureCubeArray 리소스
-    ID3D11ShaderResourceView* ShadowAtlasSRVCube = nullptr; // t8
-    // 큐브맵의 각 면(Slice*6)에 대한 DSV 배열
-    TArray<ID3D11DepthStencilView*> ShadowCubeFaceDSVs;
-    // 큐브맵의 각 면을 2D 텍스처로 읽을 수 있는 SRV 배열 (UI 표시용)
-    TArray<ID3D11ShaderResourceView*> ShadowCubeFaceSRVs;
-    uint32 AtlasSizeCube = 1024;
-    uint32 CubeArrayCount = 8;
+	// Atlas 2: 큐브맵 아틀라스 (Point Light용) - RTV만 사용
+	ID3D11Texture2D* ShadowAtlasTextureCube = nullptr; // TextureCubeArray 리소스
+	ID3D11ShaderResourceView* ShadowAtlasSRVCube = nullptr; // t8
+	TArray<ID3D11RenderTargetView*> ShadowCubeFaceRTVs;
+	TArray<ID3D11ShaderResourceView*> ShadowCubeFaceSRVs;
+	ID3D11Texture2D* ShadowDepthTextureCube = nullptr;
+	ID3D11DepthStencilView* ShadowDepthDSVCube = nullptr;
+	uint32 AtlasSizeCube = 1024;
+	uint32 CubeArrayCount = 8;
 
-    // Atlas 3: VSM 용 2D 아틀라스 (일단 Spot에만 적용)
-    ID3D11Texture2D* VSMShadowAtlasTexture2D = nullptr;
-    ID3D11RenderTargetView* VSMShadowAtlasRTV2D = nullptr;
-    ID3D11ShaderResourceView* VSMShadowAtlasSRV2D = nullptr; // t10
 
     // --- 섀도우 데이터 캐시 (CPU) ---
     // Key: 라이트, Value: 2D 섀도우 데이터 배열 (CSM의 경우 여러 개)

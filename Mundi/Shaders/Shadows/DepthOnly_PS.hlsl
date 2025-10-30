@@ -15,10 +15,22 @@ struct PS_INPUT
 
 float2 mainPS(PS_INPUT Input) : SV_TARGET
 {
-    float3 LightWorldPosition = float3(InverseViewMatrix[0][0], InverseViewMatrix[0][1], InverseViewMatrix[0][2]);
     float LightRadius = InverseViewMatrix[0][3];
-    float Distance = length(Input.WorldPosition - LightWorldPosition);
-    float NormalizedDepth = saturate(Distance / LightRadius);
+    float NormalizedDepth;
+    
+    // Directional Light (Radius == -1): NDC Z 사용 (Orthographic은 선형)
+    if (LightRadius < 0.0f)
+    {
+        NormalizedDepth = Input.Position.z;
+    }
+    else // Point/Spot Light: World Space Distance
+    {
+        float3 LightPos = InverseViewMatrix[0].xyz;
+        float distance = length(Input.WorldPosition - LightPos);
+        NormalizedDepth = saturate(distance / LightRadius);
+    }
+    
+    // VSM을 위한 moments 계산
     float Moment1 = NormalizedDepth;
     float Moment2 = NormalizedDepth * NormalizedDepth;
 

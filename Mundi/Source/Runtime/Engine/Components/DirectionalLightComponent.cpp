@@ -56,9 +56,19 @@ void UDirectionalLightComponent::GetShadowRenderRequests(FSceneView* View, TArra
 		ShadowRenderRequest.LightOwner = this;
 		ShadowRenderRequest.ViewMatrix = ShadowMapView;
 		ShadowRenderRequest.ProjectionMatrix = ShadowMapOrtho;
+		// AABB 중심을 라이트 뷰 공간에서 월드 공간으로 변환
+		FVector AABBCenter = CameraFrustumAABB.GetCenter();
+		FMatrix InvView = ShadowMapView.InverseAffine();
+		ShadowRenderRequest.WorldLocation = FVector(
+			AABBCenter.X * InvView.VRows[0].X + AABBCenter.Y * InvView.VRows[1].X + AABBCenter.Z * InvView.VRows[2].X + InvView.VRows[3].X,
+			AABBCenter.X * InvView.VRows[0].Y + AABBCenter.Y * InvView.VRows[1].Y + AABBCenter.Z * InvView.VRows[2].Y + InvView.VRows[3].Y,
+			AABBCenter.X * InvView.VRows[0].Z + AABBCenter.Y * InvView.VRows[1].Z + AABBCenter.Z * InvView.VRows[2].Z + InvView.VRows[3].Z
+		);
+		ShadowRenderRequest.Radius = -1.0f; // Directional Light 표시
 		ShadowRenderRequest.Size = ShadowResolutionScale;
 		ShadowRenderRequest.SubViewIndex = 0;
 		ShadowRenderRequest.AtlasScaleOffset = 0;
+		ShadowRenderRequest.SampleCount = 4; // PCF 샘플 카운트
 		OutRequests.Add(ShadowRenderRequest);
 	}
 	else 
@@ -87,9 +97,19 @@ void UDirectionalLightComponent::GetShadowRenderRequests(FSceneView* View, TArra
 			ShadowRenderRequest.LightOwner = this;
 			ShadowRenderRequest.ViewMatrix = ShadowMapView;
 			ShadowRenderRequest.ProjectionMatrix = ShadowMapOrtho;
+			// AABB 중심을 라이트 뷰 공간에서 월드 공간으로 변환
+			FVector AABBCenter = CameraFrustumAABB.GetCenter();
+			FMatrix InvView = ShadowMapView.InverseAffine();
+			ShadowRenderRequest.WorldLocation = FVector(
+				AABBCenter.X * InvView.VRows[0].X + AABBCenter.Y * InvView.VRows[1].X + AABBCenter.Z * InvView.VRows[2].X + InvView.VRows[3].X,
+				AABBCenter.X * InvView.VRows[0].Y + AABBCenter.Y * InvView.VRows[1].Y + AABBCenter.Z * InvView.VRows[2].Y + InvView.VRows[3].Y,
+				AABBCenter.X * InvView.VRows[0].Z + AABBCenter.Y * InvView.VRows[1].Z + AABBCenter.Z * InvView.VRows[2].Z + InvView.VRows[3].Z
+			);
+			ShadowRenderRequest.Radius = -1.0f; // Directional Light 표시
 			ShadowRenderRequest.Size = ShadowResolutionScale;
 			ShadowRenderRequest.SubViewIndex = i;
 			ShadowRenderRequest.AtlasScaleOffset = 0;
+			ShadowRenderRequest.SampleCount = 4; // PCF 샘플 카운트
 			OutRequests.Add(ShadowRenderRequest);
 		}
 	}

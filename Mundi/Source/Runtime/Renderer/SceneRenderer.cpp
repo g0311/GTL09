@@ -288,7 +288,7 @@ void FSceneRenderer::RenderShadowMaps()
 	// SF_Shadows와 관련 없이 IsOverrideCameraLightPerspective 를 사용하기 위해서 밑에서 처리
 	if (!World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Shadows))
 	{
-		LightManager->ClearAllDepthStencilView(RHIDevice);
+		LightManager->ClearAllRenderTargetView(RHIDevice);
 		return;
 	}
 
@@ -297,39 +297,22 @@ void FSceneRenderer::RenderShadowMaps()
 	// 2.2. 큐브맵 슬라이스 할당 (Allocate only)
 	LightManager->AllocateAtlasCubeSlices(RequestsCube); // FLightManager가 RequestsCube의 AssignedSliceIndex와 Size 업데이트
 
-	// --- 1단계: 2D 아틀라스 렌더링 (Spot + Directional) ---
+	// --- 1단계: 2D 아틀라스 렌더링 (Spot + Directional) - RTV만 사용 ---
 	{
-		ID3D11DepthStencilView* AtlasDSV2D = LightManager->GetShadowAtlasDSV2D();
-		ID3D11RenderTargetView* VSMAtlasRTV2D = LightManager->GetVSMShadowAtlasRTV2D();
+		ID3D11RenderTargetView* AtlasRTV2D = LightManager->GetShadowAtlasRTV2D();
 		float AtlasTotalSize2D = (float)LightManager->GetShadowAtlasSize2D();
-		ID3D11DepthStencilView* DefaultDSV = RHIDevice->GetSceneDSV();
-		if (AtlasDSV2D && AtlasTotalSize2D > 0)
+		if (AtlasRTV2D && AtlasTotalSize2D > 0)
 		{
-			ID3D11ShaderResourceView* NullSRV[2] = { nullptr, nullptr };
-			RHIDevice->GetDeviceContext()->PSSetShaderResources(9, 2, NullSRV);
+			ID3D11ShaderResourceView* NullSRV[1] = { nullptr };
+			RHIDevice->GetDeviceContext()->PSSetShaderResources(9, 1, NullSRV);
 			
-			float ClearColor[] = {1.0f, 1.0f, 0.0f, 0.0f};
-			EShadowAATechnique ShadowAAType = GWorld->GetRenderSettings().GetShadowAATechnique();
-			switch (ShadowAAType)
-			{
-			case EShadowAATechnique::PCF:
-				RHIDevice->OMSetCustomRenderTargets(0, nullptr, AtlasDSV2D);
-				break;
-			case EShadowAATechnique::VSM:
-				{
-					RHIDevice->OMSetCustomRenderTargets(1, &VSMAtlasRTV2D, AtlasDSV2D);
-					RHIDevice->GetDeviceContext()->ClearRenderTargetView(VSMAtlasRTV2D, ClearColor);
-					break;
-				}				
-			default:
-				RHIDevice->OMSetCustomRenderTargets(0, nullptr, AtlasDSV2D);
-				break;
-			}
-
-			RHIDevice->GetDeviceContext()->ClearDepthStencilView(AtlasDSV2D, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
+			ID3D11DepthStencilView* DSV2D = LightManager->GetShadowDepthDSV2D();
+			float ClearColor[] = {1.0f, 1.0f, 0.0f, 0.0f}; // R=depth, G=depth^2
+			RHIDevice->OMSetCustomRenderTargets(1, &AtlasRTV2D, DSV2D);
+			RHIDevice->GetDeviceContext()->ClearRenderTargetView(AtlasRTV2D, ClearColor);
+			if (DSV2D) RHIDevice->GetDeviceContext()->ClearDepthStencilView(DSV2D, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 			RHIDevice->RSSetState(ERasterizerMode::Shadows);
-			RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
 
 			for (FShadowRenderRequest& Request : Requests2D)
 			{
@@ -346,13 +329,14 @@ void FSceneRenderer::RenderShadowMaps()
 					Data.ShadowViewProjMatrix = Request.ViewMatrix * Request.ProjectionMatrix * BiasMatrix;
 					Data.SampleCount = Request.SampleCount;
 					Data.AtlasScaleOffset = Request.AtlasScaleOffset;
+					Data.WorldPosition = Request.WorldLocation;
+					Data.Radius = Request.Radius;
 				}
 				// 렌더링 실패 시(Size==0) 빈 데이터(기본값) 전달
 				LightManager->SetShadowMapData(Request.LightOwner, Request.SubViewIndex, Data);
-				// vsm srv unbind
 			}
 			ID3D11RenderTargetView* NullRTV[1] = { nullptr };
-			RHIDevice->OMSetCustomRenderTargets(1, NullRTV, DefaultDSV);
+			RHIDevice->OMSetCustomRenderTargets(1, NullRTV, nullptr);
 		}
 	}
 
@@ -364,7 +348,6 @@ void FSceneRenderer::RenderShadowMaps()
 		{
 			// 2.1. RHI 상태 설정 (큐브맵)
 			RHIDevice->RSSetState(ERasterizerMode::Shadows);
-			RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual); // 상태 설정 추가
 
 			// 큐브맵은 항상 1:1 종횡비의 전체 뷰포트 사용
 			D3D11_VIEWPORT ShadowVP = { 0.0f, 0.0f, (float)AtlasSizeCube, (float)AtlasSizeCube, 0.0f, 1.0f };
@@ -390,12 +373,15 @@ void FSceneRenderer::RenderShadowMaps()
 				int32 SliceIndex = Request.AssignedSliceIndex;   // FLightManager가 할당한 값
 				int32 FaceIndex = Request.SubViewIndex; // 원본 면 인덱스
 
-				// 2.3. 면 렌더링 (기존 로직 유지)
-				ID3D11DepthStencilView* FaceDSV = LightManager->GetShadowCubeFaceDSV(SliceIndex, FaceIndex);
-				if (FaceDSV)
+			// 2.3. 면 렌더링 (RTV 사용)
+				ID3D11RenderTargetView* FaceRTV = LightManager->GetShadowCubeFaceRTV(SliceIndex, FaceIndex);
+				ID3D11DepthStencilView* DSVCube = LightManager->GetShadowDepthDSVCube();
+				if (FaceRTV)
 				{
-					RHIDevice->OMSetCustomRenderTargets(0, nullptr, FaceDSV);
-					RHIDevice->GetDeviceContext()->ClearDepthStencilView(FaceDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+					float ClearColor[] = {1.0f, 1.0f, 0.0f, 0.0f};
+					RHIDevice->OMSetCustomRenderTargets(1, &FaceRTV, DSVCube);
+					RHIDevice->GetDeviceContext()->ClearRenderTargetView(FaceRTV, ClearColor);
+					if (DSVCube) RHIDevice->GetDeviceContext()->ClearDepthStencilView(DSVCube, D3D11_CLEAR_DEPTH, 1.0f, 0);
 					RenderShadowDepthPass(Request, ShadowMeshBatches);
 				}
 			}
@@ -420,33 +406,19 @@ void FSceneRenderer::RenderShadowDepthPass(FShadowRenderRequest& ShadowRequest, 
 	UShader* DepthVS = UResourceManager::GetInstance().Load<UShader>("Shaders/Shadows/DepthOnly_VS.hlsl");
 	if (!DepthVS || !DepthVS->GetVertexShader()) return;
 
-	FShaderVariant* ShaderVariant = DepthVS->GetOrCompileShaderVariant(RHIDevice->GetDevice());
-	if (!ShaderVariant) return;
+	FShaderVariant* ShaderVariantVS = DepthVS->GetOrCompileShaderVariant(RHIDevice->GetDevice());
+	if (!ShaderVariantVS) return;
 
-	// vsm용 픽셀 셰이더
-	UShader* DepthPs = UResourceManager::GetInstance().Load<UShader>("Shaders/Shadows/DepthOnly_PS.hlsl");
-	if (!DepthPs || !DepthPs->GetPixelShader()) return;
+	UShader* DepthPS = UResourceManager::GetInstance().Load<UShader>("Shaders/Shadows/DepthOnly_PS.hlsl");
+	if (!DepthPS || !DepthPS->GetPixelShader()) return;
 
-	FShaderVariant* ShaderVarianVSM = DepthPs->GetOrCompileShaderVariant(RHIDevice->GetDevice());
-	if (!ShaderVarianVSM) return;
+	FShaderVariant* ShaderVariantPS = DepthPS->GetOrCompileShaderVariant(RHIDevice->GetDevice());
+	if (!ShaderVariantPS) return;
 
-	// 2. 파이프라인 설정
-	RHIDevice->GetDeviceContext()->IASetInputLayout(ShaderVariant->InputLayout);
-	RHIDevice->GetDeviceContext()->VSSetShader(ShaderVariant->VertexShader, nullptr, 0);
-	
-	EShadowAATechnique ShadowAAType = GWorld->GetRenderSettings().GetShadowAATechnique();
-	switch (ShadowAAType)
-	{
-	case EShadowAATechnique::PCF:
-		RHIDevice->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
-		break;
-	case EShadowAATechnique::VSM:
-		RHIDevice->GetDeviceContext()->PSSetShader(ShaderVarianVSM->PixelShader, nullptr, 0);
-		break;
-	default:
-		RHIDevice->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
-		break;
-	}	
+	// 2. 파이프라인 설정 (RTV를 위해 항상 PS 필요)
+	RHIDevice->GetDeviceContext()->IASetInputLayout(ShaderVariantVS->InputLayout);
+	RHIDevice->GetDeviceContext()->VSSetShader(ShaderVariantVS->VertexShader, nullptr, 0);
+	RHIDevice->GetDeviceContext()->PSSetShader(ShaderVariantPS->PixelShader, nullptr, 0);
 
 	// 3. 라이트의 View-Projection 행렬을 메인 ViewProj 버퍼에 설정
 	FMatrix WorldLocation = {};

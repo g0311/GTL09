@@ -16,7 +16,8 @@ struct FShadowMapData
     float4 AtlasScaleOffset;
     float3 WorldPos;
     int SampleCount;
-    float4 Padding;
+    float Radius;
+    float3 Padding;
 };
 
 struct FAmbientLightInfo
