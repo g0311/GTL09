@@ -317,7 +317,7 @@ float SampleShadowCube_VSM(float PixelDepth, float3 CubemapDir, uint LightIndex,
 // Spot Light Shadow (PCF)
 //================================================================================================
 float CalculateSpotLightShadowFactor(
-    float3 WorldPos, FShadowMapData ShadowMapData, Texture2D<float2> ShadowMap, SamplerState ShadowSampler)
+    float3 WorldPos, float3 Normal, float3 LightDir, FShadowMapData ShadowMapData, Texture2D<float2> ShadowMap, SamplerState ShadowSampler)
 {
     float4 ShadowTexCoord = mul(float4(WorldPos, 1.0f), ShadowMapData.ShadowViewProjMatrix);
     ShadowTexCoord.xyz /= ShadowTexCoord.w;
@@ -329,11 +329,17 @@ float CalculateSpotLightShadowFactor(
         
         // World space distance 기반 깊이
         float distance = length(WorldPos - ShadowMapData.WorldPos);
-        float PixelDepth = saturate(distance / ShadowMapData.Radius) - 0.001f;
+        
+        // Slope-based bias: 표면이 빛과 평행할수록 bias 증가
+        float NdotL = saturate(dot(Normal, LightDir));
+        float slopeBias = ShadowMapData.ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+        float totalBias = ShadowMapData.ShadowBias + slopeBias;
+        
+        float PixelDepth = saturate(distance / ShadowMapData.Radius) - totalBias;
         
         float Width, Height;
         ShadowMap.GetDimensions(Width, Height);
-        float2 FilterRadiusUV = 1.5f / float2(Width, Height);
+        float2 FilterRadiusUV = (1.5f / ShadowMapData.ShadowSharpen) / float2(Width, Height);
         
         return SampleShadow2D_PCF(PixelDepth, AtlasUV, ShadowMapData.SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
     }
@@ -345,7 +351,7 @@ float CalculateSpotLightShadowFactor(
 // Spot Light Shadow (VSM)
 //================================================================================================
 float CalculateSpotLightShadowFactorVSM(
-    float3 WorldPos, FShadowMapData ShadowMapData, Texture2D<float2> VShadowMap, SamplerState ShadowSampler)
+    float3 WorldPos, float3 Normal, float3 LightDir, FShadowMapData ShadowMapData, Texture2D<float2> VShadowMap, SamplerState ShadowSampler)
 {
     float4 ShadowTexCoord = mul(float4(WorldPos, 1.0f), ShadowMapData.ShadowViewProjMatrix);
     ShadowTexCoord.xyz /= ShadowTexCoord.w;
@@ -357,7 +363,13 @@ float CalculateSpotLightShadowFactorVSM(
         
         // World space distance 기반 깊이
         float distance = length(WorldPos - ShadowMapData.WorldPos);
-        float PixelDepth = saturate(distance / ShadowMapData.Radius) - 0.001f;
+        
+        // Slope-based bias
+        float NdotL = saturate(dot(Normal, LightDir));
+        float slopeBias = ShadowMapData.ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+        float totalBias = ShadowMapData.ShadowBias + slopeBias;
+        
+        float PixelDepth = saturate(distance / ShadowMapData.Radius) - totalBias;
         
         return SampleShadow2D_VSM(PixelDepth, AtlasUV, VShadowMap, ShadowSampler);
     }
@@ -369,19 +381,27 @@ float CalculateSpotLightShadowFactorVSM(
 // Point Light Shadow (PCF)
 //================================================================================================
 float CalculatePointLightShadowFactor(
-    float3 WorldPos, float3 LightPos, float FarPlane, uint LightIndex, int SampleCount,
+    float3 WorldPos, float3 Normal, float3 LightPos, float FarPlane, uint LightIndex, int SampleCount,
+    float ShadowBias, float ShadowSlopeBias, float ShadowSharpen,
     TextureCubeArray<float2> ShadowMapCube, SamplerState ShadowSampler)
 {
     float3 lightToPixel = WorldPos - LightPos;
     float distance = length(lightToPixel);
-    float PixelDepth = saturate(distance / FarPlane) - 0.001f;
+    float3 lightDir = lightToPixel / max(distance, 0.0001f);
+    
+    // Slope-based bias
+    float NdotL = saturate(dot(Normal, -lightDir));
+    float slopeBias = ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+    float totalBias = ShadowBias + slopeBias;
+    
+    float PixelDepth = saturate(distance / FarPlane) - totalBias;
     
     // 좌표계 변환
     float3 cubemapDir = float3(lightToPixel.y, lightToPixel.z, lightToPixel.x);
     
     float Width, Height, Elements;
     ShadowMapCube.GetDimensions(Width, Height, Elements);
-    float filterRadiusTexel = 1.5f / Width;
+    float filterRadiusTexel = (1.5f / ShadowSharpen) / Width;
     
     return SampleShadowCube_PCF(PixelDepth, cubemapDir, LightIndex, SampleCount, filterRadiusTexel, ShadowMapCube, ShadowSampler);
 }
@@ -390,12 +410,20 @@ float CalculatePointLightShadowFactor(
 // Point Light Shadow (VSM)
 //================================================================================================
 float CalculatePointLightShadowFactorVSM(
-    float3 WorldPos, float3 LightPos, float FarPlane, uint LightIndex,
+    float3 WorldPos, float3 Normal, float3 LightPos, float FarPlane, uint LightIndex,
+    float ShadowBias, float ShadowSlopeBias, float ShadowSharpen,
     TextureCubeArray<float2> ShadowMapCube, SamplerState ShadowSampler)
 {
     float3 lightToPixel = WorldPos - LightPos;
     float distance = length(lightToPixel);
-    float PixelDepth = saturate(distance / FarPlane) - 0.001f;
+    float3 lightDir = lightToPixel / max(distance, 0.0001f);
+    
+    // Slope-based bias
+    float NdotL = saturate(dot(Normal, -lightDir));
+    float slopeBias = ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+    float totalBias = ShadowBias + slopeBias;
+    
+    float PixelDepth = saturate(distance / FarPlane) - totalBias;
     
     // 좌표계 변환
     float3 cubemapDir = float3(lightToPixel.y, lightToPixel.z, lightToPixel.x);
@@ -406,7 +434,7 @@ float CalculatePointLightShadowFactorVSM(
 //================================================================================================
 // Cascaded Shadow Maps (Directional Light) - PCF
 //================================================================================================
-float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, Texture2D<float2> ShadowMap, SamplerState ShadowSampler)
+float GetCascadedShadowAtt(float3 WorldPos, float3 Normal, float3 LightDir, float3 ViewPos, Texture2D<float2> ShadowMap, SamplerState ShadowSampler)
 {
     int CurIdx = 0;
     bool bNeedLerp = false;
@@ -429,9 +457,16 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, Texture2D<float2> Sh
         if (saturate(CurUV.x) == CurUV.x && saturate(CurUV.y) == CurUV.y)
         {
             float2 CurAtlasUV = CurUV.xy * DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.zw;
-            float PixelDepth = CurUV.z - 0.001f; // Orthographic projection Z는 이미 선형
             
-            return SampleShadow2D_PCF(PixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+            // Slope-based bias
+            float NdotL = saturate(dot(Normal, LightDir));
+            float slopeBias = DirectionalLight.Cascades[CurIdx].ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+            float totalBias = DirectionalLight.Cascades[CurIdx].ShadowBias + slopeBias;
+            
+            float PixelDepth = CurUV.z - totalBias;
+            
+            float2 sharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[CurIdx].ShadowSharpen;
+            return SampleShadow2D_PCF(PixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, sharpenedFilterRadius, ShadowMap, ShadowSampler);
         }
         return 0.0f;
     }
@@ -459,8 +494,15 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, Texture2D<float2> Sh
     // 현재 cascade shadow 샘플링
     float3 CurUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[CurIdx].ShadowViewProjMatrix).xyz;
     float2 CurAtlasUV = CurUV.xy * DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.zw;
-    float CurPixelDepth = CurUV.z - 0.001f;
-    float CurShadowFactor = SampleShadow2D_PCF(CurPixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+    
+    // Slope-based bias
+    float NdotL = saturate(dot(Normal, LightDir));
+    float slopeBias = DirectionalLight.Cascades[CurIdx].ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+    float totalBias = DirectionalLight.Cascades[CurIdx].ShadowBias + slopeBias;
+    
+    float CurPixelDepth = CurUV.z - totalBias;
+    float2 curSharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[CurIdx].ShadowSharpen;
+    float CurShadowFactor = SampleShadow2D_PCF(CurPixelDepth, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, curSharpenedFilterRadius, ShadowMap, ShadowSampler);
     
     // Cascade 블렌딩
     if (bNeedLerp)
@@ -468,8 +510,14 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, Texture2D<float2> Sh
         int PrevIdx = CurIdx - 1;
         float3 PrevUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[PrevIdx].ShadowViewProjMatrix).xyz;
         float2 PrevAtlasUV = PrevUV.xy * DirectionalLight.Cascades[PrevIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[PrevIdx].AtlasScaleOffset.zw;
-        float PrevPixelDepth = PrevUV.z - 0.001f;
-        float PrevShadowFactor = SampleShadow2D_PCF(PrevPixelDepth, PrevAtlasUV, DirectionalLight.Cascades[PrevIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+        
+        // Slope-based bias for previous cascade
+        float prevSlopeBias = DirectionalLight.Cascades[PrevIdx].ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+        float prevTotalBias = DirectionalLight.Cascades[PrevIdx].ShadowBias + prevSlopeBias;
+        
+        float PrevPixelDepth = PrevUV.z - prevTotalBias;
+        float2 prevSharpenedFilterRadius = FilterRadiusUV / DirectionalLight.Cascades[PrevIdx].ShadowSharpen;
+        float PrevShadowFactor = SampleShadow2D_PCF(PrevPixelDepth, PrevAtlasUV, DirectionalLight.Cascades[PrevIdx].SampleCount, prevSharpenedFilterRadius, ShadowMap, ShadowSampler);
         
         return lerp(PrevShadowFactor, CurShadowFactor, LerpValue);
     }
@@ -510,19 +558,25 @@ float3 CalculateDirectionalLight
         if (light.bCascaded)
         {
             // CSM은 PCF만 지원
-            shadowFactor = GetCascadedShadowAtt(WorldPos, ViewPos, ShadowMap, ShadowSampler);
+            shadowFactor = GetCascadedShadowAtt(WorldPos, normal, lightDir, ViewPos, ShadowMap, ShadowSampler);
         }
         else
         {
             // Non-cascaded directional light (orthographic projection)
             float3 ShadowUV = mul(float4(WorldPos, 1), light.Cascades[0].ShadowViewProjMatrix).xyz;
             float2 AtlasUV = ShadowUV.xy * light.Cascades[0].AtlasScaleOffset.xy + light.Cascades[0].AtlasScaleOffset.zw;
-            float PixelDepth = ShadowUV.z - 0.001f;
+            
+            // Slope-based bias
+            float NdotL = saturate(dot(normal, lightDir));
+            float slopeBias = light.Cascades[0].ShadowSlopeBias * sqrt(1.0f - NdotL * NdotL) / max(NdotL, 0.001f);
+            float totalBias = light.Cascades[0].ShadowBias + slopeBias;
+            
+            float PixelDepth = ShadowUV.z - totalBias;
             
 #if SHADOW_AA_TECHNIQUE == 1
             float Width, Height;
             ShadowMap.GetDimensions(Width, Height);
-            float2 FilterRadiusUV = 1.5f / float2(Width, Height);
+            float2 FilterRadiusUV = (1.5f / light.Cascades[0].ShadowSharpen) / float2(Width, Height);
             shadowFactor = SampleShadow2D_PCF(PixelDepth, AtlasUV, light.Cascades[0].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
 #elif SHADOW_AA_TECHNIQUE == 2
             shadowFactor = SampleShadow2D_VSM(PixelDepth, AtlasUV, VShadowMap, VShadowSampler);
@@ -585,11 +639,11 @@ float3 CalculateSpotLight(
     if (light.bCastShadows)
     {
 #if SHADOW_AA_TECHNIQUE == 1
-        float shadowFactor = CalculateSpotLightShadowFactor(worldPos, light.ShadowData, ShadowMap, ShadowSampler);
+        float shadowFactor = CalculateSpotLightShadowFactor(worldPos, normal, lightDir, light.ShadowData, ShadowMap, ShadowSampler);
         diffuse *= shadowFactor;
         specular *= shadowFactor;
 #elif SHADOW_AA_TECHNIQUE == 2
-        float shadowFactor = CalculateSpotLightShadowFactorVSM(worldPos, light.ShadowData, VShadowMap, VShadowSampler);
+        float shadowFactor = CalculateSpotLightShadowFactorVSM(worldPos, normal, lightDir, light.ShadowData, VShadowMap, VShadowSampler);
         diffuse *= shadowFactor;
         specular *= shadowFactor;
 #endif
@@ -639,13 +693,15 @@ float3 CalculatePointLight(
 #if SHADOW_AA_TECHNIQUE == 1
         int sampleCount = 4;
         float shadowFactor = CalculatePointLightShadowFactor(
-            worldPos, light.Position, light.AttenuationRadius, light.LightIndex, sampleCount,
+            worldPos, normal, light.Position, light.AttenuationRadius, light.LightIndex, sampleCount,
+            light.ShadowBias, light.ShadowSlopeBias, light.ShadowSharpen,
             ShadowMapCube, ShadowSampler);
         diffuse *= shadowFactor;
         specular *= shadowFactor;
 #elif SHADOW_AA_TECHNIQUE == 2
         float shadowFactor = CalculatePointLightShadowFactorVSM(
-            worldPos, light.Position, light.AttenuationRadius, light.LightIndex,
+            worldPos, normal, light.Position, light.AttenuationRadius, light.LightIndex,
+            light.ShadowBias, light.ShadowSlopeBias, light.ShadowSharpen,
             VShadowMapCube, VShadowSampler);
         diffuse *= shadowFactor;
         specular *= shadowFactor;

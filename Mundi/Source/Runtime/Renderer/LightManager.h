@@ -20,7 +20,7 @@ enum class ELightType
 // 1. Pass 1 -> Pass 2 데이터 전달용 CPU 구조체
 // -----------------------------------------------------------------------------
 
-// FSceneRenderer(Pass 1)가 계산하여 FLightManager(Pass 2)로 전달할 섀도우 데이터. 2D / CSM 아틀라스에서 사용됩니다.
+// FSceneRenderer(Pass 1)가 계산하여 FLightManager(Pass 2)로 전달할 섹도우 데이터. 2D / CSM 아틀라스에서 사용됩니다.
 struct FShadowMapData // 112 bytes
 {
     FMatrix ShadowViewProjMatrix; // 64
@@ -28,7 +28,9 @@ struct FShadowMapData // 112 bytes
     FVector WorldPosition; // 12
     int32 SampleCount; // 4
     float Radius; // 4
-    float Padding[3]; //12
+    float ShadowBias; // 4
+    float ShadowSlopeBias; // 4
+    float ShadowSharpen; // 4
 };
 
 struct FShadowRenderRequest
@@ -42,9 +44,12 @@ struct FShadowRenderRequest
     int32 SubViewIndex; // Point(0~5), CSM(0~N), Spot(0)
     int32 AssignedSliceIndex = -1; // Cube Atlas Slice Index
 
-    FVector4 AtlasScaleOffset; // 패킹 알고리즘이 채워줄 UV
-    FVector2D AtlasViewportOffset; // 패킹 알고리즘이 채워줄 Viewport
+    FVector4 AtlasScaleOffset; // 패킹 알고리즘이 채워줌 UV
+    FVector2D AtlasViewportOffset; // 패킹 알고리즘이 채워줌 Viewport
     int32 SampleCount = 0;
+    float ShadowBias = 0.0f;
+    float ShadowSlopeBias = 0.0f;
+    float ShadowSharpen = 1.0f;
 
     bool operator>(const FShadowRenderRequest& Other) const
     {
@@ -91,8 +96,11 @@ struct FPointLightInfo
     float FalloffExponent;   // 4 bytes
     uint32 bUseInverseSquareFalloff; // 4 bytes
     uint32 bCastShadows;     // 4 bytes (0 or 1)
-    int32 ShadowArrayIndex;  // 4 bytes (t8 TextureCubeArray의 슬라이스 인덱스, -1=섀도우 없음)
-    // Total: 48 bytes
+    int32 ShadowArrayIndex;  // 4 bytes (t8 TextureCubeArray의 슬라이스 인덱스, -1=섹도우 없음)
+    float ShadowBias;        // 4 bytes
+    float ShadowSlopeBias;   // 4 bytes
+    float ShadowSharpen;     // 4 bytes
+    // Total: 60 bytes
 };
 
 struct FSpotLightInfo

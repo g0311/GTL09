@@ -69,6 +69,9 @@ void UDirectionalLightComponent::GetShadowRenderRequests(FSceneView* View, TArra
 		ShadowRenderRequest.SubViewIndex = 0;
 		ShadowRenderRequest.AtlasScaleOffset = 0;
 		ShadowRenderRequest.SampleCount = 4; // PCF 샘플 카운트
+		ShadowRenderRequest.ShadowBias = GetShadowBias();
+		ShadowRenderRequest.ShadowSlopeBias = GetShadowSlopeBias();
+		ShadowRenderRequest.ShadowSharpen = GetShadowSharpen();
 		OutRequests.Add(ShadowRenderRequest);
 	}
 	else 
@@ -110,6 +113,9 @@ void UDirectionalLightComponent::GetShadowRenderRequests(FSceneView* View, TArra
 			ShadowRenderRequest.SubViewIndex = i;
 			ShadowRenderRequest.AtlasScaleOffset = 0;
 			ShadowRenderRequest.SampleCount = 4; // PCF 샘플 카운트
+			ShadowRenderRequest.ShadowBias = GetShadowBias();
+			ShadowRenderRequest.ShadowSlopeBias = GetShadowSlopeBias();
+			ShadowRenderRequest.ShadowSharpen = GetShadowSharpen();
 			OutRequests.Add(ShadowRenderRequest);
 		}
 	}

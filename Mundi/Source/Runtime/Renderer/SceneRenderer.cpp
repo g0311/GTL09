@@ -331,6 +331,9 @@ void FSceneRenderer::RenderShadowMaps()
 					Data.AtlasScaleOffset = Request.AtlasScaleOffset;
 					Data.WorldPosition = Request.WorldLocation;
 					Data.Radius = Request.Radius;
+					Data.ShadowBias = Request.ShadowBias;
+					Data.ShadowSlopeBias = Request.ShadowSlopeBias;
+					Data.ShadowSharpen = Request.ShadowSharpen;
 				}
 				// 렌더링 실패 시(Size==0) 빈 데이터(기본값) 전달
 				LightManager->SetShadowMapData(Request.LightOwner, Request.SubViewIndex, Data);

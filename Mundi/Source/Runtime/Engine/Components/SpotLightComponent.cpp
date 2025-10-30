@@ -72,6 +72,9 @@ void USpotLightComponent::GetShadowRenderRequests(FSceneView* View, TArray<FShad
 	ShadowRenderRequest.SubViewIndex = 0;
 	ShadowRenderRequest.AtlasScaleOffset = 0;
 	ShadowRenderRequest.SampleCount = SampleCount;
+	ShadowRenderRequest.ShadowBias = GetShadowBias();
+	ShadowRenderRequest.ShadowSlopeBias = GetShadowSlopeBias();
+	ShadowRenderRequest.ShadowSharpen = GetShadowSharpen();
 	OutRequests.Add(ShadowRenderRequest);
 }
 

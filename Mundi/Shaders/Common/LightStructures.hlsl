@@ -17,7 +17,9 @@ struct FShadowMapData
     float3 WorldPos;
     int SampleCount;
     float Radius;
-    float3 Padding;
+    float ShadowBias;
+    float ShadowSlopeBias;
+    float ShadowSharpen;
 };
 
 struct FAmbientLightInfo
@@ -51,8 +53,11 @@ struct FPointLightInfo
     float AttenuationRadius; // 4 bytes (슬롯 채우기 위해 위로 이동)
     float FalloffExponent;  // 4 bytes - 예술적 제어를 위한 감쇠 지수
     uint bUseInverseSquareFalloff; // 4 bytes - uint32 (true = 물리 기반, false = 지수 기반)
-    uint bCastShadows;      // 4 bytes - 쉐도우 캐스팅 여부
+    uint bCastShadows;      // 4 bytes - 쉐도우 캣스팅 여부
     uint LightIndex;        // 4 bytes - 쉐도우 맵 배열 인덱스
+    float ShadowBias;       // 4 bytes
+    float ShadowSlopeBias;  // 4 bytes
+    float ShadowSharpen;    // 4 bytes
 };
 
 struct FSpotLightInfo

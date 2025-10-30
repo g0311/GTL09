@@ -58,6 +58,9 @@ void UPointLightComponent::GetShadowRenderRequests(FSceneView* View, TArray<FSha
 		ShadowRenderRequest.Size = ShadowResolutionScale;
 		ShadowRenderRequest.SubViewIndex = i;
 		ShadowRenderRequest.AtlasScaleOffset = 0;
+		ShadowRenderRequest.ShadowBias = GetShadowBias();
+		ShadowRenderRequest.ShadowSlopeBias = GetShadowSlopeBias();
+		ShadowRenderRequest.ShadowSharpen = GetShadowSharpen();
 		OutRequests.Add(ShadowRenderRequest);
 	}
 }
@@ -73,6 +76,9 @@ FPointLightInfo UPointLightComponent::GetLightInfo() const
 	Info.bUseInverseSquareFalloff = IsUsingInverseSquareFalloff() ? 1u : 0u;
 	Info.bCastShadows = 0u;		// UpdateLightBuffer 에서 초기화 해줌
 	Info.ShadowArrayIndex = -1; // UpdateLightBuffer 에서 초기화 해줌
+	Info.ShadowBias = GetShadowBias();
+	Info.ShadowSlopeBias = GetShadowSlopeBias();
+	Info.ShadowSharpen = GetShadowSharpen();
 
 	return Info;
 }
