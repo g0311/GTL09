@@ -72,6 +72,7 @@
 #include "nlohmann/json.hpp"
 
 // Lua
+#include "lua.hpp"
 #include "sol.hpp"
 
 //Manager
