@@ -92,7 +92,6 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
 
     if (!bIsCollisionEnabled || !bGenerateOverlapEvents)
     {
-        UE_LOG("skipping: disabled.");
         return;
     }
 
@@ -103,10 +102,9 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
     }
 
     AActor* MyOwner = GetOwner();
-    UShapeComponent* ThisShape = dynamic_cast<UShapeComponent*>(this);
+    UShapeComponent* ThisShape = Cast<UShapeComponent>(this);
     if (!ThisShape)
     {
-        UE_LOG("skipping: not a shape component.");
         return;
     }
 
@@ -125,7 +123,7 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
         if (!OverlapInfos.Contains(Info))
             OverlapInfos.Add(Info);
     };
-
+    
     for (AActor* Actor : World->GetActors())
     {
         if (!Actor || Actor == MyOwner)
@@ -138,12 +136,9 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
                 continue;
             if (!OtherShape->IsCollisionEnabled() || !OtherShape->GetGenerateOverlapEvents())
                 continue;
-
-            UE_LOG("checking shape overlap");
             
             if (ThisShape->Overlaps(OtherShape))
             {
-                UE_LOG("overlap found");
                 AddOverlap(Actor, OtherShape);
             }
         }

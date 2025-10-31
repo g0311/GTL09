@@ -22,4 +22,7 @@ public:
     // Virtual shape-vs-shape overlap dispatch
     virtual bool Overlaps(const UShapeComponent* Other) const { return false; }
     ECollisionShapeType GetCollisionShapeType() const { return CollisionShape; }
+
+    // Auto-refresh overlaps when transform changes
+    void OnTransformUpdated() override;
 };

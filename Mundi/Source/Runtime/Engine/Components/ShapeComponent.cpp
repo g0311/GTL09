@@ -12,3 +12,24 @@ UShapeComponent::UShapeComponent()
     SetCollisionEnabled(true);
     SetGenerateOverlapEvents(true);
 }
+
+void UShapeComponent::OnTransformUpdated()
+{
+    Super::OnTransformUpdated();
+
+    // Sync overlaps when a shape moves
+    const TArray<FOverlapInfo> Old = OverlapInfos;
+    RefreshOverlapInfos();
+
+    TSet<UPrimitiveComponent*> Peers;
+    for (const FOverlapInfo& E : Old) if (E.OtherComp) Peers.insert(E.OtherComp);
+    for (const FOverlapInfo& E : OverlapInfos) if (E.OtherComp) Peers.insert(E.OtherComp);
+
+    for (UPrimitiveComponent* Other : Peers)
+    {
+        if (Other && Other != this)
+        {
+            Other->RefreshOverlapInfos();
+        }
+    }
+}
