@@ -511,12 +511,13 @@ void UTargetActorTransformWidget::RenderSelectedActorDetails(AActor* SelectedAct
 	{
 		return;
 	}
-	USceneComponent* RootComponent = SelectedActor->GetRootComponent();
-	const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
 	
-
-	UPropertyRenderer::RenderProperties(Properties, RootComponent);
-
+	for (auto& Component : SelectedActor->GetOwnedComponents())
+	{
+		const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
+		UPropertyRenderer::RenderProperties(Properties, Component);
+	}
+	
 	bool bActorHiddenInGame = SelectedActor->GetActorHiddenInGame();
 	if (ImGui::Checkbox("bActorHiddendInGame", &bActorHiddenInGame))
 	{
