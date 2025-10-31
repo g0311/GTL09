@@ -1,8 +1,9 @@
 #include "pch.h"
+#include "sol/sol.hpp"
 #include "UScriptManager.h"
 #include "Actor.h"
-#include "ScriptComponent.h"
 #include <filesystem>
+#include "ScriptUtils.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -10,10 +11,9 @@ IMPLEMENT_CLASS(UScriptManager)
 void UScriptManager::RegisterTypesToState(sol::state* state)
 {
     if (!state) return;
-    RegisterLOG(state);
-    RegisterVector(state);
-    RegisterQuat(state);
-    RegisterTransform(state);
+
+    RegisterCoreTypes(state);
+    
     RegisterActor(state);
 }
 void UScriptManager::RegisterLOG(sol::state* state)
@@ -31,92 +31,104 @@ void UScriptManager::RegisterLOG(sol::state* state)
     });
 }
 
+void UScriptManager::RegisterCoreTypes(sol::state* state)
+{
+    RegisterLOG(state);
+    RegisterVector(state);
+    RegisterQuat(state);
+    RegisterTransform(state);
+}
+
+void UScriptManager::RegisterReflectedClasses(sol::state* state)
+{
+}
+
 void UScriptManager::RegisterVector(sol::state* state)
 {
     // ==================== FVector 등록 ====================
-    state->new_usertype<FVector>("Vector",
-        sol::constructors<FVector(), FVector(float, float, float)>(),
-        "X", &FVector::X,
-        "Y", &FVector::Y,
-        "Z", &FVector::Z,
-        sol::meta_function::addition, [](const FVector& a, const FVector& b) {
+    BEGIN_LUA_TYPE(state, FVector, "Vector", FVector(), FVector(float, float, float))
+        ADD_LUA_PROPERTY("X", &FVector::X)
+        ADD_LUA_PROPERTY("Y", &FVector::Y)
+        ADD_LUA_PROPERTY("Z", &FVector::Z)
+        ADD_LUA_META_FUNCTION(addition, [](const FVector& a, const FVector& b) {
             return a + b;
-        },
-        sol::meta_function::subtraction, [](const FVector& a, const FVector& b) {
+        })
+        ADD_LUA_META_FUNCTION(subtraction, [](const FVector& a, const FVector& b) {
             return a - b;
-        },
-        sol::meta_function::multiplication, sol::overload(
-            [](const FVector& v, float f) { return v * f; },
-            [](float f, const FVector& v) { return v * f; }
-        ),
-        sol::meta_function::division, [](const FVector& v, float f) {
+        })
+        ADD_LUA_OVERLOAD(sol::meta_function::multiplication,
+            sol::overload(
+                [](const FVector& v, float f) { return v * f; },
+                [](float f, const FVector& v) { return v * f; }
+            )
+        )
+        ADD_LUA_META_FUNCTION(division, [](const FVector& v, float f) {
             return v / f;
-        }
-    );
+        })
+    END_LUA_TYPE() // ★ 4. (가독성용) 종료
 }
 
 void UScriptManager::RegisterQuat(sol::state* state)
 {
     // ==================== FQuat 등록 ====================
-    state->new_usertype<FQuat>("Quat",
-        sol::constructors<FQuat()>(),
-        "X", &FQuat::X,
-        "Y", &FQuat::Y,
-        "Z", &FQuat::Z,
-        "W", &FQuat::W
-    );
+    BEGIN_LUA_TYPE(state, FQuat, "Quat", FQuat(), FQuat())
+        ADD_LUA_PROPERTY("X", &FQuat::X)
+        ADD_LUA_PROPERTY("Y", &FQuat::Y)
+        ADD_LUA_PROPERTY("Z", &FQuat::Z)
+        ADD_LUA_PROPERTY("W", &FQuat::W)
+    END_LUA_TYPE()
 }
 
 void UScriptManager::RegisterTransform(sol::state* state)
 {
     // ==================== FTransform 등록 ====================
-    state->new_usertype<FTransform>("Transform",
-        "Location", &FTransform::Translation,
-        "Rotation", &FTransform::Rotation,
-        "Scale", &FTransform::Scale3D
-    );
+    BEGIN_LUA_TYPE(state, FTransform, "Transform", FTransform(), FTransform())
+        ADD_LUA_PROPERTY("Location", &FTransform::Translation)
+        ADD_LUA_PROPERTY("Rotation", &FTransform::Rotation)
+        ADD_LUA_PROPERTY("Scale", &FTransform::Scale3D)
+    END_LUA_TYPE()
 }
 
 void UScriptManager::RegisterActor(sol::state* state)
 {
     // ==================== AActor 등록 ====================
-    state->new_usertype<AActor>("Actor",
+    BEGIN_LUA_TYPE_NO_CTOR(state, AActor, "Actor")
         // Transform API
-        "GetActorLocation", &AActor::GetActorLocation,
-        "SetActorLocation", &AActor::SetActorLocation,
-        "GetActorRotation", &AActor::GetActorRotation,
-        "SetActorRotation", sol::overload(
+        ADD_LUA_FUNCTION("GetActorLocation", &AActor::GetActorLocation)
+        ADD_LUA_FUNCTION("SetActorLocation", &AActor::SetActorLocation)
+        ADD_LUA_FUNCTION("GetActorRotation", &AActor::GetActorRotation)
+        ADD_LUA_OVERLOAD("SetActorRotation",
             static_cast<void(AActor::*)(const FQuat&)>(&AActor::SetActorRotation),
             static_cast<void(AActor::*)(const FVector&)>(&AActor::SetActorRotation)
-        ),
-        "GetActorScale", &AActor::GetActorScale,
-        "SetActorScale", &AActor::SetActorScale,
+        )
+        ADD_LUA_FUNCTION("GetActorScale", &AActor::GetActorScale)
+        ADD_LUA_FUNCTION("SetActorScale", &AActor::SetActorScale)
         
         // Movement API
-        "AddActorWorldLocation", &AActor::AddActorWorldLocation,
-        "AddActorLocalLocation", &AActor::AddActorLocalLocation,
-        "AddActorWorldRotation", sol::overload(
+        ADD_LUA_FUNCTION("AddActorWorldLocation", &AActor::AddActorWorldLocation)
+        ADD_LUA_FUNCTION("AddActorLocalLocation", &AActor::AddActorLocalLocation)
+        ADD_LUA_OVERLOAD("AddActorWorldRotation",
             static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorWorldRotation),
             static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorWorldRotation)
-        ),
-        "AddActorLocalRotation", sol::overload(
+        )
+        ADD_LUA_OVERLOAD("AddActorLocalRotation",
             static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorLocalRotation),
             static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorLocalRotation)
-        ),
+        )
         
         // Direction API
-        "GetActorForward", &AActor::GetActorForward,
-        "GetActorRight", &AActor::GetActorRight,
-        "GetActorUp", &AActor::GetActorUp,
+        ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
+        ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
+        ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
         
         // Name/Visibility
-        "GetName", &AActor::GetName,
-        "SetActorHiddenInGame", &AActor::SetActorHiddenInGame,
-        "GetActorHiddenInGame", &AActor::GetActorHiddenInGame,
+        ADD_LUA_FUNCTION("GetName", &AActor::GetName)
+        ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
+        ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
         
         // Lifecycle
-        "Destroy", &AActor::Destroy
-    );
+        ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+    END_LUA_TYPE()
 }
 
 // ==================== 스크립트 파일 관리 ====================

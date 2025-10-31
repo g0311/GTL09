@@ -502,6 +502,7 @@
     <ClInclude Include="Source\Runtime\RHI\SwapGuard.h" />
     <ClInclude Include="Source\Runtime\RHI\ConstantBufferType.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptComponent.h" />
+    <ClInclude Include="Source\Runtime\ScriptSys\ScriptUtils.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\UScriptManager.h" />
     <ClInclude Include="Source\Slate\Widgets\PropertyRenderer.h" />
     <ClInclude Include="ThirdParty\ImGui\imconfig.h" />

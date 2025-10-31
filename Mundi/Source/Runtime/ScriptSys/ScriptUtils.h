@@ -1,29 +1,59 @@
 ﻿#pragma once
+#include "sol.hpp"
 
-#define LUA_BIND_CONSTRUCTORS(...) \
-    sol::call_constructor, \
-    sol::constructors<__VA_ARGS__>()
+/*
+ * ===================================================================
+ * ★ "중앙 집중식" 바인딩 함수 (e.g., UScriptManager.cpp) 내부용 ★
+ *
+ * sol2의 "순차적 할당" 문법(usertype[...] = ...)을 사용해
+ * 바인딩 코드의 가독성을 높입니다.
+ * ===================================================================
+ */
 
-#define LUA_BIND_MEMBER(MemberName) \
-    LuaBindUtils::GetMemberName(#MemberName, true), MemberName
+/**
+ * @brief Usertype 정의를 시작 (생성자 없음)
+ * 'auto usertype = ...' 변수를 생성합니다.
+ */
+#define BEGIN_LUA_TYPE_NO_CTOR(state_ptr, ClassType, LuaName) \
+auto usertype = state_ptr->new_usertype<ClassType>(LuaName);
 
-#define LUA_BIND_FUNC(MemberName) LUA_BIND_MEMBER(MemberName)
+/**
+ * @brief Usertype 정의를 시작 (생성자 포함)
+ * 가변 인자(...)로 생성자 목록을 받습니다.
+ */
+#define BEGIN_LUA_TYPE(state_ptr, ClassType, LuaName, ...) \
+auto usertype = state_ptr->new_usertype<ClassType>(LuaName, \
+sol::constructors<__VA_ARGS__>() \
+);
 
-#define LUA_BIND_STATIC(MemberName) \
-    LuaBindUtils::GetMemberName(#MemberName), sol::var(MemberName)
+/**
+ * @brief (블록 내부) 함수 등록
+ */
+#define ADD_LUA_FUNCTION(LuaName, ClassFunctionPtr) \
+usertype[LuaName] = ClassFunctionPtr;
 
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME2(MemberFunc, Type1, Type2)                                           sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME3(MemberFunc, Type1, Type2, Type3)                                    sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME4(MemberFunc, Type1, Type2, Type3, Type4)                             sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc), sol::resolve<Type4>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME5(MemberFunc, Type1, Type2, Type3, Type4, Type5)                      sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc), sol::resolve<Type4>(MemberFunc), sol::resolve<Type5>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME6(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6)               sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc), sol::resolve<Type4>(MemberFunc), sol::resolve<Type5>(MemberFunc), sol::resolve<Type6>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME7(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7)        sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc), sol::resolve<Type4>(MemberFunc), sol::resolve<Type5>(MemberFunc), sol::resolve<Type6>(MemberFunc), sol::resolve<Type7>(MemberFunc))
-#define LUA_BIND_OVERLOAD_WITHOUT_NAME8(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7, Type8) sol::overload(sol::resolve<Type1>(MemberFunc), sol::resolve<Type2>(MemberFunc), sol::resolve<Type3>(MemberFunc), sol::resolve<Type4>(MemberFunc), sol::resolve<Type5>(MemberFunc), sol::resolve<Type6>(MemberFunc), sol::resolve<Type7>(MemberFunc), sol::resolve<Type8>(MemberFunc))
+/**
+ * @brief (블록 내부) 프로퍼티(멤버 변수) 등록
+ */
+#define ADD_LUA_PROPERTY(LuaName, ClassPropertyPtr) \
+usertype[LuaName] = ClassPropertyPtr;
 
-#define LUA_BIND_OVERLOAD2(MemberFunc, Type1, Type2)                                           LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME2(MemberFunc, Type1, Type2)
-#define LUA_BIND_OVERLOAD3(MemberFunc, Type1, Type2, Type3)                                    LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME3(MemberFunc, Type1, Type2, Type3)
-#define LUA_BIND_OVERLOAD4(MemberFunc, Type1, Type2, Type3, Type4)                             LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME4(MemberFunc, Type1, Type2, Type3, Type4)
-#define LUA_BIND_OVERLOAD5(MemberFunc, Type1, Type2, Type3, Type4, Type5)                      LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME5(MemberFunc, Type1, Type2, Type3, Type4, Type5)
-#define LUA_BIND_OVERLOAD6(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6)               LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME6(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6)
-#define LUA_BIND_OVERLOAD7(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7)        LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME7(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7)
-#define LUA_BIND_OVERLOAD8(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7, Type8) LuaBindUtils::GetMemberName(#MemberFunc), LUA_BIND_OVERLOAD_WITHOUT_NAME8(MemberFunc, Type1, Type2, Type3, Type4, Type5, Type6, Type7, Type8)
+/**
+ * @brief (블록 내부) 오버로드(Overload) 함수 등록
+ * @param ... (함수 포인터 목록)
+ */
+#define ADD_LUA_OVERLOAD(LuaName, ...) \
+usertype[LuaName] = sol::overload(__VA_ARGS__);
+
+/**
+ * @brief (블록 내부) 메타 함수 (연산자) 등록
+ */
+#define ADD_LUA_META_FUNCTION(MetaFunc, Lambda) \
+usertype[sol::meta_function::MetaFunc] = Lambda;
+
+/**
+ * @brief (블록 내부) 타입 정의 종료 (가독성용)
+ */
+#define END_LUA_TYPE() \
+(void)0; // 매크로 끝에 세미콜론을 붙일 수 있도록
+
