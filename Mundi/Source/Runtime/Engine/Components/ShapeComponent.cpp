@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ShapeComponent.h"
 #include "CollisionManager.h"
+#include "AABB.h"
 
 IMPLEMENT_CLASS(UShapeComponent)
 
@@ -56,4 +57,11 @@ void UShapeComponent::OnUnregister()
             CM->Unregister(this);
         }
     }
+}
+
+FAABB UShapeComponent::GetBroadphaseAABB() const
+{
+    // Default: empty AABB at world location
+    const FVector P = GetWorldLocation();
+    return FAABB(P, P);
 }

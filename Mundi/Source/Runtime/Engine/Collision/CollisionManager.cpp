@@ -3,16 +3,22 @@
 #include "ShapeComponent.h"
 #include "PrimitiveComponent.h"
 #include "Actor.h"
+#include "ShapeBVH.h"
+#include "AABB.h"
 
 IMPLEMENT_CLASS(UCollisionManager)
 
-UCollisionManager::UCollisionManager() {}
-UCollisionManager::~UCollisionManager() {}
+UCollisionManager::UCollisionManager() { ShapeBVH = new FShapeBVH(); }
+UCollisionManager::~UCollisionManager() { if (ShapeBVH) { delete ShapeBVH; ShapeBVH = nullptr; } }
 
 void UCollisionManager::Register(UShapeComponent* Shape)
 {
     if (!Shape) return;
     ActiveShapes.insert(Shape);
+    if (ShapeBVH)
+    {
+        ShapeBVH->Insert(Shape, Shape->GetBroadphaseAABB());
+    }
 }
 
 void UCollisionManager::Unregister(UShapeComponent* Shape)
@@ -21,6 +27,10 @@ void UCollisionManager::Unregister(UShapeComponent* Shape)
     ActiveShapes.erase(Shape);
     // Also clear any pending dirty state
     DirtySet.erase(Shape);
+    if (ShapeBVH)
+    {
+        ShapeBVH->Remove(Shape);
+    }
 }
 
 void UCollisionManager::MarkDirty(UShapeComponent* Shape)
@@ -50,6 +60,10 @@ void UCollisionManager::Update(float /*DeltaTime*/, uint32 Budget)
             ++processed;
         }
     }
+    if (ShapeBVH)
+    {
+        ShapeBVH->FlushRebuild();
+    }
 }
 
 void UCollisionManager::ProcessShape(UShapeComponent* Shape)
@@ -78,6 +92,12 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
         return;
     }
 
+    // Update BVH entry to current bounds
+    if (ShapeBVH)
+    {
+        ShapeBVH->Update(Shape, Shape->GetBroadphaseAABB());
+    }
+
     // Build set from current overlaps
     TSet<UPrimitiveComponent*> OldSet;
     for (const FOverlapInfo& Info : Shape->GetOverlapInfos())
@@ -86,21 +106,24 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
             OldSet.insert(Info.OtherComp);
     }
 
-    // Compute new overlaps against active shapes
+    // Compute new overlaps via BVH candidates
     TSet<UShapeComponent*> NewSet;
-    for (UShapeComponent* Other : ActiveShapes)
+    TArray<UShapeComponent*> Candidates;
+    if (ShapeBVH)
     {
-        if (!Other || Other == Shape)
-            continue;
-        if (!Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents())
-            continue;
-
-        // Optional: could add collision layer filtering here
-
-        if (Shape->Overlaps(Other))
-        {
-            NewSet.insert(Other);
-        }
+        const FAABB QueryBox = Shape->GetBroadphaseAABB();
+        ShapeBVH->Query(QueryBox, Candidates);
+    }
+    else
+    {
+        // Fallback: iterate all active shapes
+        for (UShapeComponent* S : ActiveShapes) Candidates.Add(S);
+    }
+    for (UShapeComponent* Other : Candidates)
+    {
+        if (!Other || Other == Shape) continue;
+        if (!Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents()) continue;
+        if (Shape->Overlaps(Other)) NewSet.insert(Other);
     }
 
     // Compute begins (New - Old)
@@ -146,4 +169,3 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
         }
     }
 }
-

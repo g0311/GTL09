@@ -8,6 +8,7 @@
 #include "SphereComponent.h"
 #include "BoxComponent.h"
 #include "OBB.h"
+#include "AABB.h"
 
 IMPLEMENT_CLASS(UCapsuleComponent)
 
@@ -170,4 +171,15 @@ bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
         break;
     }
     return false;
+}
+
+FAABB UCapsuleComponent::GetBroadphaseAABB() const
+{
+    const FCapsule Cap = GetWorldCapsule();
+    FVector MinV = Cap.Center1.ComponentMin(Cap.Center2);
+    FVector MaxV = Cap.Center1.ComponentMax(Cap.Center2);
+    const FVector r(Cap.Radius, Cap.Radius, Cap.Radius);
+    MinV = MinV - r;
+    MaxV = MaxV + r;
+    return FAABB(MinV, MaxV);
 }

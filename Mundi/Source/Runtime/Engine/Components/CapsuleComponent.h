@@ -17,4 +17,5 @@ public:
     FCapsule GetWorldCapsule() const;
     void DebugDraw() const override;
     bool Overlaps(const UShapeComponent* Other) const override;
+    struct FAABB GetBroadphaseAABB() const override;
 };

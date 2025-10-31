@@ -13,6 +13,7 @@ public:
     void DebugDraw() const override;
     struct FBoundingSphere GetWorldSphere() const;
     bool Overlaps(const UShapeComponent* Other) const override;
+    struct FAABB GetBroadphaseAABB() const override;
 
 private:
     float SphereRadius;

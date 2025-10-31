@@ -297,6 +297,7 @@
     <ClCompile Include="Source\Runtime\Engine\Collision\BoundingSphere.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionQueries.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionManager.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Collision\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Frustum.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\OBB.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Picking.cpp" />
@@ -545,6 +546,7 @@
     <ClInclude Include="Source\Runtime\Engine\Collision\BoundingSphere.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionQueries.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionManager.h" />
+    <ClInclude Include="Source\Runtime\Engine\Collision\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\Frustum.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\OBB.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\Picking.h" />

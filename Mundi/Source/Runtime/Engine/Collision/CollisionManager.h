@@ -5,6 +5,7 @@ class UShapeComponent;
 class UPrimitiveComponent;
 class UWorld;
 class AActor;
+class FShapeBVH;
 
 // Centralized collision/overlap manager for UShapeComponent pairs.
 // Computes begin/end overlap diffs and updates components' OverlapInfos.
@@ -35,5 +36,7 @@ private:
 
     // Internal helpers
     void ProcessShape(UShapeComponent* Shape);
-};
 
+    // Broadphase
+    FShapeBVH* ShapeBVH = nullptr;
+};

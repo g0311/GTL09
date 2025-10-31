@@ -7,6 +7,7 @@
 #include "BoxComponent.h"
 #include "CapsuleComponent.h"
 #include "OBB.h"
+#include "AABB.h"
 
 IMPLEMENT_CLASS(USphereComponent)
 
@@ -107,3 +108,9 @@ bool USphereComponent::Overlaps(const UShapeComponent* Other) const
     return false;
 }
 
+FAABB USphereComponent::GetBroadphaseAABB() const
+{
+    const FBoundingSphere S = GetWorldSphere();
+    const FVector r(S.Radius, S.Radius, S.Radius);
+    return FAABB(S.Center - r, S.Center + r);
+}

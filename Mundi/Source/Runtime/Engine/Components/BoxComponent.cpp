@@ -98,3 +98,23 @@ bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
     return false;
 }
 
+FAABB UBoxComponent::GetBroadphaseAABB() const
+{
+    const FOBB This = GetWorldOBB();
+    const TArray<FVector> Corners = This.GetCorners();
+    if (Corners.IsEmpty())
+    {
+        const FVector C = This.Center;
+        return FAABB(C, C);
+    }
+
+    FVector MinV = Corners[0];
+    FVector MaxV = Corners[0];
+    for (int i = 1; i < Corners.Num(); ++i)
+    {
+        const FVector& P = Corners[i];
+        MinV = MinV.ComponentMin(P);
+        MaxV = MaxV.ComponentMax(P);
+    }
+    return FAABB(MinV, MaxV);
+}

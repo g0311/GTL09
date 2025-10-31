@@ -2,6 +2,8 @@
 #include "Color.h"
 #include "PrimitiveComponent.h"
 
+struct FAABB;
+
 class UShapeComponent : public UPrimitiveComponent
 {
 public:
@@ -27,4 +29,7 @@ public:
     void OnTransformUpdated() override;
     void OnRegister(UWorld* InWorld) override;
     void OnUnregister() override;
+
+    // Broadphase AABB used by collision manager for candidate queries
+    virtual FAABB GetBroadphaseAABB() const;
 };
