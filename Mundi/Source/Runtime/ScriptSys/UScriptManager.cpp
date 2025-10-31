@@ -21,8 +21,8 @@ void UScriptManager::Initialize()
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
 
     // Lua print() 함수를 Visual Studio 출력 창으로 리다이렉트
-    lua.set_function("print", [](const std::string& msg) {
-        OutputDebugStringA((msg + "\n").c_str());
+    lua.set_function("LOG", [](const std::string& msg) {
+        UE_LOG((msg + "\n").c_str());
     });
 
     // 전역 타입 등록

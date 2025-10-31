@@ -47,5 +47,6 @@ function Tick(dt)
     -- 예시: 전진 이동 (Actor 앞 방향으로 움직임)
     local forward = actor:GetActorForward()
     local movement = forward * 100.0 * dt  -- 초당 100 단위 이동
+    LOG("ADDED");
     -- actor:AddActorWorldLocation(movement)  -- 주석 해제하면 이동 활성화
 end

@@ -1171,6 +1171,10 @@ bool UPropertyRenderer::RenderScriptPathProperty(const FProperty& property, void
 			{
 				*ScriptPath = "LuaScripts/" + SceneName + "_" + ActorName + ".lua";
 				OutputDebugStringA(("Created script: " + *ScriptPath + "\n").c_str());
+				
+				// 생성 후 자동으로 로드
+				ScriptComp->SetScriptPath(*ScriptPath);
+				
 				bChanged = true;
 			}
 		}
