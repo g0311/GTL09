@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScriptComponent.h"
 #include "UScriptManager.h"
 #include "Actor.h"
@@ -29,7 +29,7 @@ UScriptComponent::~UScriptComponent()
 void UScriptComponent::BeginPlay()
 {
     UActorComponent::BeginPlay();
-    
+
     // 스크립트 로드
     if (!bScriptLoaded && !ScriptPath.empty())
     {
@@ -55,7 +55,7 @@ void UScriptComponent::BeginPlay()
 void UScriptComponent::TickComponent(float DeltaTime)
 {
     UActorComponent::TickComponent(DeltaTime);
-    
+
     if (!bScriptLoaded)
         return;
     
@@ -219,9 +219,6 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     }
 }
 
-
-// ==================== Serialize ====================
-
 void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
     UActorComponent::Serialize(bInIsLoading, InOutHandle);
@@ -236,4 +233,24 @@ void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         // 저장 시: ScriptPath를 기록
         InOutHandle["ScriptPath"] = ScriptPath.c_str();
     }
+}
+
+void UScriptComponent::OnSerialized()
+{
+    Super::OnSerialized();
+
+    // 직렬화 이후 스크립트 경로가 세팅되어 있으면 필요 시 재로딩
+    if (!ScriptPath.empty())
+    {
+        bScriptLoaded = false;
+        ReloadScript();
+    }
+}
+
+void UScriptComponent::DuplicateSubObjects()
+{
+    Super::DuplicateSubObjects();
+
+    // 복제본은 런타임 로드 상태를 초기화하고 필요 시 BeginPlay/OnSerialized에서 로드
+    bScriptLoaded = false;
 }
