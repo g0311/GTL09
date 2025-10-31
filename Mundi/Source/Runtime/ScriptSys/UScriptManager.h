@@ -27,11 +27,6 @@ public:
     UScriptManager& operator=(const UScriptManager&) = delete;
 
     /**
-     * @brief 전역 Lua state 및 타입 바인딩 초기화 (엔진 시작 시 1회)
-     */
-    void Initialize();
-    
-    /**
      * @brief 전역 Lua state 반환
      */
     sol::state& GetLuaState() { return lua; }
@@ -49,13 +44,20 @@ public:
      * @param ScriptPath 편집할 스크립트 경로
      */
     void EditScript(const FString& ScriptPath);
+    
+    /**
+     * @brief 특정 lua state에 모든 타입 등록 (컴포넌트별 state용)
+     */
+    void RegisterTypesToState(sol::state* state);
+    
+    /**
+     * @brief 리플렉션 기반 클래스 자동 등록
+     */
+    void RegisterClassesWithReflection();
 
 private:
     /**
      * @brief 전역 타입 바인딩 등록
      */
-    void RegisterGlobalTypes();
-    
-    sol::state lua;              ///< 전역 Lua state (모든 ScriptComponent가 공유)
-    bool bInitialized = false;   ///< 초기화 여부
+    void RegisterGlobalTypes(sol::state* state);
 };

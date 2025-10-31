@@ -7,35 +7,19 @@
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
 
-void UScriptManager::Initialize()
+void UScriptManager::RegisterTypesToState(sol::state* state)
 {
-    if (bInitialized)
-    {
-        OutputDebugStringA("[ScriptManager] Already initialized.\n");
-        return;
-    }
-    
-    OutputDebugStringA("[ScriptManager] Initializing global Lua state...\n");
-    
-    // Lua 기본 라이브러리 로드
-    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
+    if (!state) return;
 
-    // Lua print() 함수를 Visual Studio 출력 창으로 리다이렉트
-    lua.set_function("LOG", [](const std::string& msg) {
-        UE_LOG((msg + "\n").c_str());
-    });
-
-    // 전역 타입 등록
-    RegisterGlobalTypes();
     
-    bInitialized = true;
-    OutputDebugStringA("[ScriptManager] Global Lua state initialized.\n");
 }
 
-void UScriptManager::RegisterGlobalTypes()
+void UScriptManager::RegisterGlobalTypes(sol::state* state)
 {
+    if (!state)
+        return;
     // ==================== FVector 등록 ====================
-    lua.new_usertype<FVector>("Vector",
+    state->new_usertype<FVector>("Vector",
         sol::constructors<FVector(), FVector(float, float, float)>(),
         "X", &FVector::X,
         "Y", &FVector::Y,
@@ -56,7 +40,7 @@ void UScriptManager::RegisterGlobalTypes()
     );
     
     // ==================== FQuat 등록 ====================
-    lua.new_usertype<FQuat>("Quat",
+    state->new_usertype<FQuat>("Quat",
         sol::constructors<FQuat()>(),
         "X", &FQuat::X,
         "Y", &FQuat::Y,
@@ -65,14 +49,14 @@ void UScriptManager::RegisterGlobalTypes()
     );
     
     // ==================== FTransform 등록 ====================
-    lua.new_usertype<FTransform>("Transform",
+    state->new_usertype<FTransform>("Transform",
         "Location", &FTransform::Translation,
         "Rotation", &FTransform::Rotation,
         "Scale", &FTransform::Scale3D
     );
     
     // ==================== AActor 등록 ====================
-    lua.new_usertype<AActor>("Actor",
+    state->new_usertype<AActor>("Actor",
         // Transform API
         "GetActorLocation", &AActor::GetActorLocation,
         "SetActorLocation", &AActor::SetActorLocation,
@@ -108,13 +92,6 @@ void UScriptManager::RegisterGlobalTypes()
         
         // Lifecycle
         "Destroy", &AActor::Destroy
-    );
-    
-    // ==================== UScriptComponent 등록 ====================
-    lua.new_usertype<UScriptComponent>("ScriptComponent",
-        "GetScriptPath", &UScriptComponent::GetScriptPath,
-        "ReloadScript", &UScriptComponent::ReloadScript,
-        "OpenScriptInEditor", &UScriptComponent::OpenScriptInEditor
     );
 }
 

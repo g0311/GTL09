@@ -39,7 +39,6 @@ void UScriptComponent::BeginPlay()
     // Lua BeginPlay() 호출
     if (bScriptLoaded)
     {
-        sol::state& lua = UScriptManager::GetInstance().GetLuaState();
         sol::protected_function func = lua["BeginPlay"];
         if (func.valid())
         {
@@ -61,7 +60,6 @@ void UScriptComponent::TickComponent(float DeltaTime)
         return;
     
     // Lua Tick(dt) 호출
-    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
     sol::protected_function func = lua["Tick"];
     if (func.valid())
     {
@@ -79,7 +77,6 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
     // Lua EndPlay() 호출
     if (bScriptLoaded)
     {
-        sol::state& lua = UScriptManager::GetInstance().GetLuaState();
         sol::protected_function func = lua["EndPlay"];
         if (func.valid())
         {
@@ -169,9 +166,23 @@ bool UScriptComponent::ReloadScript()
         return false;
     }
     
-    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
+    // 개별 lua state 초기화 (라이브러리 + 전역 타입)
+    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
+    lua.set_function("Log", [](const std::string& msg) {
+        UE_LOG(("[Lua] " + msg + "\n").c_str());
+    });
+    lua.set_function("LogWarning", [](const std::string& msg) {
+        UE_LOG(("[Lua Warning] " + msg + "\n").c_str());
+    });
+    lua.set_function("LogError", [](const std::string& msg) {
+        UE_LOG(("[Lua Error] " + msg + "\n").c_str());
+    });
+    
+    UScriptManager::GetInstance().RegisterTypesToState(&lua);
+    
+    // 이 컴포넌트 전용 변수 바인딩
     lua["actor"] = OwnerActor;
-    lua["self"] = this;  // ScriptComponent 자신도 노출
+    lua["self"] = this;
     
     // 스크립트 로드
     try
@@ -196,7 +207,6 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     if (!bScriptLoaded || !OtherActor)
         return;
     
-    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
     sol::protected_function func = lua["OnOverlap"];
     if (func.valid())
     {
@@ -227,4 +237,3 @@ void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         InOutHandle["ScriptPath"] = ScriptPath.c_str();
     }
 }
-

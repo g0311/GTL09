@@ -64,7 +64,38 @@ public:
      */
     bool IsScriptLoaded() const { return bScriptLoaded; }
 
+    template<typename ...Args>
+    void CallLuaFunction(const FString& InFunctionName, Args&&... InArgs);
+
 private:
-    FString ScriptPath;             ///< 스크립트 파일 경로
-    bool bScriptLoaded = false;     ///< 스크립트 로드 성공 여부
+    FString ScriptPath;                 ///< 스크립트 파일 경로
+    bool bScriptLoaded = false;   ///< 스크립트 로드 성공 여부
+    sol::state lua;                         ///< 개별 Lua state (컴포넌트별 독립)
 };
+
+template <typename ... Args>
+void UScriptComponent::CallLuaFunction(const FString& InFunctionName, Args&&... InArgs)
+{
+    if (!bScriptLoaded)
+    {
+        return;
+    }
+
+    try
+    {
+        sol::function func = lua[InFunctionName];
+        if (func.valid())
+        {
+            auto result = func(std::forward<Args>(InArgs)...);
+            if (!result.valid())
+            {
+                sol::error err = result;
+                UE_LOG("Lua error: %s\n", err.what());
+            }
+        }
+    }
+    catch (const sol::error& e)
+    {
+        UE_LOG("Lua error: %s\n", e.what());
+    }
+}
