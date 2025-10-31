@@ -145,6 +145,10 @@ public:
     // Serialize
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
+
+    // ───── Collision System ────────────────────────────
+    bool IsOverlappingActor(const AActor* Other) const;
+
 public:
     FName Name;
     UWorld* World = nullptr;

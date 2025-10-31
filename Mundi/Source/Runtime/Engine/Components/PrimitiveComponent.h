@@ -9,6 +9,17 @@ class URenderer;
 struct FMeshBatchElement;
 class FSceneView;
 
+struct FOverlapInfo
+{
+    AActor* OtherActor = nullptr;
+    UPrimitiveComponent* OtherComp = nullptr;
+
+    bool operator==(const FOverlapInfo& Other) const
+    {
+        return OtherActor == Other.OtherActor && OtherComp == Other.OtherComp;
+    }
+};
+
 class UPrimitiveComponent :public USceneComponent
 {
 public:
@@ -51,6 +62,34 @@ public:
     // ───── 직렬화 ────────────────────────────
     virtual void OnSerialized() override;
 
+    
+    // ────────────────
+    // Collision System
+    // ────────────────
+
+    // setters
+    void SetCollisionEnabled(bool bInCollisionEnabled) { bIsCollisionEnabled = bInCollisionEnabled; }
+    void SetGenerateOverlapEvents(bool bInGenerateOverlapEvents) { bGenerateOverlapEvents = bInGenerateOverlapEvents; }
+    void SetBlockComponent(bool bInBlockComponent) { bBlockComponent = bInBlockComponent; }
+    void SetCollisionLayer(uint32 InCollisionLayer) { CollisionLayer = InCollisionLayer; }
+    
+    // getters
+    bool IsCollisionEnabled() const { return bIsCollisionEnabled; }
+    bool GetGenerateOverlapEvents() const { return bGenerateOverlapEvents; }
+    bool GetBlockComponent() const { return bBlockComponent; }
+    uint32 GetCollisionLayer() const { return CollisionLayer; }
+    TArray<FOverlapInfo> GetOverlapInfos() const { return OverlapInfos; };
+
+    bool IsOverlappingActor(const AActor* Other) const;
+    TArray<AActor*> GetOverlappingActors(TArray<AActor*>& OutActors, uint32 mask=~0u) const;
+
 protected:
     bool bIsCulled = false;
+
+    bool bIsCollisionEnabled;
+    bool bGenerateOverlapEvents;
+    bool bBlockComponent;
+
+    uint32 CollisionLayer;
+    TArray<FOverlapInfo> OverlapInfos;
 };

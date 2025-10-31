@@ -18,3 +18,8 @@ void UPrimitiveComponent::OnSerialized()
 {
     Super::OnSerialized();
 }
+
+bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
+{
+    return false;
+}

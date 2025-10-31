@@ -487,3 +487,18 @@ enum class EWorldType : uint8
 
 //#endif /** UE_ENUMS_H */
 
+enum class ECollisionShapeType : uint8
+{
+    None,
+    AABB,
+    Sphere,
+    OBB,
+    Capsule
+};
+
+enum class EAxis : uint8
+{
+    X = 0,
+    Y = 1,
+    Z = 2
+};

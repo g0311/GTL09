@@ -1,18 +1,18 @@
 ﻿#include "pch.h"
-#include "Collision.h"
+#include "CollisionQueries.h"
 #include "AABB.h"
 #include "OBB.h"
 #include "BoundingSphere.h"
 
 namespace Collision
 {
-    bool Intersects(const FAABB& Aabb, const FOBB& Obb)
+    bool OverlapAABBOBB(const FAABB& Aabb, const FOBB& Obb)
     {
         const FOBB ConvertedOBB(Aabb, FMatrix::Identity());
         return ConvertedOBB.Intersects(Obb);
     }
 
-    bool Intersects(const FAABB& Aabb, const FBoundingSphere& Sphere)
+    bool OverlapAABBSphere(const FAABB& Aabb, const FBoundingSphere& Sphere)
     {
 		// Real Time Rendering 4th, 22.13.2 Sphere/Box Intersection
         float Dist2 = 0.0f;
@@ -37,7 +37,7 @@ namespace Collision
         return Dist2 <= (Sphere.Radius * Sphere.Radius);
 	}
 
-    bool Intersects(const FOBB& Obb, const FBoundingSphere& Sphere)
+    bool OverlapOBBSphere(const FOBB& Obb, const FBoundingSphere& Sphere)
     {
         // Real Time Rendering 4th, 22.13.2 Sphere/Box Intersection
         float Dist2 = 0.0f;
