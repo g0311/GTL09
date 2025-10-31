@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "SceneComponent.h"
 #include "Material.h"
-#include <functional>
+#include "Delegate.h"
 
 // 전방 선언
 struct FSceneCompData;
@@ -86,18 +86,42 @@ public:
     void RefreshOverlapInfos(uint32 mask = ~0u);
 
     // Overlap events (begin/end). Users can register handlers.
-    using FOnOverlapSignature = std::function<void(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp)>;
-    void AddOnBeginOverlap(const FOnOverlapSignature& Handler) { OnBeginOverlapHandlers.Add(Handler); }
-    void AddOnEndOverlap(const FOnOverlapSignature& Handler)   { OnEndOverlapHandlers.Add(Handler); }
+    DECLARE_DELEGATE(FOnOverlapSignature, UPrimitiveComponent*, AActor*, UPrimitiveComponent*);
+
+    FDelegateHandle AddOnBeginOverlap(const FOnOverlapSignature::HandlerType& Handler)
+    {
+        return OnBeginOverlapDelegate.Add(Handler);
+    }
+
+    FDelegateHandle AddOnEndOverlap(const FOnOverlapSignature::HandlerType& Handler)
+    {
+        return OnEndOverlapDelegate.Add(Handler);
+    }
+
+    template<typename T>
+    FDelegateHandle AddOnBeginOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*))
+    {
+        return OnBeginOverlapDelegate.AddDynamic(Instance, Func);
+    }
+
+    template<typename T>
+    FDelegateHandle AddOnEndOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*))
+    {
+        return OnEndOverlapDelegate.AddDynamic(Instance, Func);
+    }
+
+    bool RemoveOnBeginOverlap(FDelegateHandle Handle) { return OnBeginOverlapDelegate.Remove(Handle); }
+    bool RemoveOnEndOverlap(FDelegateHandle Handle) { return OnEndOverlapDelegate.Remove(Handle); }
 
     // Broadcasting is intended for the collision manager
     void BroadcastBeginOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
     {
-        for (auto& Fn : OnBeginOverlapHandlers) { if (Fn) Fn(this, OtherActor, OtherComp); }
+        OnBeginOverlapDelegate.Broadcast(this, OtherActor, OtherComp);
     }
+
     void BroadcastEndOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
     {
-        for (auto& Fn : OnEndOverlapHandlers) { if (Fn) Fn(this, OtherActor, OtherComp); }
+        OnEndOverlapDelegate.Broadcast(this, OtherActor, OtherComp);
     }
 
 protected:
@@ -110,6 +134,6 @@ protected:
     uint32 CollisionLayer = 0u;
     TArray<FOverlapInfo> OverlapInfos;
 
-    TArray<FOnOverlapSignature> OnBeginOverlapHandlers;
-    TArray<FOnOverlapSignature> OnEndOverlapHandlers;
+    FOnOverlapSignature OnBeginOverlapDelegate;
+    FOnOverlapSignature OnEndOverlapDelegate;
 };
