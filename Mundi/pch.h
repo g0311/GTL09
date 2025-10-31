@@ -51,6 +51,7 @@
 #include "Vector.h"
 #include "Name.h"
 #include "PathUtils.h"
+#include "Delegate.h"
 #include "Object.h"
 #include "ObjectFactory.h"
 #include "ObjectMacros.h"
