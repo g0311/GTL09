@@ -7,6 +7,8 @@ IMPLEMENT_CLASS(UCapsuleComponent)
 
 BEGIN_PROPERTIES(UCapsuleComponent)
     MARK_AS_COMPONENT("캡슐 컴포넌트", "캡슐 컴포넌트입니다.")
+    ADD_PROPERTY_RANGE(float, CapsuleRadius, "Capsule", 0.1f, 50.0f, true, "Capsule Radius");
+    ADD_PROPERTY_RANGE(float, CapsuleHalfHeight, "Capsule", 0.1f, 50.0f, true, "Capsule Half Height");
 END_PROPERTIES()
 
 UCapsuleComponent::UCapsuleComponent()

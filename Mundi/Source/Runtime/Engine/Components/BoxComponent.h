@@ -13,4 +13,5 @@ public:
     FVector BoxExtent;
 
     void DebugDraw() const override;
+    struct FOBB GetWorldOBB() const;
 };

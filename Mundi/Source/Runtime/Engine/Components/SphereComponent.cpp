@@ -2,11 +2,13 @@
 #include "SphereComponent.h"
 #include "RenderManager.h"
 #include "Vector.h"
+#include "BoundingSphere.h"
 
 IMPLEMENT_CLASS(USphereComponent)
 
 BEGIN_PROPERTIES(USphereComponent)
     MARK_AS_COMPONENT("구 컴포넌트", "구 컴포넌트입니다.")
+    ADD_PROPERTY_RANGE(float, SphereRadius, "Sphere", 0.1f, 50.0f, true, "Sphere Radius");
 END_PROPERTIES()
 
 USphereComponent::USphereComponent()
@@ -66,5 +68,13 @@ void USphereComponent::DebugDraw() const
     AddCircle(AxisX, AxisY);
     AddCircle(AxisY, AxisZ);
     AddCircle(AxisZ, AxisX);
+}
+
+FBoundingSphere USphereComponent::GetWorldSphere() const
+{
+    const FVector Center = GetWorldLocation();
+    const FVector Scale = GetWorldScale();
+    const float RadiusWS = SphereRadius * std::max({ Scale.X, Scale.Y, Scale.Z });
+    return FBoundingSphere(Center, RadiusWS);
 }
 

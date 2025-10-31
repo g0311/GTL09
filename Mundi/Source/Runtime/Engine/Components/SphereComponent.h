@@ -11,6 +11,7 @@ public:
     virtual ~USphereComponent() override;
     
     void DebugDraw() const override;
+    struct FBoundingSphere GetWorldSphere() const;
 
 private:
     float SphereRadius;

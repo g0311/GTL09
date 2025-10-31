@@ -8,6 +8,8 @@ public:
     DECLARE_CLASS(UShapeComponent, UPrimitiveComponent)
     GENERATED_REFLECTION_BODY()
     
+    UShapeComponent();
+    
     FLinearColor ShapeColor = FLinearColor::Green;
     bool bDrawOnlyIfSelected = false;
 

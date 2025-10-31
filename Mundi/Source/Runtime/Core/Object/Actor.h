@@ -148,6 +148,7 @@ public:
 
     // ───── Collision System ────────────────────────────
     bool IsOverlappingActor(const AActor* Other) const;
+    bool IsOverlappingAnyActor() const;
 
 public:
     FName Name;

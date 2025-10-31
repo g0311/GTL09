@@ -8,11 +8,12 @@ IMPLEMENT_CLASS(UBoxComponent)
 
 BEGIN_PROPERTIES(UBoxComponent)
     MARK_AS_COMPONENT("박스 컴포넌트", "박스 컴포넌트입니다.")
+    ADD_PROPERTY_RANGE(FVector, BoxExtent, "Box", 0.1f, 50.0f, true, "Box Extent");
 END_PROPERTIES()
 
 UBoxComponent::UBoxComponent()
 {
-    BoxExtent = FVector(10.0f, 10.0f, 10.0f);
+    BoxExtent = FVector(3.0f, 3.0f, 3.0f);
 }
 
 UBoxComponent::~UBoxComponent()
@@ -59,5 +60,12 @@ void UBoxComponent::DebugDraw() const
     }
 
     Renderer->AddLines(StartPoints, EndPoints, Colors);
+}
+
+FOBB UBoxComponent::GetWorldOBB() const
+{
+    const FVector Ext = BoxExtent; // half extents in local space
+    const FAABB LocalAABB(FVector(-Ext.X, -Ext.Y, -Ext.Z), FVector(Ext.X, Ext.Y, Ext.Z));
+    return FOBB(LocalAABB, GetWorldMatrix());
 }
 

@@ -82,14 +82,15 @@ public:
 
     bool IsOverlappingActor(const AActor* Other) const;
     TArray<AActor*> GetOverlappingActors(TArray<AActor*>& OutActors, uint32 mask=~0u) const;
+    void RefreshOverlapInfos(uint32 mask = ~0u);
 
 protected:
     bool bIsCulled = false;
 
-    bool bIsCollisionEnabled;
-    bool bGenerateOverlapEvents;
-    bool bBlockComponent;
+    bool bIsCollisionEnabled = true;
+    bool bGenerateOverlapEvents = true;
+    bool bBlockComponent = false;
 
-    uint32 CollisionLayer;
+    uint32 CollisionLayer = 0u;
     TArray<FOverlapInfo> OverlapInfos;
 };
