@@ -5,8 +5,6 @@
 #include <ObjManager.h>
 
 // Delegate Test Actors - Force static initialization
-#include "DelegateTestButton.h"
-#include "DelegateTestListener.h"
 
 
 float UEditorEngine::ClientWidth = 1024.0f;
