@@ -220,6 +220,12 @@
     <ClCompile Include="Source\Runtime\Engine\Collision\Picking.cpp">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Collision\CollisionManager.cpp">
+      <Filter>Source\Runtime\Engine\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Collision\ShapeBVH.cpp">
+      <Filter>Source\Runtime\Engine\Collision</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Spatial\BVHierarchy.cpp">
       <Filter>Source\Runtime\Engine\Spatial</Filter>
     </ClCompile>
@@ -651,6 +657,12 @@
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Collision\Picking.h">
+      <Filter>Source\Runtime\Engine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Collision\CollisionManager.h">
+      <Filter>Source\Runtime\Engine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Collision\ShapeBVH.h">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Spatial\BVHierarchy.h">

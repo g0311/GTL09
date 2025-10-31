@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ActorComponent.h"
 
 /**
@@ -17,7 +17,7 @@ public:
     GENERATED_REFLECTION_BODY()
 
     UScriptComponent();
-    ~UScriptComponent() override;
+    virtual ~UScriptComponent() override;
 
     // ==================== Lifecycle ====================
     void BeginPlay() override;
@@ -58,6 +58,11 @@ public:
 
     // ==================== Serialize ====================
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+    void OnSerialized() override;
+    
+    // ==================== Duplicate ====================
+    void DuplicateSubObjects() override;
+    DECLARE_DUPLICATE(UScriptComponent)
     
     /**
      * @brief 스크립트가 로드되었는지 확인
