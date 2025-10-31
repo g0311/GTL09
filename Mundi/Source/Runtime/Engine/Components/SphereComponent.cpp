@@ -3,6 +3,10 @@
 #include "RenderManager.h"
 #include "Vector.h"
 #include "BoundingSphere.h"
+#include "CollisionQueries.h"
+#include "BoxComponent.h"
+#include "CapsuleComponent.h"
+#include "OBB.h"
 
 IMPLEMENT_CLASS(USphereComponent)
 
@@ -14,6 +18,7 @@ END_PROPERTIES()
 USphereComponent::USphereComponent()
 {
     SphereRadius = 3.0f;
+    CollisionShape = ECollisionShapeType::Sphere;
 }
 
 USphereComponent::~USphereComponent()
@@ -76,5 +81,29 @@ FBoundingSphere USphereComponent::GetWorldSphere() const
     const FVector Scale = GetWorldScale();
     const float RadiusWS = SphereRadius * std::max({ Scale.X, Scale.Y, Scale.Z });
     return FBoundingSphere(Center, RadiusWS);
+}
+
+bool USphereComponent::Overlaps(const UShapeComponent* Other) const
+{
+    if (!Other) return false;
+    const FBoundingSphere This = GetWorldSphere();
+    switch (Other->GetCollisionShapeType())
+    {
+    case ECollisionShapeType::Sphere:
+        if (const USphereComponent* S = Cast<USphereComponent>(Other))
+            return Collision::OverlapSphereSphere(This, S->GetWorldSphere());
+        break;
+    case ECollisionShapeType::OBB:
+        if (const UBoxComponent* B = Cast<UBoxComponent>(Other))
+            return Collision::OverlapOBBSphere(B->GetWorldOBB(), This);
+        break;
+    case ECollisionShapeType::Capsule:
+        if (const UCapsuleComponent* C = Cast<UCapsuleComponent>(Other))
+            return Collision::OverlapCapsuleSphere(C->GetWorldCapsule(), This);
+        break;
+    default:
+        break;
+    }
+    return false;
 }
 

@@ -14,4 +14,5 @@ public:
 
     void DebugDraw() const override;
     struct FOBB GetWorldOBB() const;
+    bool Overlaps(const UShapeComponent* Other) const override;
 };

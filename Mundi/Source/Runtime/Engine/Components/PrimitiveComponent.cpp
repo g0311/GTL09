@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PrimitiveComponent.h"
 #include "SceneComponent.h"
 #include "World.h"
@@ -92,6 +92,7 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
 
     if (!bIsCollisionEnabled || !bGenerateOverlapEvents)
     {
+        UE_LOG("skipping: disabled.");
         return;
     }
 
@@ -102,8 +103,13 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
     }
 
     AActor* MyOwner = GetOwner();
+    UShapeComponent* ThisShape = dynamic_cast<UShapeComponent*>(this);
+    if (!ThisShape)
+    {
+        UE_LOG("skipping: not a shape component.");
+        return;
+    }
 
-    // Helper to push a new overlap
     auto AddOverlap = [&](AActor* OtherActor, UPrimitiveComponent* OtherComp)
     {
         if (!OtherActor || OtherActor == MyOwner)
@@ -116,46 +122,10 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
         FOverlapInfo Info;
         Info.OtherActor = OtherActor;
         Info.OtherComp = OtherComp;
-        // Avoid duplicates
-        bool bExists = false;
-        for (const FOverlapInfo& E : OverlapInfos)
-        {
-            if (E == Info) { bExists = true; break; }
-        }
-        if (!bExists)
+        if (!OverlapInfos.Contains(Info))
             OverlapInfos.Add(Info);
     };
 
-    // Construct this component's shape info
-    const USphereComponent* ThisSphere = Cast<USphereComponent>(this);
-    const UBoxComponent* ThisBox = ThisSphere ? nullptr : Cast<UBoxComponent>(this);
-    const UCapsuleComponent* ThisCapsule = (ThisSphere || ThisBox) ? nullptr : Cast<UCapsuleComponent>(this);
-    const UStaticMeshComponent* ThisSMC = (ThisSphere || ThisBox || ThisCapsule) ? nullptr : Cast<UStaticMeshComponent>(this);
-
-    // Precompute this shape
-    FBoundingSphere ThisSphereShape;
-    FOBB ThisOBBShape;
-    FCapsule ThisCapsuleShape;
-    FAABB ThisAABBShape;
-
-    if (ThisSphere)
-    {
-        ThisSphereShape = ThisSphere->GetWorldSphere();
-    }
-    else if (ThisBox)
-    {
-        ThisOBBShape = ThisBox->GetWorldOBB();
-    }
-    else if (ThisCapsule)
-    {
-        ThisCapsuleShape = ThisCapsule->GetWorldCapsule();
-    }
-    else if (ThisSMC)
-    {
-        ThisAABBShape = ThisSMC->GetWorldAABB();
-    }
-
-    // Iterate world actors/components
     for (AActor* Actor : World->GetActors())
     {
         if (!Actor || Actor == MyOwner)
@@ -163,97 +133,18 @@ void UPrimitiveComponent::RefreshOverlapInfos(uint32 mask)
 
         for (USceneComponent* Comp : Actor->GetSceneComponents())
         {
-            UPrimitiveComponent* OtherPrim = Cast<UPrimitiveComponent>(Comp);
-            if (!OtherPrim || OtherPrim == this)
+            UShapeComponent* OtherShape = Cast<UShapeComponent>(Comp);
+            if (!OtherShape || OtherShape == ThisShape)
                 continue;
-            if (!OtherPrim->IsCollisionEnabled() || !OtherPrim->GetGenerateOverlapEvents())
+            if (!OtherShape->IsCollisionEnabled() || !OtherShape->GetGenerateOverlapEvents())
                 continue;
 
-            const USphereComponent* OtherSphere = Cast<USphereComponent>(OtherPrim);
-            const UBoxComponent* OtherBox = OtherSphere ? nullptr : Cast<UBoxComponent>(OtherPrim);
-            const UCapsuleComponent* OtherCapsule = (OtherSphere || OtherBox) ? nullptr : Cast<UCapsuleComponent>(OtherPrim);
-            const UStaticMeshComponent* OtherSMC = (OtherSphere || OtherBox || OtherCapsule) ? nullptr : Cast<UStaticMeshComponent>(OtherPrim);
-
-            bool bOverlap = false;
-
-            if (ThisSphere)
+            UE_LOG("checking shape overlap");
+            
+            if (ThisShape->Overlaps(OtherShape))
             {
-                if (OtherSphere)
-                {
-                    bOverlap = Collision::OverlapSphereSphere(ThisSphereShape, OtherSphere->GetWorldSphere());
-                }
-                else if (OtherBox)
-                {
-                    bOverlap = Collision::OverlapOBBSphere(OtherBox->GetWorldOBB(), ThisSphereShape);
-                }
-                else if (OtherCapsule)
-                {
-                    bOverlap = Collision::OverlapCapsuleSphere(OtherCapsule->GetWorldCapsule(), ThisSphereShape);
-                }
-                else if (OtherSMC)
-                {
-                    bOverlap = Collision::OverlapAABBSphere(OtherSMC->GetWorldAABB(), ThisSphereShape);
-                }
-            }
-            else if (ThisBox)
-            {
-                if (OtherSphere)
-                {
-                    bOverlap = Collision::OverlapOBBSphere(ThisOBBShape, OtherSphere->GetWorldSphere());
-                }
-                else if (OtherBox)
-                {
-                    bOverlap = Collision::OverlapOBBOBB(ThisOBBShape, OtherBox->GetWorldOBB());
-                }
-                else if (OtherCapsule)
-                {
-                    bOverlap = Collision::OverlapOBBCapsule(ThisOBBShape, OtherCapsule->GetWorldCapsule());
-                }
-                else if (OtherSMC)
-                {
-                    bOverlap = Collision::OverlapAABBOBB(OtherSMC->GetWorldAABB(), ThisOBBShape);
-                }
-            }
-            else if (ThisCapsule)
-            {
-                if (OtherSphere)
-                {
-                    bOverlap = Collision::OverlapCapsuleSphere(ThisCapsuleShape, OtherSphere->GetWorldSphere());
-                }
-                else if (OtherBox)
-                {
-                    bOverlap = Collision::OverlapOBBCapsule(OtherBox->GetWorldOBB(), ThisCapsuleShape);
-                }
-                else if (OtherCapsule)
-                {
-                    bOverlap = Collision::OverlapCapsuleCapsule(ThisCapsuleShape, OtherCapsule->GetWorldCapsule());
-                }
-                else if (OtherSMC)
-                {
-                    // AABB-Capsule not implemented in CollisionQueries; skip
-                    bOverlap = false;
-                }
-            }
-            else if (ThisSMC)
-            {
-                if (OtherSphere)
-                {
-                    bOverlap = Collision::OverlapAABBSphere(ThisAABBShape, OtherSphere->GetWorldSphere());
-                }
-                else if (OtherBox)
-                {
-                    bOverlap = Collision::OverlapAABBOBB(ThisAABBShape, OtherBox->GetWorldOBB());
-                }
-                else if (OtherCapsule)
-                {
-                    // AABB-Capsule not implemented
-                    bOverlap = false;
-                }
-            }
-
-            if (bOverlap)
-            {
-                AddOverlap(Actor, OtherPrim);
+                UE_LOG("overlap found");
+                AddOverlap(Actor, OtherShape);
             }
         }
     }

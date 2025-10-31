@@ -2,7 +2,11 @@
 #include "BoxComponent.h"
 #include "RenderManager.h"
 #include "AABB.h"
+#include "BoundingSphere.h"
 #include "OBB.h"
+#include "CollisionQueries.h"
+#include "SphereComponent.h"
+#include "CapsuleComponent.h"
 
 IMPLEMENT_CLASS(UBoxComponent)
 
@@ -14,6 +18,7 @@ END_PROPERTIES()
 UBoxComponent::UBoxComponent()
 {
     BoxExtent = FVector(3.0f, 3.0f, 3.0f);
+    CollisionShape = ECollisionShapeType::OBB;
 }
 
 UBoxComponent::~UBoxComponent()
@@ -67,5 +72,29 @@ FOBB UBoxComponent::GetWorldOBB() const
     const FVector Ext = BoxExtent; // half extents in local space
     const FAABB LocalAABB(FVector(-Ext.X, -Ext.Y, -Ext.Z), FVector(Ext.X, Ext.Y, Ext.Z));
     return FOBB(LocalAABB, GetWorldMatrix());
+}
+
+bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
+{
+    if (!Other) return false;
+    const FOBB This = GetWorldOBB();
+    switch (Other->GetCollisionShapeType())
+    {
+    case ECollisionShapeType::Sphere:
+        if (const USphereComponent* S = Cast<USphereComponent>(Other))
+            return Collision::OverlapOBBSphere(This, S->GetWorldSphere());
+        break;
+    case ECollisionShapeType::OBB:
+        if (const UBoxComponent* B = Cast<UBoxComponent>(Other))
+            return Collision::OverlapOBBOBB(This, B->GetWorldOBB());
+        break;
+    case ECollisionShapeType::Capsule:
+        if (const UCapsuleComponent* C = Cast<UCapsuleComponent>(Other))
+            return Collision::OverlapOBBCapsule(This, C->GetWorldCapsule());
+        break;
+    default:
+        break;
+    }
+    return false;
 }
 

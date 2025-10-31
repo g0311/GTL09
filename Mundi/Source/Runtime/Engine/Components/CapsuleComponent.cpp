@@ -1,7 +1,13 @@
 #include "pch.h"
 #include "CapsuleComponent.h"
+
+#include "BoundingSphere.h"
 #include "RenderManager.h"
 #include "Vector.h"
+#include "CollisionQueries.h"
+#include "SphereComponent.h"
+#include "BoxComponent.h"
+#include "OBB.h"
 
 IMPLEMENT_CLASS(UCapsuleComponent)
 
@@ -15,6 +21,7 @@ UCapsuleComponent::UCapsuleComponent()
 {
     CapsuleRadius = 3.0f;
     CapsuleHalfHeight = 5.0f;
+    CollisionShape = ECollisionShapeType::Capsule;
 }
 
 UCapsuleComponent::~UCapsuleComponent()
@@ -139,4 +146,28 @@ void UCapsuleComponent::DebugDraw() const
     AddHemisphere(C1, -Axis); // bottom cap
 
     Renderer->AddLines(Starts, Ends, Colors);
+}
+
+bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
+{
+    if (!Other) return false;
+    const FCapsule This = GetWorldCapsule();
+    switch (Other->GetCollisionShapeType())
+    {
+    case ECollisionShapeType::Sphere:
+        if (const USphereComponent* S = Cast<USphereComponent>(Other))
+            return Collision::OverlapCapsuleSphere(This, S->GetWorldSphere());
+        break;
+    case ECollisionShapeType::OBB:
+        if (const UBoxComponent* B = Cast<UBoxComponent>(Other))
+            return Collision::OverlapOBBCapsule(B->GetWorldOBB(), This);
+        break;
+    case ECollisionShapeType::Capsule:
+        if (const UCapsuleComponent* C = Cast<UCapsuleComponent>(Other))
+            return Collision::OverlapCapsuleCapsule(This, C->GetWorldCapsule());
+        break;
+    default:
+        break;
+    }
+    return false;
 }
