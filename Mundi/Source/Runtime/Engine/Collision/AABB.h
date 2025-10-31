@@ -2,19 +2,14 @@
 #include "Vector.h"
 #include "Picking.h"
 
-enum class EAxis : uint8
-{
-	X = 0,
-	Y = 1,
-	Z = 2
-};
-
 // NOTE:
 // Originally named FBound.
 // Renamed to FAABB as part of introducing OBB support (2025-10).
 // This struct now explicitly represents an Axis-Aligned Bounding Box.
 struct FAABB
 {
+	ECollisionShapeType ShapeType = ECollisionShapeType::AABB;
+	
 	FVector Min;
 	FVector Max;
 

@@ -4,6 +4,8 @@
 
 struct FBoundingSphere
 {
+	ECollisionShapeType ShapeType = ECollisionShapeType::Sphere;
+	
 	FVector Center;
 	float Radius;
 

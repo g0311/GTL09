@@ -38,6 +38,11 @@ void AActor::BeginPlay()
 
 void AActor::Tick(float DeltaSeconds)
 {
+	if (IsOverlappingAnyActor())
+	{
+		UE_LOG("overlapping!!!");
+	}
+	
 	// 에디터에서 틱 Off면 스킵
 	if (!bTickInEditor && World->bPie == false) return;
 
@@ -637,4 +642,35 @@ void AActor::UnregisterComponentTree(USceneComponent* SceneComp)
 		UnregisterComponentTree(Child);
 	}
 	SceneComp->UnregisterComponent();
+}
+
+bool AActor::IsOverlappingActor(const AActor* Other) const
+{
+	for (UActorComponent* OwnedComp : OwnedComponents)
+	{
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(OwnedComp))
+		{
+			if ((PrimComp->GetOverlapInfos().Num() > 0) && PrimComp->IsOverlappingActor(Other))
+			{
+				// found one, finished
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool AActor::IsOverlappingAnyActor() const
+{
+	for (UActorComponent* OwnedComp : OwnedComponents)
+	{
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(OwnedComp))
+		{
+			if ((PrimComp->GetOverlapInfos().Num() > 0))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }

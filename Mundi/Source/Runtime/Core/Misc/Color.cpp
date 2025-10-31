@@ -5,6 +5,18 @@
 #include <algorithm>
 
 // ==============================================================================
+// Common named colors
+// ==============================================================================
+const FLinearColor FLinearColor::White   = FLinearColor(1.f, 1.f, 1.f, 1.f);
+const FLinearColor FLinearColor::Black   = FLinearColor(0.f, 0.f, 0.f, 1.f);
+const FLinearColor FLinearColor::Red     = FLinearColor(1.f, 0.f, 0.f, 1.f);
+const FLinearColor FLinearColor::Green   = FLinearColor(0.f, 1.f, 0.f, 1.f);
+const FLinearColor FLinearColor::Blue    = FLinearColor(0.f, 0.f, 1.f, 1.f);
+const FLinearColor FLinearColor::Yellow  = FLinearColor(1.f, 1.f, 0.f, 1.f);
+const FLinearColor FLinearColor::Cyan    = FLinearColor(0.f, 1.f, 1.f, 1.f);
+const FLinearColor FLinearColor::Magenta = FLinearColor(1.f, 0.f, 1.f, 1.f);
+
+// ==============================================================================
 // Member Methods
 // ==============================================================================
 
