@@ -80,6 +80,7 @@
 #include "InputManager.h"
 #include "UIManager.h"
 #include "ResourceManager.h"
+#include "Source/Runtime/ScriptSys/UScriptManager.h"
 
 #include "JsonSerializer.h"
 
@@ -88,6 +89,7 @@
 #define INPUT UInputManager::GetInstance()
 #define RENDER URenderManager::GetInstance()
 #define SLATE USlateManager::GetInstance()
+#define SCRIPT UScriptManager::GetInstance()
 
 //(월드 별 소유)
 //#define PARTITION UWorldPartitionManager::GetInstance()

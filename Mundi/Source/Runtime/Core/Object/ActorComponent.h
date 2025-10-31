@@ -83,6 +83,13 @@ public:
     // ───── 직렬화 ────────────────────────────
     virtual void OnSerialized() override;
 
+    // ───── 커스텀 UI ────────────────────────────
+    /**
+     * @brief 에디터 디테일 패널에 커스텀 UI 렌더링
+     * @note 오버라이드하여 컴포넌트별 특수 UI를 추가할 수 있음
+     */
+    virtual void RenderCustomUI() {}
+
 protected:
     AActor* Owner = nullptr;     // 소유 액터
     bool bIsNative = false;      // 액터의 기본 구성 컴포넌트인지 여부. 활성화되면 보호되어 UI에서 삭제 불가 상태가 됨 

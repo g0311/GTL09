@@ -1,11 +1,16 @@
 #include "pch.h"
 #include "ScriptComponent.h"
+#include "UScriptManager.h"
 #include "Actor.h"
 #include "SceneComponent.h"
+#include "ImGui/imgui.h"
 #include <filesystem>
 
 IMPLEMENT_CLASS(UScriptComponent)
 
+BEGIN_PROPERTIES(UScriptComponent)
+    MARK_AS_COMPONENT("스크립트 컴포넌트", "루아 스크립트")
+END_PROPERTIES()
 // ==================== 생성자/소멸자 ====================
 
 UScriptComponent::UScriptComponent()
@@ -23,18 +28,18 @@ UScriptComponent::~UScriptComponent()
 
 void UScriptComponent::BeginPlay()
 {
-    Super::BeginPlay();
+    UActorComponent::BeginPlay();
     
-    // Lua state 초기화
+    // 스크립트 로드
     if (!bScriptLoaded && !ScriptPath.empty())
     {
-        InitializeLuaState();
         ReloadScript();
     }
     
     // Lua BeginPlay() 호출
     if (bScriptLoaded)
     {
+        sol::state& lua = UScriptManager::GetInstance().GetLuaState();
         sol::protected_function func = lua["BeginPlay"];
         if (func.valid())
         {
@@ -50,12 +55,13 @@ void UScriptComponent::BeginPlay()
 
 void UScriptComponent::TickComponent(float DeltaTime)
 {
-    Super::TickComponent(DeltaTime);
+    UActorComponent::TickComponent(DeltaTime);
     
     if (!bScriptLoaded)
         return;
     
     // Lua Tick(dt) 호출
+    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
     sol::protected_function func = lua["Tick"];
     if (func.valid())
     {
@@ -73,6 +79,7 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
     // Lua EndPlay() 호출
     if (bScriptLoaded)
     {
+        sol::state& lua = UScriptManager::GetInstance().GetLuaState();
         sol::protected_function func = lua["EndPlay"];
         if (func.valid())
         {
@@ -85,7 +92,7 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
         }
     }
     
-    Super::EndPlay(Reason);
+    UActorComponent::EndPlay(Reason);
 }
 
 // ==================== 스크립트 관리 ====================
@@ -93,13 +100,6 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
 bool UScriptComponent::SetScriptPath(const FString& InScriptPath)
 {
     ScriptPath = InScriptPath;
-    
-    // Lua state 초기화 (처음 호출 시)
-    if (lua.lua_state() == nullptr)
-    {
-        InitializeLuaState();
-    }
-    
     return ReloadScript();
 }
 
@@ -111,11 +111,32 @@ void UScriptComponent::OpenScriptInEditor()
         return;
     }
     
+    // 상대 경로를 절대 경로로 변환
+    namespace fs = std::filesystem;
+    fs::path absolutePath;
+    
+    if (fs::path(ScriptPath).is_absolute())
+    {
+        absolutePath = ScriptPath;
+    }
+    else
+    {
+        absolutePath = fs::current_path() / ScriptPath;
+    }
+    
+    // 파일 존재 확인
+    if (!fs::exists(absolutePath))
+    {
+        FString errorMsg = "Script file not found: " + absolutePath.string();
+        MessageBoxA(NULL, errorMsg.c_str(), "Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+    
     // Windows 기본 에디터로 열기
     HINSTANCE hInst = ShellExecuteA(
         NULL,
         "open",
-        ScriptPath.c_str(),
+        absolutePath.string().c_str(),
         NULL,
         NULL,
         SW_SHOWNORMAL
@@ -148,6 +169,7 @@ bool UScriptComponent::ReloadScript()
         return false;
     }
     
+    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
     lua["actor"] = OwnerActor;
     lua["self"] = this;  // ScriptComponent 자신도 노출
     
@@ -174,6 +196,7 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     if (!bScriptLoaded || !OtherActor)
         return;
     
+    sol::state& lua = UScriptManager::GetInstance().GetLuaState();
     sol::protected_function func = lua["OnOverlap"];
     if (func.valid())
     {
@@ -186,93 +209,6 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     }
 }
 
-// ==================== 초기화 ====================
-
-void UScriptComponent::InitializeLuaState()
-{
-    // Lua 기본 라이브러리 로드
-    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
-    
-    // print를 OutputDebugString으로 리다이렉트
-    lua.set_function("print", [](const std::string& msg) {
-        OutputDebugStringA((msg + "\n").c_str());
-    });
-    
-    // 타입 등록
-    RegisterTypes();
-}
-
-void UScriptComponent::RegisterTypes()
-{
-    // ==================== FVector 등록 ====================
-    lua.new_usertype<FVector>("Vector",
-        sol::constructors<FVector(), FVector(float, float, float)>(),
-        "X", &FVector::X,
-        "Y", &FVector::Y,
-        "Z", &FVector::Z,
-        sol::meta_function::addition, [](const FVector& a, const FVector& b) {
-            return a + b;
-        },
-        sol::meta_function::multiplication, [](const FVector& v, float f) {
-            return v * f;
-        }
-    );
-    
-    // ==================== FQuat 등록 ====================
-    lua.new_usertype<FQuat>("Quat",
-        sol::constructors<FQuat()>(),
-        "X", &FQuat::X,
-        "Y", &FQuat::Y,
-        "Z", &FQuat::Z,
-        "W", &FQuat::W
-    );
-    
-    // ==================== FTransform 등록 ====================
-    lua.new_usertype<FTransform>("Transform",
-        "Location", &FTransform::Translation,
-        "Rotation", &FTransform::Rotation,
-        "Scale", &FTransform::Scale3D
-    );
-    
-    // ==================== AActor 등록 ====================
-    lua.new_usertype<AActor>("Actor",
-        // Transform API
-        "GetActorLocation", &AActor::GetActorLocation,
-        "SetActorLocation", &AActor::SetActorLocation,
-        "GetActorRotation", &AActor::GetActorRotation,
-        "SetActorRotation", sol::overload(
-            static_cast<void(AActor::*)(const FQuat&)>(&AActor::SetActorRotation),
-            static_cast<void(AActor::*)(const FVector&)>(&AActor::SetActorRotation)
-        ),
-        "GetActorScale", &AActor::GetActorScale,
-        "SetActorScale", &AActor::SetActorScale,
-        
-        // Movement API
-        "AddActorWorldLocation", &AActor::AddActorWorldLocation,
-        "AddActorLocalLocation", &AActor::AddActorLocalLocation,
-        "AddActorWorldRotation", sol::overload(
-            static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorWorldRotation),
-            static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorWorldRotation)
-        ),
-        
-        // Direction API
-        "GetActorForward", &AActor::GetActorForward,
-        "GetActorRight", &AActor::GetActorRight,
-        "GetActorUp", &AActor::GetActorUp,
-        
-        // Name/Visibility
-        "GetName", &AActor::GetName,
-        "SetActorHiddenInGame", &AActor::SetActorHiddenInGame,
-        "GetActorHiddenInGame", &AActor::GetActorHiddenInGame
-    );
-    
-    // ==================== UScriptComponent 등록 ====================
-    lua.new_usertype<UScriptComponent>("ScriptComponent",
-        "GetScriptPath", &UScriptComponent::GetScriptPath,
-        "ReloadScript", &UScriptComponent::ReloadScript,
-        "OpenScriptInEditor", &UScriptComponent::OpenScriptInEditor
-    );
-}
 
 // ==================== Serialize ====================
 
@@ -289,5 +225,69 @@ void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
     {
         // 저장 시: ScriptPath를 기록
         InOutHandle["ScriptPath"] = ScriptPath.c_str();
+    }
+}
+
+// ==================== 커스텀 UI ====================
+
+void UScriptComponent::RenderCustomUI()
+{
+    ImGui::Separator();
+    ImGui::Text("Lua Script");
+    
+    // ScriptPath 입력
+    char Buffer[256];
+    strncpy_s(Buffer, ScriptPath.c_str(), sizeof(Buffer) - 1);
+    Buffer[sizeof(Buffer) - 1] = '\0';
+    
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::InputText("Script Path", Buffer, sizeof(Buffer)))
+    {
+        ScriptPath = Buffer;
+    }
+    
+    // 버튼들
+    if (ImGui::Button("Create Script", ImVec2(120, 0)))
+    {
+        AActor* Owner = GetOwner();
+        if (Owner)
+        {
+            FString SceneName = "Default";
+            FString ActorName = Owner->GetName().ToString();
+            
+            if (UScriptManager::GetInstance().CreateScript(SceneName, ActorName))
+            {
+                ScriptPath = "LuaScripts/" + SceneName + "_" + ActorName + ".lua";
+                OutputDebugStringA(("Created script: " + ScriptPath + "\n").c_str());
+            }
+        }
+    }
+    
+    ImGui::SameLine();
+    if (ImGui::Button("Load Script", ImVec2(120, 0)))
+    {
+        if (!ScriptPath.empty())
+        {
+            SetScriptPath(ScriptPath);
+        }
+    }
+    
+    ImGui::SameLine();
+    if (ImGui::Button("Edit Script", ImVec2(120, 0)))
+    {
+        if (!ScriptPath.empty())
+        {
+            OpenScriptInEditor();
+        }
+    }
+    
+    // 상태 표시
+    if (bScriptLoaded)
+    {
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Status: Loaded");
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Status: Not Loaded");
     }
 }

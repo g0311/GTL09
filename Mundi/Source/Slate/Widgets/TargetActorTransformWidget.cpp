@@ -511,12 +511,14 @@ void UTargetActorTransformWidget::RenderSelectedActorDetails(AActor* SelectedAct
 	{
 		return;
 	}
-	USceneComponent* RootComponent = SelectedActor->GetRootComponent();
-	const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
 	
-
-	UPropertyRenderer::RenderProperties(Properties, RootComponent);
-
+	for (auto& Component : SelectedActor->GetOwnedComponents())
+	{
+		const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
+		UPropertyRenderer::RenderProperties(Properties, Component);
+		Component->RenderCustomUI();
+	}
+	
 	bool bActorHiddenInGame = SelectedActor->GetActorHiddenInGame();
 	if (ImGui::Checkbox("bActorHiddendInGame", &bActorHiddenInGame))
 	{
@@ -538,6 +540,8 @@ void UTargetActorTransformWidget::RenderSelectedComponentDetails(UActorComponent
 		ImGui::Separator();
 		ImGui::Text("[Reflected Properties]");
 		UPropertyRenderer::RenderAllPropertiesWithInheritance(SelectedComponent);
+
+		SelectedComponent->RenderCustomUI();
 	}
 }
 

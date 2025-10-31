@@ -14,7 +14,8 @@ class UScriptComponent : public UActorComponent
 {
 public:
     DECLARE_CLASS(UScriptComponent, UActorComponent)
-    
+    GENERATED_REFLECTION_BODY()
+
     UScriptComponent();
     ~UScriptComponent() override;
 
@@ -57,19 +58,9 @@ public:
 
     // ==================== Serialize ====================
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+    virtual void RenderCustomUI() override;
 
 private:
-    /**
-     * @brief Lua state 초기화 및 Actor 바인딩
-     */
-    void InitializeLuaState();
-    
-    /**
-     * @brief Actor/Component 타입을 Lua에 등록
-     */
-    void RegisterTypes();
-
-    sol::state lua;                 ///< 이 컴포넌트 전용 Lua state
     FString ScriptPath;             ///< 스크립트 파일 경로
     bool bScriptLoaded = false;     ///< 스크립트 로드 성공 여부
 };
