@@ -5,8 +5,15 @@
 class UCapsuleComponent : public UShapeComponent
 {
 public:
+    DECLARE_CLASS(UCapsuleComponent, UShapeComponent)
+    GENERATED_REFLECTION_BODY()
+
+    UCapsuleComponent();
+    virtual ~UCapsuleComponent() override;
+    
     float CapsuleHalfHeight;
     float CapsuleRadius;
 
     FCapsule GetWorldCapsule() const;
+    void DebugDraw() const override;
 };

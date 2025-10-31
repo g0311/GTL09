@@ -1,5 +1,24 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "CapsuleComponent.h"
+#include "RenderManager.h"
+#include "Vector.h"
+
+IMPLEMENT_CLASS(UCapsuleComponent)
+
+BEGIN_PROPERTIES(UCapsuleComponent)
+    MARK_AS_COMPONENT("캡슐 컴포넌트", "캡슐 컴포넌트입니다.")
+END_PROPERTIES()
+
+UCapsuleComponent::UCapsuleComponent()
+{
+    CapsuleRadius = 3.0f;
+    CapsuleHalfHeight = 5.0f;
+}
+
+UCapsuleComponent::~UCapsuleComponent()
+{
+    
+}
 
 FCapsule UCapsuleComponent::GetWorldCapsule() const
 {
@@ -27,4 +46,95 @@ FCapsule UCapsuleComponent::GetWorldCapsule() const
     const FVector CapsuleEndPointBottom = CapsuleCenterWorld - CapsuleAxisWorld * CapsuleHalfHeightWorld;
 
     return FCapsule(CapsuleEndPointTop, CapsuleEndPointBottom, CapsuleRadiusWorld);
+}
+
+void UCapsuleComponent::DebugDraw() const
+{
+    URenderer* Renderer = URenderManager::GetInstance().GetRenderer();
+    if (!Renderer)
+        return;
+
+    const FVector4 Color = FLinearColor(ShapeColor).ToFVector4();
+
+    const FCapsule Cap = GetWorldCapsule();
+    const FVector C1 = Cap.Center1;
+    const FVector C2 = Cap.Center2;
+    const float R = Cap.Radius;
+
+    // Axis from C1 to C2
+    FVector Axis = (C2 - C1);
+    float AxisLen = Axis.Size();
+    if (AxisLen <= KINDA_SMALL_NUMBER)
+        return;
+    Axis = Axis * (1.0f / AxisLen);
+
+    // Build orthonormal basis (U, V) perpendicular to Axis
+    FVector Temp = (std::fabs(Axis.Z) < 0.99f) ? FVector(0, 0, 1) : FVector(0, 1, 0);
+    FVector U = FVector::Cross(Axis, Temp).GetNormalized();
+    FVector V = FVector::Cross(Axis, U).GetNormalized();
+
+    // Rings at both ends + hemisphere arcs
+    const int Segments = 24;
+    const float DeltaFull = TWO_PI / static_cast<float>(Segments);
+    const float DeltaHalf = PI / static_cast<float>(Segments);
+
+    TArray<FVector> Starts;
+    TArray<FVector> Ends;
+    TArray<FVector4> Colors;
+    Starts.reserve(Segments * 3 + 8);
+    Ends.reserve(Segments * 3 + 8);
+    Colors.reserve(Segments * 3 + 8);
+
+    auto AddRing = [&](const FVector& Center)
+    {
+        for (int i = 0; i < Segments; ++i)
+        {
+            const float a0 = static_cast<float>(i) * DeltaFull;
+            const float a1 = (static_cast<float>(i) + 1.0f) * DeltaFull;
+            const FVector P0 = Center + (U * std::cos(a0) + V * std::sin(a0)) * R;
+            const FVector P1 = Center + (U * std::cos(a1) + V * std::sin(a1)) * R;
+            Starts.Add(P0);
+            Ends.Add(P1);
+            Colors.Add(Color);
+        }
+    };
+
+    AddRing(C1);
+    AddRing(C2);
+
+    // Longitudinal lines along U and V directions
+    const FVector Udir = U * R;
+    const FVector Vdir = V * R;
+
+    Starts.Add(C1 + Udir); Ends.Add(C2 + Udir); Colors.Add(Color);
+    Starts.Add(C1 - Udir); Ends.Add(C2 - Udir); Colors.Add(Color);
+    Starts.Add(C1 + Vdir); Ends.Add(C2 + Vdir); Colors.Add(Color);
+    Starts.Add(C1 - Vdir); Ends.Add(C2 - Vdir); Colors.Add(Color);
+
+    // Hemisphere arcs on both caps in planes (U,Axis) and (V,Axis)
+    auto AddHemisphere = [&](const FVector& Center, const FVector& AxisDir)
+    {
+        for (int i = 0; i < Segments; ++i)
+        {
+            const float t0 = static_cast<float>(i) * DeltaHalf;
+            const float t1 = (static_cast<float>(i) + 1.0f) * DeltaHalf;
+            // Plane (U, Axis)
+            {
+                const FVector P0 = Center + (U * std::cos(t0) + AxisDir * std::sin(t0)) * R;
+                const FVector P1 = Center + (U * std::cos(t1) + AxisDir * std::sin(t1)) * R;
+                Starts.Add(P0); Ends.Add(P1); Colors.Add(Color);
+            }
+            // Plane (V, Axis)
+            {
+                const FVector P0 = Center + (V * std::cos(t0) + AxisDir * std::sin(t0)) * R;
+                const FVector P1 = Center + (V * std::cos(t1) + AxisDir * std::sin(t1)) * R;
+                Starts.Add(P0); Ends.Add(P1); Colors.Add(Color);
+            }
+        }
+    };
+
+    AddHemisphere(C2, Axis); // top cap
+    AddHemisphere(C1, -Axis); // bottom cap
+
+    Renderer->AddLines(Starts, Ends, Colors);
 }

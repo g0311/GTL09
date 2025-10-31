@@ -4,9 +4,8 @@
 #include <string>
 #include <limits>
 
-#include "Enums.h"
+#include "Axis.h"
 #include "UEContainer.h"
-
 
 
 // 혹시 다른 헤더에서 새어 들어온 매크로 방지

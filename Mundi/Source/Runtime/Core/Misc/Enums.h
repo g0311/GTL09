@@ -2,6 +2,8 @@
 //#define UE_ENUMS_H
 #pragma once
 #include "UEContainer.h"
+#include "Vector.h" // uses FVector/FVector2D/FVector4 in serialization helpers
+#include "Axis.h"   // EAxis definition
 //#include "Enums.h"
 #include "Archive.h"
 #include <d3d11.h>
@@ -496,9 +498,4 @@ enum class ECollisionShapeType : uint8
     Capsule
 };
 
-enum class EAxis : uint8
-{
-    X = 0,
-    Y = 1,
-    Z = 2
-};
+// EAxis moved to Axis.h to avoid circular includes with Vector.h

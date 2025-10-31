@@ -4,6 +4,13 @@
 class USphereComponent : public UShapeComponent
 {
 public:
+    DECLARE_CLASS(USphereComponent, UShapeComponent)
+    GENERATED_REFLECTION_BODY()
+
+    USphereComponent();
+    virtual ~USphereComponent() override;
+    
+    void DebugDraw() const override;
 
 private:
     float SphereRadius;
