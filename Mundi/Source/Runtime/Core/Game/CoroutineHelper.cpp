@@ -15,43 +15,62 @@ FCoroutineHelper::~FCoroutineHelper()
 
 void FCoroutineHelper::RunSceduler(float DeltaTime)
 {
-	if (ActiveCoroutine.valid() == false) { return; }
+    if (ActiveCoroutine.valid() == false) { return; }
 
-	bool bShouldResume = false;
+    bool bShouldResume = false;
 
-	if (CurrentInstruction)
-	{
-		if (CurrentInstruction->IsReady(this, DeltaTime))
-		{
-			delete CurrentInstruction;
-			CurrentInstruction = nullptr;
-			bShouldResume = true;
-		}
-		else
-		{
-			bShouldResume = true;
-		}
-	}
+    if (CurrentInstruction)
+    {
+        if (CurrentInstruction->IsReady(this, DeltaTime))
+        {
+            delete CurrentInstruction;
+            CurrentInstruction = nullptr;
+            bShouldResume = true;
+        }
+    }
+    else
+    {
+        // Instruction이 없으면 즉시 재개
+        bShouldResume = true;
+    }
 
-	if (bShouldResume)
-	{
-		auto Result = ActiveCoroutine(); 
-		if (Result.get_type() == sol::type::userdata)
-		{
-			// 코루틴이 새로운 명령서를 발행(yield)했는지 확인합니다.
-			sol::object YieldResult = Result;
-			CurrentInstruction = YieldResult.as<FYieldInstruction*>();
-		}
-	}
+    auto Result = ActiveCoroutine();
+
+    // 코루틴 종료 확인
+    if (Result.get_type() == sol::type::none ||
+        ActiveCoroutine.status() == sol::call_status::ok)
+    {
+        // 코루틴 완료
+        ActiveCoroutine = sol::nil;
+        if (CurrentInstruction)
+        {
+            delete CurrentInstruction;
+            CurrentInstruction = nullptr;
+        }
+        return;
+    }
+
+    if (Result.get_type() == sol::type::userdata)
+    {
+        sol::object YieldResult = Result;
+        CurrentInstruction = YieldResult.as<FYieldInstruction*>();
+    }
 }
 
 void FCoroutineHelper::StartCoroutine(sol::function EntryPoint)
 {
-	if (EntryPoint.valid())
-	{
-		ActiveCoroutine = EntryPoint;
-		RunSceduler();
-	}
+    if (EntryPoint.valid())
+    {
+        // 기존 코루틴 정리
+        if (CurrentInstruction)
+        {
+            delete CurrentInstruction;
+            CurrentInstruction = nullptr;
+        }
+
+        ActiveCoroutine = EntryPoint;
+        RunSceduler();
+    }
 }
 
 FYieldInstruction* FCoroutineHelper::CreateWaitForSeconds(float Seconds)
