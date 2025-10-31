@@ -2,7 +2,6 @@
 #include "ScriptComponent.h"
 #include "UScriptManager.h"
 #include "Actor.h"
-#include "SceneComponent.h"
 #include "ImGui/imgui.h"
 #include <filesystem>
 
@@ -10,6 +9,7 @@ IMPLEMENT_CLASS(UScriptComponent)
 
 BEGIN_PROPERTIES(UScriptComponent)
     MARK_AS_COMPONENT("스크립트 컴포넌트", "루아 스크립트")
+    ADD_PROPERTY_SCRIPTPATH(FString, ScriptPath, "Script", true, "루아 스크립트 파일 경로")
 END_PROPERTIES()
 // ==================== 생성자/소멸자 ====================
 
@@ -228,66 +228,3 @@ void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
     }
 }
 
-// ==================== 커스텀 UI ====================
-
-void UScriptComponent::RenderCustomUI()
-{
-    ImGui::Separator();
-    ImGui::Text("Lua Script");
-    
-    // ScriptPath 입력
-    char Buffer[256];
-    strncpy_s(Buffer, ScriptPath.c_str(), sizeof(Buffer) - 1);
-    Buffer[sizeof(Buffer) - 1] = '\0';
-    
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    if (ImGui::InputText("Script Path", Buffer, sizeof(Buffer)))
-    {
-        ScriptPath = Buffer;
-    }
-    
-    // 버튼들
-    if (ImGui::Button("Create Script", ImVec2(120, 0)))
-    {
-        AActor* Owner = GetOwner();
-        if (Owner)
-        {
-            FString SceneName = "Default";
-            FString ActorName = Owner->GetName().ToString();
-            
-            if (UScriptManager::GetInstance().CreateScript(SceneName, ActorName))
-            {
-                ScriptPath = "LuaScripts/" + SceneName + "_" + ActorName + ".lua";
-                OutputDebugStringA(("Created script: " + ScriptPath + "\n").c_str());
-            }
-        }
-    }
-    
-    ImGui::SameLine();
-    if (ImGui::Button("Load Script", ImVec2(120, 0)))
-    {
-        if (!ScriptPath.empty())
-        {
-            SetScriptPath(ScriptPath);
-        }
-    }
-    
-    ImGui::SameLine();
-    if (ImGui::Button("Edit Script", ImVec2(120, 0)))
-    {
-        if (!ScriptPath.empty())
-        {
-            OpenScriptInEditor();
-        }
-    }
-    
-    // 상태 표시
-    if (bScriptLoaded)
-    {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Status: Loaded");
-    }
-    else
-    {
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Status: Not Loaded");
-    }
-}

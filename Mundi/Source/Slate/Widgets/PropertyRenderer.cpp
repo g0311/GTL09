@@ -15,6 +15,8 @@
 #include "LightComponent.h"
 #include "PointLightComponent.h"
 #include "SpotLightComponent.h"
+#include "Source/Runtime/ScriptSys/ScriptComponent.h"
+#include "Source/Runtime/ScriptSys/UScriptManager.h"
 
 // 정적 멤버 변수 초기화
 TArray<FString> UPropertyRenderer::CachedStaticMeshPaths;
@@ -86,13 +88,16 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 	case EPropertyType::Array:
 		switch (Property.InnerType)
 		{
-		case EPropertyType::Material:
-			bChanged = RenderMaterialArrayProperty(Property, ObjectInstance);
-			break;
+			case EPropertyType::Material:
+					bChanged = RenderMaterialArrayProperty(Property, ObjectInstance);
+					break;
 		}
 		break;
 	case EPropertyType::SRV:
 		bChanged = RenderSRVProperty(Property, ObjectInstance);
+		break;
+	case EPropertyType::FScriptPath:
+		bChanged = RenderScriptPathProperty(Property, ObjectInstance);
 		break;
 	default:
 		ImGui::Text("%s: [Unknown Type]", Property.Name);
@@ -1129,6 +1134,76 @@ bool UPropertyRenderer::RenderTextureSelectionCombo(const char* Label, UTexture*
 		ImGui::EndTooltip();
 	}
 
+	return bChanged;
+}
+
+bool UPropertyRenderer::RenderScriptPathProperty(const FProperty& property, void* object_instance)
+{
+	UScriptComponent* ScriptComp = static_cast<UScriptComponent*>(object_instance);
+	if (!ScriptComp)
+		return false;
+	
+	FString* ScriptPath = property.GetValuePtr<FString>(object_instance);
+	bool bChanged = false;
+	
+	// ScriptPath 입력
+	char Buffer[256];
+	strncpy_s(Buffer, ScriptPath->c_str(), sizeof(Buffer) - 1);
+	Buffer[sizeof(Buffer) - 1] = '\0';
+	
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+	if (ImGui::InputText(property.Name, Buffer, sizeof(Buffer)))
+	{
+		*ScriptPath = Buffer;
+		bChanged = true;
+	}
+	
+	// 버튼들
+	if (ImGui::Button("Create Script", ImVec2(120, 0)))
+	{
+		AActor* Owner = ScriptComp->GetOwner();
+		if (Owner)
+		{
+			FString SceneName = "Default";
+			FString ActorName = Owner->GetName().ToString();
+			
+			if (UScriptManager::GetInstance().CreateScript(SceneName, ActorName))
+			{
+				*ScriptPath = "LuaScripts/" + SceneName + "_" + ActorName + ".lua";
+				OutputDebugStringA(("Created script: " + *ScriptPath + "\n").c_str());
+				bChanged = true;
+			}
+		}
+	}
+	
+	ImGui::SameLine();
+	if (ImGui::Button("Load Script", ImVec2(120, 0)))
+	{
+		if (!ScriptPath->empty())
+		{
+			ScriptComp->SetScriptPath(*ScriptPath);
+		}
+	}
+	
+	ImGui::SameLine();
+	if (ImGui::Button("Edit Script", ImVec2(120, 0)))
+	{
+		if (!ScriptPath->empty())
+		{
+			ScriptComp->OpenScriptInEditor();
+		}
+	}
+	
+	// 상태 표시
+	if (ScriptComp->IsScriptLoaded())
+	{
+		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Status: Loaded");
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Status: Not Loaded");
+	}
+	
 	return bChanged;
 }
 

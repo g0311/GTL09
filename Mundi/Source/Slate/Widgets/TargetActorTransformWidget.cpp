@@ -516,7 +516,6 @@ void UTargetActorTransformWidget::RenderSelectedActorDetails(AActor* SelectedAct
 	{
 		const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
 		UPropertyRenderer::RenderProperties(Properties, Component);
-		Component->RenderCustomUI();
 	}
 	
 	bool bActorHiddenInGame = SelectedActor->GetActorHiddenInGame();
@@ -540,8 +539,6 @@ void UTargetActorTransformWidget::RenderSelectedComponentDetails(UActorComponent
 		ImGui::Separator();
 		ImGui::Text("[Reflected Properties]");
 		UPropertyRenderer::RenderAllPropertiesWithInheritance(SelectedComponent);
-
-		SelectedComponent->RenderCustomUI();
 	}
 }
 

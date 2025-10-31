@@ -58,7 +58,11 @@ public:
 
     // ==================== Serialize ====================
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
-    virtual void RenderCustomUI() override;
+    
+    /**
+     * @brief 스크립트가 로드되었는지 확인
+     */
+    bool IsScriptLoaded() const { return bScriptLoaded; }
 
 private:
     FString ScriptPath;             ///< 스크립트 파일 경로
