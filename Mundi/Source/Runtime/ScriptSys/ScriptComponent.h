@@ -76,6 +76,10 @@ private:
     FString ScriptPath;                 ///< 스크립트 파일 경로
     bool bScriptLoaded = false;   ///< 스크립트 로드 성공 여부
     sol::state* lua;                         ///< 개별 Lua state (컴포넌트별 독립)
+
+    // Hot-reload on tick
+    float HotReloadCheckTimer = 0.0f;        ///< 핫 리로드 체크 타이머
+    long long LastScriptWriteTime_ms = 0;    ///< 마지막으로 로드한 스크립트 파일의 수정 시간 (ms)
 };
 
 template <typename ... Args>

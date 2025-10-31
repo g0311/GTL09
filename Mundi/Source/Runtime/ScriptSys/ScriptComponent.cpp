@@ -4,6 +4,7 @@
 #include "Actor.h"
 #include "ImGui/imgui.h"
 #include <filesystem>
+#include <chrono>
 
 IMPLEMENT_CLASS(UScriptComponent)
 
@@ -24,6 +25,7 @@ UScriptComponent::UScriptComponent()
 
 UScriptComponent::~UScriptComponent()
 {
+    delete lua;
 }
 
 // ==================== Lifecycle ====================
@@ -48,7 +50,7 @@ void UScriptComponent::BeginPlay()
             if (!result.valid())
             {
                 sol::error err = result;
-                OutputDebugStringA(("BeginPlay error: " + std::string(err.what()) + "\n").c_str());
+                UE_LOG(("BeginPlay error: " + std::string(err.what()) + "\n").c_str());
             }
         }
     }
@@ -58,6 +60,28 @@ void UScriptComponent::TickComponent(float DeltaTime)
 {
     UActorComponent::TickComponent(DeltaTime);
 
+    HotReloadCheckTimer += DeltaTime;
+    if (HotReloadCheckTimer > 1.0f)
+    {
+        HotReloadCheckTimer = 0.0f;
+        if (!ScriptPath.empty() && std::filesystem::exists(ScriptPath))
+        {
+            try
+            {
+                auto ftime = std::filesystem::last_write_time(ScriptPath);
+                long long currentTime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(ftime.time_since_epoch()).count();
+
+                if (currentTime_ms > LastScriptWriteTime_ms)
+                {
+                    ReloadScript();
+                }
+            }
+            catch (const std::filesystem::filesystem_error& e)
+            {
+                UE_LOG(e.what());
+            }
+        }
+    }
     if (!bScriptLoaded)
         return;
     
@@ -69,7 +93,7 @@ void UScriptComponent::TickComponent(float DeltaTime)
         if (!result.valid())
         {
             sol::error err = result;
-            OutputDebugStringA(("Tick error: " + std::string(err.what()) + "\n").c_str());
+            UE_LOG(("Tick error: " + std::string(err.what()) + "\n").c_str());
         }
     }
 }
@@ -86,7 +110,7 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
             if (!result.valid())
             {
                 sol::error err = result;
-                OutputDebugStringA(("EndPlay error: " + std::string(err.what()) + "\n").c_str());
+                UE_LOG(("EndPlay error: " + std::string(err.what()) + "\n").c_str());
             }
         }
     }
@@ -106,7 +130,7 @@ void UScriptComponent::OpenScriptInEditor()
 {
     if (ScriptPath.empty())
     {
-        OutputDebugStringA("No script path set\n");
+        UE_LOG("No script path set\n");
         return;
     }
     
@@ -155,7 +179,7 @@ bool UScriptComponent::ReloadScript()
     namespace fs = std::filesystem;
     if (!fs::exists(ScriptPath))
     {
-        OutputDebugStringA(("Script file not found: " + ScriptPath + "\n").c_str());
+        UE_LOG(("Script file not found: " + ScriptPath + "\n").c_str());
         bScriptLoaded = false;
         return false;
     }
@@ -164,7 +188,7 @@ bool UScriptComponent::ReloadScript()
     AActor* OwnerActor = GetOwner();
     if (!OwnerActor)
     {
-        OutputDebugStringA("No owner actor\n");
+        UE_LOG("No owner actor\n");
         return false;
     }
     
@@ -179,12 +203,17 @@ bool UScriptComponent::ReloadScript()
     {
         lua->script_file(ScriptPath);
         bScriptLoaded = true;
-        OutputDebugStringA(("Loaded script: " + ScriptPath + "\n").c_str());
+
+        // Store timestamp for hot-reload
+        auto ftime = std::filesystem::last_write_time(ScriptPath);
+        LastScriptWriteTime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(ftime.time_since_epoch()).count();
+
+        UE_LOG(("Loaded script: " + ScriptPath + "\n").c_str());
         return true;
     }
     catch (const sol::error& e)
     {
-        OutputDebugStringA(("Lua error: " + std::string(e.what()) + "\n").c_str());
+        UE_LOG(("Lua error: " + std::string(e.what()) + "\n").c_str());
         bScriptLoaded = false;
         return false;
     }
@@ -204,7 +233,7 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
         if (!result.valid())
         {
             sol::error err = result;
-            OutputDebugStringA(("OnOverlap error: " + std::string(err.what()) + "\n").c_str());
+            UE_LOG(("OnOverlap error: " + std::string(err.what()) + "\n").c_str());
         }
     }
 }
