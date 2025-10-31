@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <state.hpp>
+
 #include "UEContainer.h"
 #include "ObjectFactory.h"
 #include "MemoryManager.h"
@@ -28,7 +30,9 @@ struct UClass
     const char* Description = nullptr;         // 툴팁 설명
     mutable TArray<FProperty> CachedAllProperties;  // GetAllProperties() 캐시 (성능 최적화)
     mutable bool bAllPropertiesCached = false;      // 캐시 유효성 플래그
-
+    
+    void (*LuaRegisterFunc)(sol::state*);
+    
     constexpr UClass() = default;
     constexpr UClass(const char* n, const UClass* s, std::size_t z)
         :Name(n), Super(s), Size(z) {

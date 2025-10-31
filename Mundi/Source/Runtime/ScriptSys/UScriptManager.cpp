@@ -64,6 +64,21 @@ void UScriptManager::RegisterCoreTypes(sol::state* state)
 
 void UScriptManager::RegisterReflectedClasses(sol::state* state)
 {
+    // 1. C++ 리플렉션 시스템에 등록된 모든 UClass*를 가져옴
+    TArray<UClass*> AllClasses = UClass::GetAllClasses();
+    
+    // 2. 모든 UClass를 순회
+    for (UClass* pClass : AllClasses)
+    {
+        // 3. UClass에 "브릿지 함수"가 등록되어 있는지 확인
+        if (pClass->LuaRegisterFunc)
+        {
+            // 4. "브릿지 함수" 실행!
+            //    이 호출이 C++ 타입 정보가 살아있는 
+            //    inline static 함수를 실행시킴.
+            pClass->LuaRegisterFunc(state);
+        }
+    }
 }
 
 void UScriptManager::RegisterFName(sol::state* state)
