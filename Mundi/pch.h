@@ -71,6 +71,9 @@
 // nlohmann
 #include "nlohmann/json.hpp"
 
+// Lua
+#include "sol.hpp"
+
 //Manager
 #include "Renderer.h"
 #include "InputManager.h"
