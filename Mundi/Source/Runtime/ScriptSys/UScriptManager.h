@@ -25,11 +25,6 @@ public:
 
     UScriptManager(const UScriptManager&) = delete;
     UScriptManager& operator=(const UScriptManager&) = delete;
-
-    /**
-     * @brief 전역 Lua state 반환
-     */
-    sol::state& GetLuaState() { return lua; }
     
     /**
      * @brief template.lua를 복사하여 새 스크립트 파일 생성
@@ -49,15 +44,14 @@ public:
      * @brief 특정 lua state에 모든 타입 등록 (컴포넌트별 state용)
      */
     void RegisterTypesToState(sol::state* state);
-    
-    /**
-     * @brief 리플렉션 기반 클래스 자동 등록
-     */
-    void RegisterClassesWithReflection();
+    void RegisterLOG(sol::state* state);
 
 private:
     /**
      * @brief 전역 타입 바인딩 등록
      */
-    void RegisterGlobalTypes(sol::state* state);
+    void RegisterVector(sol::state* state);
+    void RegisterQuat(sol::state* state);
+    void RegisterTransform(sol::state* state);
+    void RegisterActor(sol::state* state);
 };

@@ -75,7 +75,7 @@ public:
 private:
     FString ScriptPath;                 ///< 스크립트 파일 경로
     bool bScriptLoaded = false;   ///< 스크립트 로드 성공 여부
-    sol::state lua;                         ///< 개별 Lua state (컴포넌트별 독립)
+    sol::state* lua;                         ///< 개별 Lua state (컴포넌트별 독립)
 };
 
 template <typename ... Args>

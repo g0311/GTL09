@@ -18,6 +18,8 @@ UScriptComponent::UScriptComponent()
     // 틱 활성화
     SetCanEverTick(true);
     SetTickEnabled(true);
+
+    lua = new sol::state;
 }
 
 UScriptComponent::~UScriptComponent()
@@ -39,7 +41,7 @@ void UScriptComponent::BeginPlay()
     // Lua BeginPlay() 호출
     if (bScriptLoaded)
     {
-        sol::protected_function func = lua["BeginPlay"];
+        sol::protected_function func = (*lua)["BeginPlay"];
         if (func.valid())
         {
             auto result = func();
@@ -60,7 +62,7 @@ void UScriptComponent::TickComponent(float DeltaTime)
         return;
     
     // Lua Tick(dt) 호출
-    sol::protected_function func = lua["Tick"];
+    sol::protected_function func = (*lua)["Tick"];
     if (func.valid())
     {
         auto result = func(DeltaTime);
@@ -77,7 +79,7 @@ void UScriptComponent::EndPlay(EEndPlayReason Reason)
     // Lua EndPlay() 호출
     if (bScriptLoaded)
     {
-        sol::protected_function func = lua["EndPlay"];
+        sol::protected_function func = (*lua)["EndPlay"];
         if (func.valid())
         {
             auto result = func();
@@ -166,28 +168,16 @@ bool UScriptComponent::ReloadScript()
         return false;
     }
     
-    // 개별 lua state 초기화 (라이브러리 + 전역 타입)
-    lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
-    lua.set_function("Log", [](const std::string& msg) {
-        UE_LOG(("[Lua] " + msg + "\n").c_str());
-    });
-    lua.set_function("LogWarning", [](const std::string& msg) {
-        UE_LOG(("[Lua Warning] " + msg + "\n").c_str());
-    });
-    lua.set_function("LogError", [](const std::string& msg) {
-        UE_LOG(("[Lua Error] " + msg + "\n").c_str());
-    });
-    
-    UScriptManager::GetInstance().RegisterTypesToState(&lua);
+    UScriptManager::GetInstance().RegisterTypesToState(lua);
     
     // 이 컴포넌트 전용 변수 바인딩
-    lua["actor"] = OwnerActor;
-    lua["self"] = this;
+    (*lua)["actor"] = OwnerActor;
+    (*lua)["self"] = this;
     
     // 스크립트 로드
     try
     {
-        lua.script_file(ScriptPath);
+        lua->script_file(ScriptPath);
         bScriptLoaded = true;
         OutputDebugStringA(("Loaded script: " + ScriptPath + "\n").c_str());
         return true;
@@ -207,7 +197,7 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     if (!bScriptLoaded || !OtherActor)
         return;
     
-    sol::protected_function func = lua["OnOverlap"];
+    sol::protected_function func = (*lua)["OnOverlap"];
     if (func.valid())
     {
         auto result = func(OtherActor);
@@ -253,4 +243,5 @@ void UScriptComponent::DuplicateSubObjects()
 
     // 복제본은 런타임 로드 상태를 초기화하고 필요 시 BeginPlay/OnSerialized에서 로드
     bScriptLoaded = false;
+    lua = new sol::state;
 }

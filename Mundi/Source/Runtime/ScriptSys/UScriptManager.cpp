@@ -10,14 +10,29 @@ IMPLEMENT_CLASS(UScriptManager)
 void UScriptManager::RegisterTypesToState(sol::state* state)
 {
     if (!state) return;
-
-    
+    RegisterLOG(state);
+    RegisterVector(state);
+    RegisterQuat(state);
+    RegisterTransform(state);
+    RegisterActor(state);
+}
+void UScriptManager::RegisterLOG(sol::state* state)
+{
+    // ==================== Log 등록 ====================
+    state->open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
+    state->set_function("Log", [](const std::string& msg) {
+        UE_LOG(("[Lua] " + msg + "\n").c_str());
+    });
+    state->set_function("LogWarning", [](const std::string& msg) {
+        UE_LOG(("[Lua Warning] " + msg + "\n").c_str());
+    });
+    state->set_function("LogError", [](const std::string& msg) {
+        UE_LOG(("[Lua Error] " + msg + "\n").c_str());
+    });
 }
 
-void UScriptManager::RegisterGlobalTypes(sol::state* state)
+void UScriptManager::RegisterVector(sol::state* state)
 {
-    if (!state)
-        return;
     // ==================== FVector 등록 ====================
     state->new_usertype<FVector>("Vector",
         sol::constructors<FVector(), FVector(float, float, float)>(),
@@ -38,7 +53,10 @@ void UScriptManager::RegisterGlobalTypes(sol::state* state)
             return v / f;
         }
     );
-    
+}
+
+void UScriptManager::RegisterQuat(sol::state* state)
+{
     // ==================== FQuat 등록 ====================
     state->new_usertype<FQuat>("Quat",
         sol::constructors<FQuat()>(),
@@ -47,14 +65,20 @@ void UScriptManager::RegisterGlobalTypes(sol::state* state)
         "Z", &FQuat::Z,
         "W", &FQuat::W
     );
-    
+}
+
+void UScriptManager::RegisterTransform(sol::state* state)
+{
     // ==================== FTransform 등록 ====================
     state->new_usertype<FTransform>("Transform",
         "Location", &FTransform::Translation,
         "Rotation", &FTransform::Rotation,
         "Scale", &FTransform::Scale3D
     );
-    
+}
+
+void UScriptManager::RegisterActor(sol::state* state)
+{
     // ==================== AActor 등록 ====================
     state->new_usertype<AActor>("Actor",
         // Transform API
