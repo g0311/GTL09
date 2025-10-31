@@ -881,6 +881,9 @@
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
       <Filter>Source\Editor\Clipboard</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\Sol2\version.hpp">
+      <Filter>ThirdParty\sol</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
@@ -990,6 +993,9 @@
     </Filter>
     <Filter Include="Shaders\Shadows">
       <UniqueIdentifier>{c9f0ed58-5133-40c4-8055-0ec3a4bf7504}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\sol">
+      <UniqueIdentifier>{9e4bb8e8-b39b-48b9-aa4a-e2cbc6c9d04b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
