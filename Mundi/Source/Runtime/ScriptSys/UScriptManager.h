@@ -39,17 +39,20 @@ public:
      * @param ScriptPath 편집할 스크립트 경로
      */
     void EditScript(const FString& ScriptPath);
-    
+
     /**
      * @brief 특정 lua state에 모든 타입 등록 (컴포넌트별 state용)
      */
     void RegisterTypesToState(sol::state* state);
-    void RegisterLOG(sol::state* state);
 
 private:
     /**
      * @brief 전역 타입 바인딩 등록
      */
+    void RegisterCoreTypes(sol::state* state);
+    void RegisterReflectedClasses(sol::state* state);
+    
+    void RegisterLOG(sol::state* state);
     void RegisterVector(sol::state* state);
     void RegisterQuat(sol::state* state);
     void RegisterTransform(sol::state* state);
