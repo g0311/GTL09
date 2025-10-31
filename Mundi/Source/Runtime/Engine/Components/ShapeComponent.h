@@ -19,7 +19,7 @@ public:
     virtual void DebugDraw() const {};
 
     // Hook into debug rendering pass to call shape DebugDraw
-    virtual void RenderDebugVolume(class URenderer* Renderer) const override { DebugDraw(); }
+    virtual void RenderDebugVolume(class URenderer* Renderer) const override;
 
     // Virtual shape-vs-shape overlap dispatch
     virtual bool Overlaps(const UShapeComponent* Other) const { return false; }

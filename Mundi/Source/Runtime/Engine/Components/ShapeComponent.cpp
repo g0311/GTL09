@@ -2,17 +2,40 @@
 #include "ShapeComponent.h"
 #include "CollisionManager.h"
 #include "AABB.h"
+#include "World.h"
+#include "SelectionManager.h"
 
 IMPLEMENT_CLASS(UShapeComponent)
 
 BEGIN_PROPERTIES(UShapeComponent)
-    MARK_AS_COMPONENT("모양 컴포넌트", "모양 컴포넌트입니다.")
+    ADD_PROPERTY_RANGE(bool, bDrawOnlyIfSelected, "Shape", 0, 1, true, "Draw Only If Selected");
+    ADD_PROPERTY_RANGE(FLinearColor, ShapeColor, "Shape", 0.0f, 1.0f, true, "Debug draw color")
 END_PROPERTIES()
 
 UShapeComponent::UShapeComponent()
 {
     SetCollisionEnabled(true);
     SetGenerateOverlapEvents(true);
+    ShapeColor = FLinearColor::Green;
+}
+
+void UShapeComponent::RenderDebugVolume(URenderer* Renderer) const
+{
+    // If drawing only when selected, check selection state
+    if (bDrawOnlyIfSelected)
+    {
+        if (UWorld* W = const_cast<UShapeComponent*>(this)->GetWorld())
+        {
+            if (USelectionManager* Sel = W->GetSelectionManager())
+            {
+                if (!Sel->IsActorSelected(GetOwner()))
+                {
+                    return; // not selected and draw-only mode is on
+                }
+            }
+        }
+    }
+    DebugDraw();
 }
 
 void UShapeComponent::OnTransformUpdated()
