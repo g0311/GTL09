@@ -4,8 +4,8 @@
 #include <string>
 #include <limits>
 
+#include "Axis.h"
 #include "UEContainer.h"
-
 
 
 // 혹시 다른 헤더에서 새어 들어온 매크로 방지
@@ -200,7 +200,7 @@ struct FVector
 	}
 	bool operator!=(const FVector& V) const { return !(*this == V); }
 
-	FVector ComponentMin(const FVector& B)
+	FVector ComponentMin(const FVector& B) const
 	{
 		return FVector(
 			(X < B.X) ? X : B.X,
@@ -208,7 +208,7 @@ struct FVector
 			(Z < B.Z) ? Z : B.Z
 		);
 	}
-	FVector ComponentMax(const FVector& B)
+	FVector ComponentMax(const FVector& B) const
 	{
 		return FVector(
 			(X > B.X) ? X : B.X,
@@ -1225,6 +1225,9 @@ struct FTransform
 		return FTransform(TPosition, TRotation, TScale);
 	}
 
+	FVector GetUnitAxis(EAxis Axis) const;
+	FVector GetScale3D(EAxis Axis) const;
+	
 	// 비교 연산자
 	bool operator==(const FTransform& Other) const
 	{
@@ -1408,6 +1411,28 @@ inline FTransform FTransform::Inverse() const
 	Out.Scale3D = InvScale;
 	Out.Translation = InvTrans;
 	return Out;
+}
+
+inline FVector FTransform::GetUnitAxis(EAxis Axis) const
+{
+	switch (Axis)
+	{
+		case EAxis::X: return Rotation.RotateVector(FVector(1.0f, 0.0f, 0.0f)); // local +X → world
+		case EAxis::Y: return Rotation.RotateVector(FVector(0.0f, 1.0f, 0.0f)); // local +Y → world
+		case EAxis::Z: return Rotation.RotateVector(FVector(0.0f, 0.0f, 1.0f)); // local +Z → world
+		default:       return FVector(0.0f, 0.0f, 0.0f);
+	}
+}
+
+inline FVector FTransform::GetScale3D(EAxis Axis) const
+{
+	switch (Axis)
+	{
+		case EAxis::X: return Rotation.RotateVector(FVector(Scale3D.X, 0.0f,       0.0f));
+		case EAxis::Y: return Rotation.RotateVector(FVector(0.0f,       Scale3D.Y, 0.0f));
+		case EAxis::Z: return Rotation.RotateVector(FVector(0.0f,       0.0f,       Scale3D.Z));
+		default:       return FVector(0.0f, 0.0f, 0.0f);
+	}
 }
 
 inline void operator*= (TArray<FVector>& Vectors, const FMatrix& Mat)

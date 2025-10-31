@@ -4,6 +4,8 @@
 
 struct FOBB
 {
+    ECollisionShapeType ShapeType = ECollisionShapeType::OBB;
+    
     FVector Center;
     FVector HalfExtent;
     FVector Axes[3]; // 동적할당하지 않았으므로 기본소멸자로 자동 소멸

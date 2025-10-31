@@ -12,6 +12,7 @@
 #include "StaticMesh.h"
 #include "ObjManager.h"
 #include "WorldPartitionManager.h"
+#include "CollisionManager.h"
 #include "PrimitiveComponent.h"
 #include "Octree.h"
 #include "BVHierarchy.h"
@@ -34,7 +35,7 @@ UWorld::UWorld()
 	//PIE의 경우 Initalize 없이 빈 Level 생성만 해야함
 	Level = std::make_unique<ULevel>();
 	LightManager = std::make_unique<FLightManager>();
-
+	Collision = std::make_unique<UCollisionManager>();
 }
 
 UWorld::~UWorld()
@@ -86,7 +87,11 @@ void UWorld::InitializeGizmo()
 
 void UWorld::Tick(float DeltaSeconds)
 {
-	Partition->Update(DeltaSeconds, /*budget*/256);
+    Partition->Update(DeltaSeconds, /*budget*/256);
+    if (Collision)
+    {
+        Collision->Update(DeltaSeconds, /*budget*/256);
+    }
 
 //순서 바꾸면 안댐
 	if (Level)

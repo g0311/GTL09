@@ -33,6 +33,7 @@
 #include "AmbientLightComponent.h"
 #include "PointLightComponent.h"
 #include "SpotLightComponent.h"
+#include "ShapeComponent.h"
 #include "SwapGuard.h"
 #include "MeshBatchElement.h"
 #include "SceneView.h"
@@ -1209,16 +1210,40 @@ void FSceneRenderer::RenderDebugPass()
 		}
 	}
 
-	// 선택된 액터의 디버그 볼륨 렌더링
-	for (AActor* SelectedActor : World->GetSelectionManager()->GetSelectedActors())
-	{
-		for (USceneComponent* Component : SelectedActor->GetSceneComponents())
-		{
-			// 모든 컴포넌트에서 RenderDebugVolume 호출
-			// 각 컴포넌트는 필요한 경우 override하여 디버그 시각화 제공
-			Component->RenderDebugVolume(OwnerRenderer);
-		}
-	}
+    // 선택된 액터의 디버그 볼륨 렌더링
+    const TArray<AActor*>& Selected = World->GetSelectionManager()->GetSelectedActors();
+    for (AActor* SelectedActor : Selected)
+    {
+        for (USceneComponent* Component : SelectedActor->GetSceneComponents())
+        {
+            // 모든 컴포넌트에서 RenderDebugVolume 호출
+            // 각 컴포넌트는 필요한 경우 override하여 디버그 시각화 제공
+            Component->RenderDebugVolume(OwnerRenderer);
+        }
+    }
+
+    // 추가: 선택되지 않은 액터 중, bDrawOnlyIfSelected == false인 ShapeComponent의 디버그 볼륨도 그리기
+    if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_BoundingBoxes))
+    {
+        const TArray<AActor*>& Actors = World->GetActors();
+        for (AActor* Actor : Actors)
+        {
+            // skip selected actors to avoid duplicate rendering
+            if (std::find(Selected.begin(), Selected.end(), Actor) != Selected.end())
+                continue;
+
+            for (USceneComponent* Component : Actor->GetSceneComponents())
+            {
+                if (UShapeComponent* Shape = Cast<UShapeComponent>(Component))
+                {
+                    if (!Shape->bDrawOnlyIfSelected)
+                    {
+                        Shape->RenderDebugVolume(OwnerRenderer);
+                    }
+                }
+            }
+        }
+    }
 
 	// Debug draw (BVH, Octree 등)
 	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_BVHDebug) && World->GetPartitionManager())
