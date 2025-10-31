@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(move:*)",
+      "Bash(move \"C:\\Users\\Jungle\\Documents\\GitHub\\GTL09\\Mundi\\Delegate.cpp\" \"C:\\Users\\Jungle\\Documents\\GitHub\\GTL09\\Mundi\\Source\\Runtime\\Core\\Delegates\\Delegate.cpp\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
