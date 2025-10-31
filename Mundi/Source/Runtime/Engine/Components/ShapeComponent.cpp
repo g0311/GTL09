@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "ShapeComponent.h"
+#include "CollisionManager.h"
 
 IMPLEMENT_CLASS(UShapeComponent)
 
@@ -16,20 +17,43 @@ UShapeComponent::UShapeComponent()
 void UShapeComponent::OnTransformUpdated()
 {
     Super::OnTransformUpdated();
-
-    // Sync overlaps when a shape moves
-    const TArray<FOverlapInfo> Old = OverlapInfos;
-    RefreshOverlapInfos();
-
-    TSet<UPrimitiveComponent*> Peers;
-    for (const FOverlapInfo& E : Old) if (E.OtherComp) Peers.insert(E.OtherComp);
-    for (const FOverlapInfo& E : OverlapInfos) if (E.OtherComp) Peers.insert(E.OtherComp);
-
-    for (UPrimitiveComponent* Other : Peers)
+    // Defer overlap recomputation to the central collision manager
+    if (UWorld* W = GetWorld())
     {
-        if (Other && Other != this)
+        if (auto* CM = W->GetCollisionManager())
         {
-            Other->RefreshOverlapInfos();
+            CM->MarkDirty(this);
+        }
+    }
+}
+
+void UShapeComponent::OnRegister(UWorld* InWorld)
+{
+    Super::OnRegister(InWorld);
+    // Register with collision manager
+    if (InWorld)
+    {
+        // UWorld exposes getter; include in ShapeComponent.cpp we can reach via Owner->GetWorld()
+        if (UWorld* W = GetWorld())
+        {
+            if (auto* CM = W->GetCollisionManager())
+            {
+                CM->Register(this);
+                CM->MarkDirty(this);
+            }
+        }
+    }
+}
+
+void UShapeComponent::OnUnregister()
+{
+    Super::OnUnregister();
+    // Unregister from collision manager
+    if (UWorld* W = GetWorld())
+    {
+        if (auto* CM = W->GetCollisionManager())
+        {
+            CM->Unregister(this);
         }
     }
 }

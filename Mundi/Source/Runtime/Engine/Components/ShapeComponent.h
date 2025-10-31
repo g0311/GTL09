@@ -23,6 +23,8 @@ public:
     virtual bool Overlaps(const UShapeComponent* Other) const { return false; }
     ECollisionShapeType GetCollisionShapeType() const { return CollisionShape; }
 
-    // Auto-refresh overlaps when transform changes
+    // Mark overlaps dirty when transform changes (central manager will recompute)
     void OnTransformUpdated() override;
+    void OnRegister(UWorld* InWorld) override;
+    void OnUnregister() override;
 };

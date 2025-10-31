@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SceneComponent.h"
 #include "Material.h"
+#include <functional>
 
 // 전방 선언
 struct FSceneCompData;
@@ -78,11 +79,26 @@ public:
     bool GetGenerateOverlapEvents() const { return bGenerateOverlapEvents; }
     bool GetBlockComponent() const { return bBlockComponent; }
     uint32 GetCollisionLayer() const { return CollisionLayer; }
-    TArray<FOverlapInfo> GetOverlapInfos() const { return OverlapInfos; };
+    const TArray<FOverlapInfo>& GetOverlapInfos() const { return OverlapInfos; };
 
     bool IsOverlappingActor(const AActor* Other) const;
     TArray<AActor*> GetOverlappingActors(TArray<AActor*>& OutActors, uint32 mask=~0u) const;
     void RefreshOverlapInfos(uint32 mask = ~0u);
+
+    // Overlap events (begin/end). Users can register handlers.
+    using FOnOverlapSignature = std::function<void(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp)>;
+    void AddOnBeginOverlap(const FOnOverlapSignature& Handler) { OnBeginOverlapHandlers.Add(Handler); }
+    void AddOnEndOverlap(const FOnOverlapSignature& Handler)   { OnEndOverlapHandlers.Add(Handler); }
+
+    // Broadcasting is intended for the collision manager
+    void BroadcastBeginOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
+    {
+        for (auto& Fn : OnBeginOverlapHandlers) { if (Fn) Fn(this, OtherActor, OtherComp); }
+    }
+    void BroadcastEndOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
+    {
+        for (auto& Fn : OnEndOverlapHandlers) { if (Fn) Fn(this, OtherActor, OtherComp); }
+    }
 
 protected:
     bool bIsCulled = false;
@@ -93,4 +109,7 @@ protected:
 
     uint32 CollisionLayer = 0u;
     TArray<FOverlapInfo> OverlapInfos;
+
+    TArray<FOnOverlapSignature> OnBeginOverlapHandlers;
+    TArray<FOnOverlapSignature> OnEndOverlapHandlers;
 };
