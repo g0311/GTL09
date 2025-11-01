@@ -18,7 +18,7 @@
 function BeginPlay()
     local name = actor:GetName()
     local pos = actor:GetActorLocation()
-    print("[BeginPlay] " .. name .. " at (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+    Log("[BeginPlay] " .. name .. " at (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
 end
 
 ---
@@ -27,7 +27,7 @@ end
 ---
 function EndPlay()
     local name = actor:GetName()
-    print("[EndPlay] " .. name)
+    Log("[EndPlay] " .. name)
 end
 
 ---
@@ -36,7 +36,7 @@ end
 function OnOverlap(OtherActor)
     local otherName = OtherActor:GetName()
     local otherPos = OtherActor:GetActorLocation()
-    print("[OnOverlap] Collision with " .. otherName)
+    Log("[OnOverlap] Collision with " .. otherName)
 end
 
 ---
@@ -45,7 +45,8 @@ end
 ---
 function Tick(dt)
     -- 예시: 전진 이동 (Actor 앞 방향으로 움직임)
-    local forward = actor:GetActorForward()
-    local movement = forward * 100.0 * dt  -- 초당 100 단위 이동
+    -- local forward = actor:GetActorForward()
+    -- local speed = 100.0
+    -- local movement = forward * (speed * dt)  -- 초당 100 단위 이동
     -- actor:AddActorWorldLocation(movement)  -- 주석 해제하면 이동 활성화
 end

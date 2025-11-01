@@ -36,6 +36,7 @@
 #include <filesystem>
 #include <sstream>
 #include <iterator>
+#include <chrono>
 
 // Windows & DirectX
 #include <windows.h>

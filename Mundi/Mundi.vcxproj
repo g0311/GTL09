@@ -201,6 +201,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <ClCompile Include="Source\Editor\Clipboard\ClipboardManager.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\CoroutineHelper.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\YieldInstruction.cpp" />
     <ClCompile Include="Source\Runtime\Core\Math\Vector.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Capsule.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\AmbientLightComponent.cpp" />
@@ -469,6 +471,8 @@
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\YieldInstruction.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\Axis.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PathUtils.h" />
     <ClInclude Include="Source\Runtime\Core\Object\Property.h" />
