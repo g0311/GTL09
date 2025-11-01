@@ -5,8 +5,6 @@
 #include <ObjManager.h>
 
 // Delegate Test Actors - Force static initialization
-#include "DelegateTestButton.h"
-#include "DelegateTestListener.h"
 
 
 float UEditorEngine::ClientWidth = 1024.0f;
@@ -190,7 +188,6 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     //매니저 초기화
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
-    SCRIPT.Initialize();
     
     FObjManager::Preload();
 

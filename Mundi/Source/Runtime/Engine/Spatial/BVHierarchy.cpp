@@ -6,7 +6,7 @@
 #include <queue>
 #include "BVHierarchy.h"
 #include "Actor.h"
-#include "Collision.h"
+#include "CollisionQueries.h"
 #include "Vector.h"
 #include "OBB.h"
 #include "Frustum.h"
@@ -552,8 +552,8 @@ TArray<UStaticMeshComponent*> FBVHierarchy::QueryIntersectedComponents(const FOB
 {
     return QueryIntersectedComponentsGeneric(
         InBound,
-        [](const FAABB& nodeBound, const FOBB& inBound) { return Collision::Intersects(nodeBound, inBound); },
-        [](const FAABB& compBound, const FOBB& inBound) { return Collision::Intersects(compBound, inBound); }
+        [](const FAABB& nodeBound, const FOBB& inBound) { return Collision::OverlapAABBOBB(nodeBound, inBound); },
+        [](const FAABB& compBound, const FOBB& inBound) { return Collision::OverlapAABBOBB(compBound, inBound); }
     );
 }
 
@@ -562,7 +562,7 @@ TArray<UStaticMeshComponent*> FBVHierarchy::QueryIntersectedComponents(const FBo
 {
     return QueryIntersectedComponentsGeneric(
         InBound,
-        [](const FAABB& nodeBound, const FBoundingSphere& inBound) { return Collision::Intersects(nodeBound, inBound); },
-        [](const FAABB& compBound, const FBoundingSphere& inBound) { return Collision::Intersects(compBound, inBound); }
+        [](const FAABB& nodeBound, const FBoundingSphere& inBound) { return Collision::OverlapAABBSphere(nodeBound, inBound); },
+        [](const FAABB& compBound, const FBoundingSphere& inBound) { return Collision::OverlapAABBSphere(compBound, inBound); }
     );
 }

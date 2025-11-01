@@ -23,6 +23,7 @@ struct FTransform;
 struct FSceneCompData;
 class SViewportWindow;
 class UWorldPartitionManager;
+class UCollisionManager;
 class AStaticMeshActor;
 class BVHierachy;
 class UStaticMesh;
@@ -91,6 +92,7 @@ public:
     AGizmoActor* GetGizmoActor() { return GizmoActor; }
     AGridActor* GetGridActor() { return GridActor; }
     UWorldPartitionManager* GetPartitionManager() { return Partition.get(); }
+    UCollisionManager* GetCollisionManager() { return Collision.get(); }
 
     // Per-world render settings
     URenderSettings& GetRenderSettings() { return RenderSettings; }
@@ -125,6 +127,8 @@ private:
 
     //partition
     std::unique_ptr<UWorldPartitionManager> Partition = nullptr;
+    // per-world collision/overlap manager for shape components
+    std::unique_ptr<UCollisionManager> Collision = nullptr;
 
     // Per-world selection manager
     std::unique_ptr<USelectionManager> SelectionMgr;

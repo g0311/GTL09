@@ -13,6 +13,16 @@ struct FLinearColor
 	explicit FLinearColor(const FVector& RGB) : R(RGB.X), G(RGB.Y), B(RGB.Z), A(1.0f) {};
 	explicit FLinearColor(const FVector4& RGBA) : R(RGBA.X), G(RGBA.Y), B(RGBA.Z), A(RGBA.W) {};;
 
+    // Common named colors (in linear space)
+    static const FLinearColor White;
+    static const FLinearColor Black;
+    static const FLinearColor Red;
+    static const FLinearColor Green;
+    static const FLinearColor Blue;
+    static const FLinearColor Yellow;
+    static const FLinearColor Cyan;
+    static const FLinearColor Magenta;
+
 	static inline FLinearColor Zero()
 	{
 		return FLinearColor(); // 기본 생성자가 (0, 0, 0, 0)으로 초기화합니다.
