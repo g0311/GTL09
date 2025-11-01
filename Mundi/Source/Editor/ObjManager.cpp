@@ -826,6 +826,12 @@ bool FObjImporter::LoadObjModel(const FString& InFileName, FObjInfo* const OutOb
 				OutMaterialInfos[MatCount - 1].NormalTextureFileName = TempTexturePath;
 				OutMaterialInfos[MatCount - 1].BumpMultiplier = GetFloatOption(TempOptions, "-bm", 1.0f);
 			}
+			else if (line.rfind("map_Nrm ", 0) == 0)
+			{
+				ParseTextureMapLine(line, 5, TempOptions, TempTexturePath);
+				OutMaterialInfos[MatCount - 1].NormalTextureFileName = TempTexturePath;
+				OutMaterialInfos[MatCount - 1].BumpMultiplier = GetFloatOption(TempOptions, "-bm", 1.0f);
+			}
 		}
 	}
 	FileIn.close();
