@@ -73,6 +73,8 @@ private:
     void RegisterTransform(sol::state* state);
     void RegisterActor(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+    // void RegisterMovement(sol::state* state);
+    void RegisterProjectileMovement(sol::state* state);
 
     // Input bindings
     void RegisterInputSubsystem(sol::state* state);

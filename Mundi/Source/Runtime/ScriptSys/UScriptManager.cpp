@@ -9,6 +9,12 @@
 #include "Source/Runtime/InputCore/InputMappingTypes.h"
 // Object factory
 #include "Source/Runtime/Core/Object/ObjectFactory.h"
+// Components
+#include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
+#include "Source/Runtime/Engine/Components/MovementComponent.h"
+#include "Source/Runtime/Engine/Components/SceneComponent.h"
+// World access
+#include "Source/Runtime/Engine/GameFramework/World.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -28,6 +34,10 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterInputEnums(state);
     RegisterInputContext(state);
     RegisterInputSubsystem(state);
+
+    // Components
+    // RegisterMovement(state);
+    RegisterProjectileMovement(state);
 }
 void UScriptManager::RegisterLOG(sol::state* state)
 {
@@ -160,6 +170,18 @@ void UScriptManager::RegisterActor(sol::state* state)
         ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
         ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
         ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
+
+        // Components (helpers)
+        ADD_LUA_FUNCTION("GetProjectileMovementComponent", [](AActor* actor) -> UProjectileMovementComponent*
+        {
+            if (!actor) return nullptr;
+            for (UActorComponent* Comp : actor->GetOwnedComponents())
+            {
+                if (auto* M = Cast<UProjectileMovementComponent>(Comp))
+                    return M;
+            }
+            return nullptr;
+        })
 
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
@@ -472,4 +494,162 @@ void UScriptManager::RegisterInputSubsystem(sol::state* state)
     {
         return &UInputMappingSubsystem::Get();
     });
+}
+//
+// void UScriptManager::RegisterMovement(sol::state* state)
+// {
+//     BEGIN_LUA_TYPE_NO_CTOR(state, UMovementComponent, "MovementComponent")
+//         ADD_LUA_FUNCTION("SetVelocity", &UMovementComponent::SetVelocity)
+//         ADD_LUA_FUNCTION("GetVelocity", &UMovementComponent::GetVelocity)
+//         ADD_LUA_FUNCTION("SetAcceleration", &UMovementComponent::SetAcceleration)
+//         ADD_LUA_FUNCTION("GetAcceleration", &UMovementComponent::GetAcceleration)
+//         ADD_LUA_FUNCTION("StopMovement", &UMovementComponent::StopMovement)
+//         ADD_LUA_FUNCTION("SetUpdatedComponent", &UMovementComponent::SetUpdatedComponent)
+//         ADD_LUA_FUNCTION("GetUpdatedComponent", &UMovementComponent::GetUpdatedComponent)
+//
+//         usertype["SetUpdatedToOwnerRoot"] = [](UMovementComponent* C)
+//         {
+//             if (!C) return;
+//             AActor* Owner = C->GetOwner();
+//             if (!Owner) return;
+//             USceneComponent* Root = Owner->GetRootComponent();
+//             if (Root) C->SetUpdatedComponent(Root);
+//         };
+//     END_LUA_TYPE()
+//
+//     state->set_function("AddMovementComponent", sol::overload(
+//         [](AActor* Owner) -> UMovementComponent*
+//         {
+//             if (!Owner) return nullptr;
+//             UMovementComponent* Comp = ObjectFactory::NewObject<UMovementComponent>();
+//             Owner->AddOwnedComponent(Comp);
+//             if (USceneComponent* Root = Owner->GetRootComponent())
+//             {
+//                 Comp->SetUpdatedComponent(Root);
+//             }
+//             if (UWorld* World = Owner->GetWorld())
+//             {
+//                 Comp->RegisterComponent(World);
+//                 Comp->InitializeComponent();
+//                 if (World->bPie) { Comp->BeginPlay(); }
+//             }
+//             return Comp;
+//         },
+//         [](sol::this_state ts) -> UMovementComponent*
+//         {
+//             sol::state_view sv(ts);
+//             AActor* Owner = sv["actor"];
+//             if (!Owner) return nullptr;
+//             UMovementComponent* Comp = ObjectFactory::NewObject<UMovementComponent>();
+//             Owner->AddOwnedComponent(Comp);
+//             if (USceneComponent* Root = Owner->GetRootComponent())
+//             {
+//                 Comp->SetUpdatedComponent(Root);
+//             }
+//             if (UWorld* World = Owner->GetWorld())
+//             {
+//                 Comp->RegisterComponent(World);
+//                 Comp->InitializeComponent();
+//                 if (World->bPie) { Comp->BeginPlay(); }
+//             }
+//             return Comp;
+//         }
+//     ));
+// }
+
+void UScriptManager::RegisterProjectileMovement(sol::state* state)
+{
+    BEGIN_LUA_TYPE_NO_CTOR(state, UProjectileMovementComponent, "ProjectileMovement")
+        // Movement base API
+        // Use lambdas to avoid any base-class binding ambiguity and ensure correct dispatch
+        usertype["SetVelocity"] = [](UProjectileMovementComponent* Self, const FVector& V)
+        {
+            if (!Self) return;
+            Self->SetVelocity(V);
+        };
+        usertype["GetVelocity"] = [](UProjectileMovementComponent* Self) -> FVector
+        {
+            return Self ? Self->GetVelocity() : FVector(0,0,0);
+        };
+        usertype["SetAcceleration"] = [](UProjectileMovementComponent* Self, const FVector& A)
+        {
+            if (!Self) return;
+            Self->SetAcceleration(A);
+        };
+        usertype["GetAcceleration"] = [](UProjectileMovementComponent* Self) -> FVector
+        {
+            return Self ? Self->GetAcceleration() : FVector(0,0,0);
+        };
+        usertype["StopMovement"] = [](UProjectileMovementComponent* Self)
+        {
+            if (!Self) return;
+            Self->StopMovement();
+        };
+
+        // Projectile specific
+        ADD_LUA_FUNCTION("SetGravity", &UProjectileMovementComponent::SetGravity)
+        ADD_LUA_FUNCTION("GetGravity", &UProjectileMovementComponent::GetGravity)
+        ADD_LUA_FUNCTION("SetInitialSpeed", &UProjectileMovementComponent::SetInitialSpeed)
+        ADD_LUA_FUNCTION("GetInitialSpeed", &UProjectileMovementComponent::GetInitialSpeed)
+        ADD_LUA_FUNCTION("SetMaxSpeed", &UProjectileMovementComponent::SetMaxSpeed)
+        ADD_LUA_FUNCTION("GetMaxSpeed", &UProjectileMovementComponent::GetMaxSpeed)
+        ADD_LUA_FUNCTION("SetRotationFollowsVelocity", &UProjectileMovementComponent::SetRotationFollowsVelocity)
+        ADD_LUA_FUNCTION("GetRotationFollowsVelocity", &UProjectileMovementComponent::GetRotationFollowsVelocity)
+        ADD_LUA_FUNCTION("SetProjectileLifespan", &UProjectileMovementComponent::SetProjectileLifespan)
+        ADD_LUA_FUNCTION("GetProjectileLifespan", &UProjectileMovementComponent::GetProjectileLifespan)
+        ADD_LUA_FUNCTION("SetAutoDestroyWhenLifespanExceeded", &UProjectileMovementComponent::SetAutoDestroyWhenLifespanExceeded)
+        ADD_LUA_FUNCTION("GetAutoDestroyWhenLifespanExceeded", &UProjectileMovementComponent::GetAutoDestroyWhenLifespanExceeded)
+        ADD_LUA_FUNCTION("FireInDirection", &UProjectileMovementComponent::FireInDirection)
+        ADD_LUA_FUNCTION("SetVelocityInLocalSpace", &UProjectileMovementComponent::SetVelocityInLocalSpace)
+
+        // Convenience: set updated to owner's root
+        usertype["SetUpdatedToOwnerRoot"] = [](UProjectileMovementComponent* C)
+        {
+            if (!C) return;
+            AActor* Owner = C->GetOwner();
+            if (!Owner) return;
+            USceneComponent* Root = Owner->GetRootComponent();
+            if (Root) C->SetUpdatedComponent(Root);
+        };
+    END_LUA_TYPE()
+
+    // Factory: add to an actor and set updated to root; register immediately
+    state->set_function("AddProjectileMovement", sol::overload(
+        [](AActor* Owner) -> UProjectileMovementComponent*
+        {
+            if (!Owner) return nullptr;
+            UProjectileMovementComponent* Comp = ObjectFactory::NewObject<UProjectileMovementComponent>();
+            Owner->AddOwnedComponent(Comp);
+            if (USceneComponent* Root = Owner->GetRootComponent())
+            {
+                Comp->SetUpdatedComponent(Root);
+            }
+            if (UWorld* World = Owner->GetWorld())
+            {
+                Comp->RegisterComponent(World);
+                Comp->InitializeComponent();
+                if (World->bPie) { Comp->BeginPlay(); }
+            }
+            return Comp;
+        },
+        [](sol::this_state ts) -> UProjectileMovementComponent*
+        {
+            sol::state_view sv(ts);
+            AActor* Owner = sv["actor"];
+            if (!Owner) return nullptr;
+            UProjectileMovementComponent* Comp = ObjectFactory::NewObject<UProjectileMovementComponent>();
+            Owner->AddOwnedComponent(Comp);
+            if (USceneComponent* Root = Owner->GetRootComponent())
+            {
+                Comp->SetUpdatedComponent(Root);
+            }
+            if (UWorld* World = Owner->GetWorld())
+            {
+                Comp->RegisterComponent(World);
+                Comp->InitializeComponent();
+                if (World->bPie) { Comp->BeginPlay(); }
+            }
+            return Comp;
+        }
+    ));
 }

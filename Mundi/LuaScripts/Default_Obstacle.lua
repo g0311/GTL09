@@ -1,70 +1,45 @@
--- Car control with WASD + optional mouse look example.
--- Requires input bindings exposed from engine: Keys, CreateInputContext, GetInput.
+-- Stationary obstacle that reacts to overlap by
+-- taking the other actor's current velocity, inverting it,
+-- and adding an upward kick, then enabling gravity.
 
-local input = nil
-local obstacleCtx = nil
+local projectileMovement = nil
 
--- tunables
-local MoveSpeed = 5.0   -- units/sec forward/right
-local TurnSpeed = 90.0    -- deg/sec from A/D or mouse
-
-local function setup_input()
-    input = GetInput()
-    obstacleCtx = CreateInputContext()
-
-    -- Axes: WASD
-    obstacleCtx:MapAxisKey("MoveForward", Keys.W,  1.0)
-    obstacleCtx:MapAxisKey("MoveForward", Keys.S, -1.0)
-    obstacleCtx:MapAxisKey("MoveRight",   Keys.D,  1.0)
-    obstacleCtx:MapAxisKey("MoveRight",   Keys.A, -1.0)
-
-    -- Optional mouse look (uncomment if desired)
-    -- carCtx:MapAxisMouse("LookX", EInputAxisSource.MouseX, 0.1)
-
-    -- Axis handlers accumulate current frame intent
-    obstacleCtx:BindAxis("MoveForward", function(v)
-        _G.__car_move_fwd = v or 0.0
-    end)
-    obstacleCtx:BindAxis("MoveRight", function(v)
-        _G.__car_move_right = v or 0.0
-    end)
-    -- carCtx:BindAxis("LookX", function(v) _G.__car_look_x = v or 0.0 end)
-
-    input:AddMappingContext(obstacleCtx, 10) -- higher priority than defaults
-end
+-- Tunables
+local UpSpeed = 15.0           -- upward impulse on hit (units/s)
+local GravityZ = -9.8         -- Z-up world; tune to your scale
 
 function BeginPlay()
-    _G.__car_move_fwd = 0.0
-    _G.__car_move_right = 0.0
-    _G.__car_look_x = 0.0
-    setup_input()
-    Log("Default_Car: input bound (WASD)")
-end
-
-function EndPlay()
-    -- If you add unbind helpers later, remove bindings/contexts here.
+    -- Create projectile movement and keep obstacle stationary initially
+    projectileMovement = AddProjectileMovement(actor)   -- uses global `actor`
+    --projectileMovement:SetUpdatedToOwnerRoot()
+    projectileMovement:SetGravity(0.0)
 end
 
 function Tick(dt)
-    -- Move by axes
-    local f = _G.__car_move_fwd or 0.0
-    local r = _G.__car_move_right or 0.0
-
-    if math.abs(f) > 0.0001 then
-        actor:AddActorWorldLocation(actor:GetActorForward() * (f * MoveSpeed * dt))
-    end
-    if math.abs(r) > 0.0001 then
-        actor:AddActorWorldLocation(actor:GetActorRight() * (r * MoveSpeed * dt))
-    end
-
-    -- Optional yaw from A/D or mouse look value
-    -- local yawDeg = (_G.__car_look_x or 0.0) * TurnSpeed
-    -- if math.abs(yawDeg) > 0.0001 then
-    --     actor:AddActorLocalRotation(Vector(0.0, 0.0, yawDeg * dt))
-    -- end
+    -- No manual movement; projectile component handles motion when activated
 end
 
 function OnOverlap(other)
-    Log("Obstacle overlapped: " .. other:GetName())
+    if not other then return end
+    Log("overlapped!!!")
+    -- Try to read the other actor's current velocity from its MovementComponent
+    local v = Vector(0.0, 0.0, 0.0)
+    local move = other:GetProjectileMovementComponent()
+    if move ~= nil then
+        v = move:GetVelocity()
+    end
+
+    -- Invert and add upward kick
+    v = v * -1.0
+
+    if projectileMovement == nil then
+        projectileMovement = AddProjectileMovement()
+        projectileMovement:SetUpdatedToOwnerRoot()
+    end
+
+    projectileMovement:SetGravity(GravityZ)
+    projectileMovement:SetVelocity(v)
+
+    Log("Obstacle reacted to overlap with inverted velocity")
 end
 
