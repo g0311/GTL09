@@ -90,7 +90,10 @@ void UScriptManager::RegisterReflectedClasses(sol::state* state)
 void UScriptManager::RegisterFName(sol::state* state)
 {
     // ==================== FName 등록 ====================
-    BEGIN_LUA_TYPE(state, FName, "FName", FName(), FName(const char*))
+    BEGIN_LUA_TYPE(state, FName, "FName",
+        []() { return FName(); },
+        [](const char* s) { return FName(s); }
+    )
         ADD_LUA_FUNCTION("ToString", &FName::ToString)
         // 문자열 연결을 위한 메타함수
         ADD_LUA_META_FUNCTION(to_string, &FName::ToString)
@@ -100,7 +103,10 @@ void UScriptManager::RegisterFName(sol::state* state)
 void UScriptManager::RegisterVector(sol::state* state)
 {
     // ==================== FVector 등록 ====================
-    BEGIN_LUA_TYPE(state, FVector, "Vector", FVector(), FVector(float, float, float))
+    BEGIN_LUA_TYPE(state, FVector, "Vector",
+        []() { return FVector(); },
+        [](float x, float y, float z) { return FVector(x, y, z); }
+    )
         ADD_LUA_PROPERTY("X", &FVector::X)
         ADD_LUA_PROPERTY("Y", &FVector::Y)
         ADD_LUA_PROPERTY("Z", &FVector::Z)
@@ -122,7 +128,10 @@ void UScriptManager::RegisterVector(sol::state* state)
 void UScriptManager::RegisterQuat(sol::state* state)
 {
     // ==================== FQuat 등록 ====================
-    BEGIN_LUA_TYPE(state, FQuat, "Quat", FQuat(), FQuat())
+    BEGIN_LUA_TYPE(state, FQuat, "Quat",
+        []() { return FQuat(); },
+        [](float x, float y, float z, float w) { return FQuat(x, y, z, w); }
+    )
         ADD_LUA_PROPERTY("X", &FQuat::X)
         ADD_LUA_PROPERTY("Y", &FQuat::Y)
         ADD_LUA_PROPERTY("Z", &FQuat::Z)
@@ -133,7 +142,10 @@ void UScriptManager::RegisterQuat(sol::state* state)
 void UScriptManager::RegisterTransform(sol::state* state)
 {
     // ==================== FTransform 등록 ====================
-    BEGIN_LUA_TYPE(state, FTransform, "Transform", FTransform(), FTransform())
+    BEGIN_LUA_TYPE(state, FTransform, "Transform",
+        []() { return FTransform(); },
+        [](const FVector& t, const FQuat& r, const FVector& s) { return FTransform(t, r, s); }
+    )
         ADD_LUA_PROPERTY("Location", &FTransform::Translation)
         ADD_LUA_PROPERTY("Rotation", &FTransform::Rotation)
         ADD_LUA_PROPERTY("Scale", &FTransform::Scale3D)

@@ -5,7 +5,7 @@
 local projectileMovement = nil
 
 -- Tunables
-local UpSpeed = 15.0           -- upward impulse on hit (units/s)
+local UpSpeed = 10.0           -- upward impulse on hit (units/s)
 local GravityZ = -9.8         -- Z-up world; tune to your scale
 
 function BeginPlay()
@@ -28,9 +28,9 @@ function OnOverlap(other)
     if move ~= nil then
         v = move:GetVelocity()
     end
-
-    -- Invert and add upward kick
-    v = v * -1.0
+    
+    v = v * 1.5
+    v = v + Vector(0, 0, UpSpeed)
 
     if projectileMovement == nil then
         projectileMovement = AddProjectileMovement()
