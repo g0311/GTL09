@@ -42,6 +42,14 @@ public:
         return handle;
     }
 
+    // Listener 포인터를 지정하여 등록 (자동 메모리 관리)
+    FDelegateHandle AddWithListener(const HandlerType& handler, void* ListenerPtr)
+    {
+        FDelegateHandle handle = NextHandle++;
+        Handlers[handle] = FHandlerInfo(handler, ListenerPtr);
+        return handle;
+    }
+
     // 클래스 멤버 함수 바인딩
     template<typename T>
     FDelegateHandle AddDynamic(T* Instance, void (T::* Func)(Args...))

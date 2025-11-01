@@ -30,6 +30,7 @@ class UStaticMesh;
 class FOcclusionCullingManagerCPU;
 struct Frustum;
 struct FCandidateDrawable;
+class AGameMode;
 
 class UWorld final : public UObject
 {
@@ -71,14 +72,20 @@ public:
     FLightManager* GetLightManager() const { return LightManager.get(); }
 
     ACameraActor* GetCameraActor() { return MainCameraActor; }
-    void SetCameraActor(ACameraActor* InCamera) 
-    { 
-        MainCameraActor = InCamera; 
+    void SetCameraActor(ACameraActor* InCamera)
+    {
+        MainCameraActor = InCamera;
 
         //기즈모 카메라 설정
         if (GizmoActor)
             GizmoActor->SetCameraActor(MainCameraActor);
     }
+
+    /**  GameMode 접근 */
+    AGameMode* GetGameMode() const { return GameMode; }
+
+    /** GameMode 생성 및 초기화 */
+    void CreateGameMode();
 
     /** Generate unique name for actor based on type */
     FString GenerateUniqueActorName(const FString& ActorType);
@@ -110,6 +117,9 @@ private:
     ACameraActor* MainCameraActor = nullptr;
     AGridActor* GridActor = nullptr;
     AGizmoActor* GizmoActor = nullptr;
+
+    /** === GameMode === */
+    AGameMode* GameMode = nullptr;
 
     /** === 레벨 컨테이너 === */
     std::unique_ptr<ULevel> Level;

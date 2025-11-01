@@ -25,6 +25,7 @@
 #include "Frustum.h"
 #include "Level.h"
 #include "LightManager.h"
+#include "../GameplayStatic/GameMode.h"
 
 IMPLEMENT_CLASS(UWorld)
 
@@ -91,6 +92,12 @@ void UWorld::Tick(float DeltaSeconds)
     if (Collision)
     {
         Collision->Update(DeltaSeconds, /*budget*/256);
+    }
+
+    // GameMode Tick
+    if (GameMode)
+    {
+        GameMode->Tick(DeltaSeconds);
     }
 
 //순서 바꾸면 안댐
@@ -301,6 +308,9 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
 
     // Clean any dangling selection references just in case
     if (SelectionMgr) SelectionMgr->CleanupInvalidActors();
+
+    // GameMode 생성 및 초기화
+    CreateGameMode();
 }
 
 void UWorld::AddActorToLevel(AActor* Actor)
@@ -345,4 +355,25 @@ AActor* UWorld::SpawnActor(UClass* Class)
 {
 	// 기본 Transform(원점)으로 스폰하는 메인 함수를 호출합니다.
 	return SpawnActor(Class, FTransform());
+}
+
+void UWorld::CreateGameMode()
+{
+	// 이미 GameMode가 있으면 스킵
+	if (GameMode)
+	{
+		return;
+	}
+
+	// GameMode 생성
+	GameMode = ObjectFactory::NewObject<AGameMode>();
+	if (GameMode)
+	{
+		GameMode->SetWorld(this);
+		UE_LOG("[World] GameMode created\n");
+	}
+	else
+	{
+		UE_LOG("[World] Error: Failed to create GameMode\n");
+	}
 }

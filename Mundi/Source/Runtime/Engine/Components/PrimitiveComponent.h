@@ -110,6 +110,17 @@ public:
         return OnEndOverlapDelegate.AddDynamic(Instance, Func);
     }
 
+    // Lua 바인딩용: Listener 포인터를 지정하여 등록
+    FDelegateHandle AddOnBeginOverlapWithListener(const FOnOverlapSignature::HandlerType& Handler, void* ListenerPtr)
+    {
+        return OnBeginOverlapDelegate.AddWithListener(Handler, ListenerPtr);
+    }
+
+    FDelegateHandle AddOnEndOverlapWithListener(const FOnOverlapSignature::HandlerType& Handler, void* ListenerPtr)
+    {
+        return OnEndOverlapDelegate.AddWithListener(Handler, ListenerPtr);
+    }
+
     bool RemoveOnBeginOverlap(FDelegateHandle Handle) { return OnBeginOverlapDelegate.Remove(Handle); }
     bool RemoveOnEndOverlap(FDelegateHandle Handle) { return OnEndOverlapDelegate.Remove(Handle); }
 

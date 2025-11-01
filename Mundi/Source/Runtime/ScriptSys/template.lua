@@ -9,6 +9,7 @@
 -- 사용 가능한 타입:
 --   Vector(x, y, z): 3D 벡터 (연산 가능: +, *)
 --   Actor: GetActorLocation, SetActorLocation, AddActorWorldLocation 등
+--   PrimitiveComponent: BindOnBeginOverlap, BindOnEndOverlap 등 Delegate 바인딩
 -- ==============================================================================
 
 ---
@@ -31,12 +32,22 @@ function EndPlay()
 end
 
 ---
---- 다른 Actor와 충돌했을 때 호출됩니다.
+--- 다른 Actor와 충돌했을 때 호출됩니다. (자동 바인딩)
+--- 이 함수가 정의되어 있으면 Owner의 PrimitiveComponent OnBeginOverlap에 자동으로 바인딩됩니다.
 ---
 function OnOverlap(OtherActor)
     local otherName = OtherActor:GetName()
     local otherPos = OtherActor:GetActorLocation()
     Log("[OnOverlap] Collision with " .. otherName)
+end
+
+---
+--- 충돌이 끝났을 때 호출됩니다. (자동 바인딩)
+--- 이 함수가 정의되어 있으면 Owner의 PrimitiveComponent OnEndOverlap에 자동으로 바인딩됩니다.
+---
+function OnOverlapEnd(OtherActor)
+    local otherName = OtherActor:GetName()
+    Log("[OnOverlapEnd] Collision ended with " .. otherName)
 end
 
 ---
@@ -50,3 +61,63 @@ function Tick(dt)
     -- local movement = forward * (speed * dt)  -- 초당 100 단위 이동
     -- actor:AddActorWorldLocation(movement)  -- 주석 해제하면 이동 활성화
 end
+
+-- ==============================================================================
+-- ==================== 고급 기능: 수동 Delegate 바인딩 ====================
+-- ==============================================================================
+--
+-- 위의 OnOverlap, OnOverlapEnd 함수는 자동으로 바인딩되지만,
+-- 더 세밀한 제어가 필요하다면 BeginPlay에서 직접 바인딩할 수 있습니다.
+--
+-- 예시 1: 다른 Actor의 이벤트 구독
+-- function BeginPlay()
+--     -- 특정 Actor 찾기 (월드에서 검색 - 추후 구현 필요)
+--     -- local otherActor = FindActorByName("TargetActor")
+--     -- if otherActor then
+--     --     local otherPrimitive = otherActor:GetComponentByClass("PrimitiveComponent")
+--     --     if otherPrimitive then
+--     --         -- 다른 Actor의 충돌 이벤트 구독
+--     --         otherPrimitive:BindOnBeginOverlap(function(selfComp, other, otherComp)
+--     --             Log("TargetActor collided with: " .. other:GetName())
+--     --         end)
+--     --     end
+--     -- end
+-- end
+--
+-- 예시 2: 조건부 바인딩
+-- function BeginPlay()
+--     local primitive = actor:GetComponentByClass("PrimitiveComponent")
+--     if primitive then
+--         -- 특정 조건에서만 바인딩
+--         if actor:GetName() == "PlayerActor" then
+--             self.overlapHandle = primitive:BindOnBeginOverlap(OnPlayerOverlap)
+--         end
+--     end
+-- end
+--
+-- function OnPlayerOverlap(selfComp, other, otherComp)
+--     Log("Player-specific overlap logic")
+--
+--     -- 조건부 바인딩 해제
+--     if other:GetName() == "GoalZone" then
+--         local primitive = actor:GetComponentByClass("PrimitiveComponent")
+--         primitive:UnbindOnBeginOverlap(self.overlapHandle)
+--         Log("Unbound overlap event after reaching goal")
+--     end
+-- end
+--
+-- 예시 3: 익명 함수로 바인딩
+-- function BeginPlay()
+--     local primitive = actor:GetComponentByClass("PrimitiveComponent")
+--     if primitive then
+--         primitive:BindOnBeginOverlap(function(selfComp, other, otherComp)
+--             Log("Inline overlap handler: " .. other:GetName())
+--
+--             -- 모든 파라미터 접근 가능
+--             local selfOwner = selfComp:GetOwner()
+--             Log("SelfComp owner: " .. selfOwner:GetName())
+--             Log("Other actor: " .. other:GetName())
+--         end)
+--     end
+-- end
+-- ==============================================================================

@@ -61,6 +61,21 @@ public:
         return Comp;
     }
 
+    // 컴포넌트 찾기 (템플릿)
+    template<typename T>
+    T* GetComponent() const
+    {
+        for (UActorComponent* Comp : OwnedComponents)
+        {
+            T* CastedComp = dynamic_cast<T*>(Comp);
+            if (CastedComp)
+            {
+                return CastedComp;
+            }
+        }
+        return nullptr;
+    }
+
     void RegisterAllComponents(UWorld* InWorld);
     void RegisterComponentTree(USceneComponent* SceneComp, UWorld* InWorld);
     void UnregisterComponentTree(USceneComponent* SceneComp);
