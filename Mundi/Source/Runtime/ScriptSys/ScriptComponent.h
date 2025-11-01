@@ -53,7 +53,8 @@ public:
 	bool ReloadScript();
 
 	// ==================== Coroutine ====================
-	void StartCoroutine(sol::function EntryPoint);
+	int StartCoroutine(sol::function EntryPoint);
+	void StopCoroutine(int CoroutineID);
 	FYieldInstruction* WaitForSeconds(float Seconds);
 	void StopAllCoroutines();
 

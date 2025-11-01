@@ -179,6 +179,7 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
     BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
         // Coroutine API
         ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
+        ADD_LUA_FUNCTION("StopCoroutine", &UScriptComponent::StopCoroutine)
         ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
         ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
 

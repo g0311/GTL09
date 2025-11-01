@@ -176,12 +176,21 @@ bool UScriptComponent::ReloadScript()
 }
 
 // ==================== Coroutine ====================
-void UScriptComponent::StartCoroutine(sol::function EntryPoint)
+int UScriptComponent::StartCoroutine(sol::function EntryPoint)
 {
 	EnsureCoroutineHelper();
 	if (CoroutineHelper)
 	{
-		CoroutineHelper->StartCoroutine(std::move(EntryPoint));
+		return CoroutineHelper->StartCoroutine(std::move(EntryPoint));
+	}
+	return -1;
+}
+
+void UScriptComponent::StopCoroutine(int CoroutineID)
+{
+	if (CoroutineHelper)
+	{
+		CoroutineHelper->StopCoroutine(CoroutineID);
 	}
 }
 
@@ -195,7 +204,7 @@ void UScriptComponent::StopAllCoroutines()
 {
 	if (CoroutineHelper)
 	{
-		CoroutineHelper->Stop();
+		CoroutineHelper->StopAllCoroutines();
 	}
 }
 
