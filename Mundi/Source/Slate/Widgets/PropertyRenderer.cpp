@@ -17,6 +17,8 @@
 #include "SpotLightComponent.h"
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
+#include <commdlg.h>
+#include <filesystem>
 
 // 정적 멤버 변수 초기화
 TArray<FString> UPropertyRenderer::CachedStaticMeshPaths;
@@ -1137,6 +1139,45 @@ bool UPropertyRenderer::RenderTextureSelectionCombo(const char* Label, UTexture*
 	return bChanged;
 }
 
+std::filesystem::path UPropertyRenderer::OpenScriptFileDialog()
+{
+	using std::filesystem::path;
+
+	OPENFILENAMEW ofn;
+	wchar_t szFile[260] = {};
+	wchar_t szInitialDir[260] = {};
+
+	// LuaScripts folder is set as default path
+	std::filesystem::path scriptDir = std::filesystem::current_path() / "LuaScripts";
+	wcscpy_s(szInitialDir, scriptDir.wstring().c_str());
+
+	// Initialize OPENFILENAME structure
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = GetActiveWindow();
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = sizeof(szFile) / sizeof(wchar_t);
+	ofn.lpstrFilter = L"Lua Script Files\0*.lua\0All Files\0*.*\0";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = nullptr;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = szInitialDir;
+	ofn.lpstrTitle = L"Select Lua Script File";
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER |
+				OFN_HIDEREADONLY | OFN_NOCHANGEDIR | OFN_ENABLESIZING;
+
+	UE_LOG("PropertyRenderer: Opening Script Load Dialog...");
+
+	if (GetOpenFileNameW(&ofn) == TRUE)
+	{
+		UE_LOG("PropertyRenderer: Script Load Dialog Closed");
+		return path(szFile);
+	}
+
+	UE_LOG("PropertyRenderer: Script Load Dialog Cancelled");
+	return L"";
+}
+
 bool UPropertyRenderer::RenderScriptPathProperty(const FProperty& property, void* object_instance)
 {
 	UScriptComponent* ScriptComp = static_cast<UScriptComponent*>(object_instance);
@@ -1159,37 +1200,85 @@ bool UPropertyRenderer::RenderScriptPathProperty(const FProperty& property, void
 	}
 	
 	// 버튼들
+	if (ImGui::Button("Browse...", ImVec2(120, 0)))
+	{
+		std::filesystem::path selectedPath = OpenScriptFileDialog();
+		if (!selectedPath.empty())
+		{
+			// 절대 경로를 상대 경로로 변환 (LuaScripts 폴더 기준)
+			std::filesystem::path luaScriptsDir = std::filesystem::current_path() / "LuaScripts";
+			std::filesystem::path relativePath;
+
+			try
+			{
+				relativePath = std::filesystem::relative(selectedPath, luaScriptsDir);
+			}
+			catch (...)
+			{
+				// 상대 경로 변환 실패 시 절대 경로 사용
+				relativePath = selectedPath;
+			}
+
+			*ScriptPath = relativePath.string();
+			ScriptComp->SetScriptPath(*ScriptPath);
+			bChanged = true;
+		}
+	}
+
+	ImGui::SameLine();
 	if (ImGui::Button("Create Script", ImVec2(120, 0)))
 	{
 		AActor* Owner = ScriptComp->GetOwner();
 		if (Owner)
 		{
-			FString SceneName = "Default";
-			FString ActorName = Owner->GetName().ToString();
 			FString GeneratedScriptName;
 
-			if (UScriptManager::GetInstance().CreateScript(SceneName, ActorName, GeneratedScriptName))
+			// ScriptPath에 값이 있으면 그 이름을 사용, 없으면 자동 생성
+			if (!ScriptPath->empty())
 			{
-				*ScriptPath = GeneratedScriptName;
-				OutputDebugStringA(("Created script: " + *ScriptPath + "\n").c_str());
+				// 입력된 경로 사용
+				FString DesiredName = *ScriptPath;
 
-				// 생성 후 자동으로 로드
-				ScriptComp->SetScriptPath(*ScriptPath);
+				// 파일명만 추출 (경로가 포함되어 있을 수 있으므로)
+				size_t LastSlash = DesiredName.find_last_of("\\/");
+				if (LastSlash != FString::npos)
+				{
+					DesiredName = DesiredName.substr(LastSlash + 1);
+				}
 
-				bChanged = true;
+				// CreateScript에 전달 (SceneName을 빈 문자열로, ActorName을 파일명으로)
+				// .lua 확장자는 CreateScript 내부에서 자동으로 추가됨
+				if (UScriptManager::GetInstance().CreateScript("", DesiredName, GeneratedScriptName))
+				{
+					*ScriptPath = GeneratedScriptName;
+					UE_LOG(("Created script: " + *ScriptPath + "\n").c_str());
+
+					// 생성 후 자동으로 로드
+					ScriptComp->SetScriptPath(*ScriptPath);
+
+					bChanged = true;
+				}
+			}
+			else
+			{
+				// 비어있으면 기존 로직 (SceneName_ActorName.lua)
+				FString SceneName = "Default";
+				FString ActorName = Owner->GetName().ToString();
+
+				if (UScriptManager::GetInstance().CreateScript(SceneName, ActorName, GeneratedScriptName))
+				{
+					*ScriptPath = GeneratedScriptName;
+					UE_LOG(("Created script: " + *ScriptPath + "\n").c_str());
+
+					// 생성 후 자동으로 로드
+					ScriptComp->SetScriptPath(*ScriptPath);
+
+					bChanged = true;
+				}
 			}
 		}
 	}
-	
-	ImGui::SameLine();
-	if (ImGui::Button("Load Script", ImVec2(120, 0)))
-	{
-		if (!ScriptPath->empty())
-		{
-			ScriptComp->SetScriptPath(*ScriptPath);
-		}
-	}
-	
+
 	ImGui::SameLine();
 	if (ImGui::Button("Edit Script", ImVec2(120, 0)))
 	{
