@@ -21,7 +21,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
 void UScriptManager::RegisterLOG(sol::state* state)
 {
     // ==================== Log 등록 ====================
-    state->open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
+    state->open_libraries();
     state->set_function("Log", [](const std::string& msg) {
         UE_LOG(("[Lua] " + msg + "\n").c_str());
     });
@@ -89,12 +89,9 @@ void UScriptManager::RegisterVector(sol::state* state)
         ADD_LUA_META_FUNCTION(subtraction, [](const FVector& a, const FVector& b) {
             return a - b;
         })
-        ADD_LUA_OVERLOAD(sol::meta_function::multiplication,
-            sol::overload(
-                [](const FVector& v, float f) { return v * f; },
-                [](float f, const FVector& v) { return v * f; }
-            )
-        )
+        ADD_LUA_META_FUNCTION(multiplication, [](const FVector& v, float f) -> FVector {
+            return v * f;
+        })
         ADD_LUA_META_FUNCTION(division, [](const FVector& v, float f) {
             return v / f;
         })
@@ -149,7 +146,6 @@ void UScriptManager::RegisterActor(sol::state* state)
             static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorLocalRotation)
         )
 
-        // Direction API
         ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
         ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
         ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
@@ -174,6 +170,9 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
         ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
         ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
         ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
+
+        // Owner Actor 접근
+        ADD_LUA_FUNCTION("GetOwner", &UScriptComponent::GetOwner)
     END_LUA_TYPE()
 }
 
