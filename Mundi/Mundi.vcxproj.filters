@@ -58,6 +58,12 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp">
+      <Filter>Source\Runtime\InputCore</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp">
+      <Filter>Source\Runtime\InputCore</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Runtime\Renderer\SceneRenderer.cpp">
       <Filter>Source\Runtime\Renderer</Filter>
     </ClCompile>
@@ -895,6 +901,15 @@
     </ClInclude>
     <ClInclude Include="ThirdParty\Sol2\version.hpp">
       <Filter>ThirdParty\sol</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h">
+      <Filter>Source\Runtime\InputCore</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h">
+      <Filter>Source\Runtime\InputCore</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingSubsystem.h">
+      <Filter>Source\Runtime\InputCore</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
