@@ -58,7 +58,7 @@ cbuffer PixelConstBuffer : register(b4)
 {
     FMaterial Material;         // 64 bytes
     uint bHasMaterial;          // 4 bytes (HLSL)
-    uint bHasTexture;           // 4 bytes (HLSL)
+    uint bHasDiffuseTexture;           // 4 bytes (HLSL)
     uint bHasNormalTexture;
 };
 
@@ -291,14 +291,14 @@ PS_INPUT mainVS(VS_INPUT Input)
     // Directional light (diffuse + specular) - 그림자 제외
         FDirectionalLightInfo dirLightNoShadow = DirectionalLight;
         dirLightNoShadow.bCastShadows = 0;
-        finalColor += CalculateDirectionalLight(dirLightNoShadow, Out.WorldPos, viewPos.xyz, worldNormal, viewDir, baseColor, true, specPower, g_ShadowAtlas2D, g_Sample);
+        finalColor += CalculateDirectionalLight(dirLightNoShadow, Out.WorldPos, viewPos.xyz, worldNormal, viewDir, baseColor, true, specPower, g_ShadowAtlas2D, g_Sample, g_VSMShadowAtlas, g_VSMSampler);
 
     // Point lights (diffuse + specular) - 그림자 제외
     for (int i = 0; i < PointLightCount; i++)
     {
         FPointLightInfo pointLightNoShadow = g_PointLightList[i];
         pointLightNoShadow.bCastShadows = 0;
-        finalColor += CalculatePointLight(pointLightNoShadow, Out.WorldPos, worldNormal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample);
+        finalColor += CalculatePointLight(pointLightNoShadow, Out.WorldPos, worldNormal, viewDir, baseColor, true, specPower, g_ShadowAtlasCube, g_Sample, g_ShadowAtlasCube, g_Sample);
     }
 
     // Spot lights (diffuse + specular) - 그림자 제외
@@ -359,7 +359,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 
     // UV 스크롤링 적용 (활성화된 경우)
     float2 uv = Input.TexCoord;
-    //if (bHasMaterial && bHasTexture)
+    //if (bHasMaterial && bHasDiffuseTexture)
     //{
     //    uv += UVScrollSpeed * UVScrollTime;
     //}
@@ -398,7 +398,8 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     // Directional Light 그림자
     if (DirectionalLight.bCastShadows)
     {
-        shadowFactor *= CalculateSpotLightShadowFactor(Input.WorldPos, DirectionalLight.Cascades[0], g_ShadowAtlas2D, g_Sample);
+        float3 lightDir = normalize(-DirectionalLight.Direction);
+        shadowFactor *= CalculateSpotLightShadowFactor(Input.WorldPos, Input.Normal, lightDir, DirectionalLight.Cascades[0], g_ShadowAtlas2D, g_Sample);
     }
     
     // Point Light 그림자
@@ -419,8 +420,10 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     {
         if (g_SpotLightList[j].bCastShadows)
         {
+            float3 lightVec = g_SpotLightList[j].Position - Input.WorldPos;
+            float3 lightDir = normalize(lightVec);
             shadowFactor *= CalculateSpotLightShadowFactor(
-                Input.WorldPos, g_SpotLightList[j].ShadowData, g_ShadowAtlas2D, g_Sample);
+                Input.WorldPos, Input.Normal, lightDir, g_SpotLightList[j].ShadowData, g_ShadowAtlas2D, g_Sample);
         }
     }
     
@@ -428,7 +431,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     finalPixel.rgb *= shadowFactor;
 
     // 텍스처 또는 머트리얼 색상 적용
-    if (bHasTexture)
+    if (bHasDiffuseTexture)
     {
         // 텍스처 모듈레이션: 조명 결과에 텍스처 곱하기
         finalPixel.rgb *= texColor.rgb;
@@ -463,8 +466,8 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     float3 normal = normalize(Input.Normal);
     float4 baseColor = Input.Color;
 
-    // 텍스처가 있으면 텍스처로 시작
-    if (bHasTexture)
+    // 텍스처가 있으면 무조건 텍스처만 사용 (Material 값 무시)
+    if (bHasDiffuseTexture)
     {
         baseColor.rgb = texColor.rgb;
     }
@@ -481,18 +484,12 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 
     float3 litColor = float3(0.0f, 0.0f, 0.0f);
 
-    // Ambient light (OBJ/MTL 표준: La × Ka)
-    // 하이브리드 접근: Ka가 (0,0,0) 또는 (1,1,1)이면 Kd(baseColor) 사용
-    float3 Ka = bHasMaterial ? Material.AmbientColor : baseColor.rgb;
-    bool bIsDefaultKa = all(abs(Ka) < 0.01f) || all(abs(Ka - 1.0f) < 0.01f);
-    if (bIsDefaultKa)
-    {
-        Ka = baseColor.rgb;
-    }
+    // Ambient light: 텍스처가 있으면 텍스처 사용, 없으면 Material.AmbientColor 사용
+    float3 Ka = bHasDiffuseTexture ? baseColor.rgb : (bHasMaterial ? Material.AmbientColor : baseColor.rgb);
     litColor += CalculateAmbientLight(AmbientLight, Ka);
 
     // Directional light (diffuse만)
-    litColor += CalculateDirectionalLight(DirectionalLight, Input.WorldPos, ViewPos.xyz, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlas2D, g_Sample);
+    litColor += CalculateDirectionalLight(DirectionalLight, Input.WorldPos, ViewPos.xyz, normal, float3(0, 0, 0), baseColor, false, 0.0f, g_ShadowAtlas2D, g_Sample, g_ShadowAtlas2D, g_Sample);
 
     // 타일 기반 라이트 컬링 적용 (활성화된 경우)
     if (bUseTileCulling)
@@ -572,8 +569,8 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     float3 viewDir = normalize(CameraPosition - Input.WorldPos);
     float4 baseColor = Input.Color;
 
-    // 텍스처가 있으면 텍스처로 시작
-    if (bHasTexture)
+    // 텍스처가 있으면 무조건 텍스처만 사용 (Material 값 무시)
+    if (bHasDiffuseTexture)
     {
         baseColor.rgb = texColor.rgb;
     }
@@ -590,14 +587,8 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 
     float3 litColor = float3(0.0f, 0.0f, 0.0f);
 
-    // Ambient light (OBJ/MTL 표준: La × Ka)
-    // 하이브리드 접근: Ka가 (0,0,0) 또는 (1,1,1)이면 Kd(baseColor) 사용
-    float3 Ka = bHasMaterial ? Material.AmbientColor : baseColor.rgb;
-    bool bIsDefaultKa = all(abs(Ka) < 0.01f) || all(abs(Ka - 1.0f) < 0.01f);
-    if (bIsDefaultKa)
-    {
-        Ka = baseColor.rgb;
-    }
+    // Ambient light: 텍스처가 있으면 텍스처 사용, 없으면 Material.AmbientColor 사용
+    float3 Ka = bHasDiffuseTexture ? baseColor.rgb : (bHasMaterial ? Material.AmbientColor : baseColor.rgb);
     litColor += CalculateAmbientLight(AmbientLight, Ka);
 
     // Directional light (diffuse + specular)
@@ -680,7 +671,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     if (bHasMaterial)
     {
         finalPixel.rgb = Material.DiffuseColor;
-        if (bHasTexture)
+        if (bHasDiffuseTexture)
         {
             finalPixel.rgb = texColor.rgb;
         }

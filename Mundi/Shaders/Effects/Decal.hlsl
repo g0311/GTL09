@@ -12,12 +12,7 @@
 // - LIGHTING_MODEL_PHONG
 // - (매크로 없음 = Unlit)
 
-// --- 공통 조명 시스템 include ---
-#include "../Common/LightStructures.hlsl"
-#include "../Common/LightingBuffers.hlsl"
-#include "../Common/LightingCommon.hlsl"
-
-// --- Decal 전용 상수 버퍼 ---
+// --- Decal 전용 상수 버퍼 (LightingCommon.hlsl include 전에 정의 필요) ---
 cbuffer ModelBuffer : register(b0)
 {
     row_major float4x4 WorldMatrix;
@@ -31,6 +26,11 @@ cbuffer ViewProjBuffer : register(b1)
     row_major float4x4 InverseViewMatrix;
     row_major float4x4 InverseProjectionMatrix;
 }
+
+// --- 공통 조명 시스템 include ---
+#include "../Common/LightStructures.hlsl"
+#include "../Common/LightingBuffers.hlsl"
+#include "../Common/LightingCommon.hlsl"
 
 cbuffer PSScrollCB : register(b5)
 {
@@ -47,9 +47,11 @@ cbuffer DecalBuffer : register(b6)
 
 // --- 텍스처 리소스 ---
 Texture2D g_DecalTexColor : register(t0);
-TextureCubeArray g_ShadowAtlasCube : register(t8);
-Texture2D g_ShadowAtlas2D : register(t9);
+TextureCubeArray<float2> g_ShadowAtlasCube : register(t8);
+Texture2D<float2> g_ShadowAtlas2D : register(t9);
+Texture2D<float2> g_VSMShadowAtlas : register(t9);  // VSM shadow map (동일 슬롯)
 SamplerState g_Sample : register(s0);
+SamplerState g_VSMSampler : register(s0);  // VSM sampler (동일 슬롯)
 SamplerComparisonState g_ShadowSample : register(s2);
 
 // --- 입출력 구조체 ---
@@ -66,17 +68,13 @@ struct PS_INPUT
 {
     float4 position : SV_POSITION;
     float4 decalPos : POSITION0;    // Decal projection 좌표
+    float3 worldPos : POSITION1;    // 항상 포함 (조명 계산용)
+    float3 normal : NORMAL0;        // 항상 포함 (조명 계산용)
 
-#if defined(LIGHTING_MODEL_GOURAUD) || defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_PHONG)
-    float3 worldPos : POSITION1;    // 조명 계산용
-    float3 normal : NORMAL0;        // 조명 계산용
-
-    #ifdef LIGHTING_MODEL_GOURAUD
-        float4 litColor : COLOR0;   // Pre-calculated lighting (Gouraud)
-    #endif
+#ifdef LIGHTING_MODEL_GOURAUD
+    float4 litColor : COLOR0;   // Pre-calculated lighting (Gouraud)
 #endif
 };
-
 //================================================================================================
 // 버텍스 셰이더
 //================================================================================================
@@ -94,12 +92,11 @@ PS_INPUT mainVS(VS_INPUT input)
     float4x4 VP = mul(ViewMatrix, ProjectionMatrix);
     output.position = mul(worldPos, VP);
 
-#if defined(LIGHTING_MODEL_GOURAUD) || defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_PHONG)
-    // 조명 계산을 위한 데이터
+    // 항상 worldPos와 normal 출력 (조명 계산용)
     output.worldPos = worldPos.xyz;
     output.normal = normalize(mul(input.normal, (float3x3) WorldInverseTranspose));
 
-    #ifdef LIGHTING_MODEL_GOURAUD
+#ifdef LIGHTING_MODEL_GOURAUD
         // Gouraud: Vertex shader에서 조명 계산
         // Note: 여기서는 texture를 샘플링할 수 없으므로 white를 base color로 사용
         // Pixel shader에서 texture를 곱함
@@ -119,12 +116,11 @@ PS_INPUT mainVS(VS_INPUT input)
             g_ShadowAtlas2D,
             g_ShadowAtlasCube,
             g_ShadowAtlasCube,
-            g_ShadowAtlas2D,
-            g_Sample
+            g_VSMShadowAtlas,
+            g_VSMSampler
         );
 
         output.litColor = float4(litColor, 1.0f);
-    #endif
 #endif
 
     return output;
@@ -169,7 +165,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float3 normal = normalize(input.normal);
     float4 baseColor = decalTexture;
     float specPower = 32.0f;
-    float4 viewPos = mul(input.worldPos, ViewMatrix);
+    float4 viewPos = mul(float4(input.worldPos, 1.0f), ViewMatrix);
 
     #ifdef LIGHTING_MODEL_PHONG
         float3 viewDir = normalize(CameraPosition - input.worldPos);
@@ -189,8 +185,8 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
         g_ShadowAtlas2D,
         g_ShadowAtlasCube,
         g_ShadowAtlasCube,
-        g_ShadowAtlas2D,
-        g_Sample
+        g_VSMShadowAtlas,
+        g_VSMSampler
     );
 
     float4 finalColor = float4(litColor, decalTexture.a * DecalOpacity);
