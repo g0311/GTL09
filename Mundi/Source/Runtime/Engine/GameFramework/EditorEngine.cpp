@@ -3,6 +3,7 @@
 #include "USlateManager.h"
 #include "SelectionManager.h"
 #include <ObjManager.h>
+#include "InputMappingSubsystem.h"
 
 // Delegate Test Actors - Force static initialization
 
@@ -229,6 +230,8 @@ void UEditorEngine::Tick(float DeltaSeconds)
     
     SLATE.Update(DeltaSeconds);
     UI.Update(DeltaSeconds);
+    // Evaluate high-level input mappings before raw input updates its previous-state snapshot
+    UInputMappingSubsystem::Get().Tick(DeltaSeconds);
     INPUT.Update();
 }
 
