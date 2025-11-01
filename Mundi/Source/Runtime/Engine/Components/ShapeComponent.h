@@ -9,6 +9,7 @@ class UShapeComponent : public UPrimitiveComponent
 public:
     DECLARE_CLASS(UShapeComponent, UPrimitiveComponent)
     GENERATED_REFLECTION_BODY()
+    DECLARE_DUPLICATE(UShapeComponent)
     
     UShapeComponent();
 

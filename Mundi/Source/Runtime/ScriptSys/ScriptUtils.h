@@ -19,11 +19,13 @@ auto usertype = state_ptr->new_usertype<ClassType>(LuaName);
 
 /**
  * @brief Usertype 정의를 시작 (생성자 포함)
- * 가변 인자(...)로 생성자 목록을 받습니다.
+ * sol::call_constructor + sol::factories를 사용합니다. __VA_ARGS__에는 팩토리 람다들을 전달하세요.
+ * 예) BEGIN_LUA_TYPE(state, FVector, "Vector", [](){return FVector();}, [](float x,float y,float z){return FVector(x,y,z);})
  */
 #define BEGIN_LUA_TYPE(state_ptr, ClassType, LuaName, ...) \
 auto usertype = state_ptr->new_usertype<ClassType>(LuaName, \
-sol::constructors<__VA_ARGS__>() \
+    sol::call_constructor, \
+    sol::factories(__VA_ARGS__) \
 );
 
 /**

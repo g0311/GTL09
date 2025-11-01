@@ -81,6 +81,7 @@ private:
     void RegisterLightComponent(sol::state* state);
     void RegisterCameraComponent(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+    void RegisterProjectileMovement(sol::state* state);
 
     // Input bindings
     void RegisterInputSubsystem(sol::state* state);
