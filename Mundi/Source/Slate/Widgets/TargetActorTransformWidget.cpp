@@ -511,13 +511,25 @@ void UTargetActorTransformWidget::RenderSelectedActorDetails(AActor* SelectedAct
 	{
 		return;
 	}
-	
+
 	for (auto& Component : SelectedActor->GetOwnedComponents())
 	{
-		const TArray<FProperty>& Properties = USceneComponent::StaticClass()->GetProperties();
+		if (!Component->IsEditable())
+			continue;
+		
+		// 컴포넌트 이름 헤더 표시
+		ImGui::Separator();
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f)); // 밝은 파란색
+		ImGui::Text("[%s]", Component->GetName().c_str());
+		ImGui::PopStyleColor();
+		ImGui::Spacing();
+
+		// 각 컴포넌트의 실제 타입에서 프로퍼티를 가져옴 (상속된 프로퍼티 포함)
+		const TArray<FProperty>& Properties = Component->GetClass()->GetAllProperties();
 		UPropertyRenderer::RenderProperties(Properties, Component);
 	}
-	
+
+	ImGui::Separator();
 	bool bActorHiddenInGame = SelectedActor->GetActorHiddenInGame();
 	if (ImGui::Checkbox("bActorHiddendInGame", &bActorHiddenInGame))
 	{

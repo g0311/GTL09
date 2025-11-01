@@ -188,6 +188,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
+    <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
+    <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -305,7 +308,6 @@
     <ClCompile Include="Source\Runtime\Engine\Collision\BoundingSphere.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionQueries.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionManager.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\Collision\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Frustum.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\OBB.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Picking.cpp" />
@@ -470,6 +472,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
+    <ClInclude Include="Source\Runtime\InputCore\InputMappingSubsystem.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h" />
     <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
@@ -561,7 +567,6 @@
     <ClInclude Include="Source\Runtime\Engine\Collision\BoundingSphere.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionQueries.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionManager.h" />
-    <ClInclude Include="Source\Runtime\Engine\Collision\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\Frustum.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\OBB.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\Picking.h" />
@@ -633,10 +638,8 @@
     <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="LuaScripts\" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

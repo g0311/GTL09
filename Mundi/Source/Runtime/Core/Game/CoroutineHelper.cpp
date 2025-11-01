@@ -47,7 +47,8 @@ void FCoroutineHelper::RunScheduler(float DeltaTime)
 	if (!Result.valid())
 	{
 		sol::error Err = Result;
-		OutputDebugStringA(("[Coroutine] resume error: " + std::string(Err.what()) + "\n").c_str());
+		FString ErrorMsg = FString("[Coroutine] resume error: ") + Err.what() + "\n";
+		UE_LOG(ErrorMsg.c_str()); 
 		Stop();
 		return;
 	}
@@ -78,11 +79,9 @@ void FCoroutineHelper::StartCoroutine(sol::function EntryPoint)
 	ActiveCoroutine = sol::coroutine(StateView, EntryPoint);
 	if (!ActiveCoroutine.valid())
 	{
-		OutputDebugStringA("[Coroutine] failed to create coroutine.\n");
+		UE_LOG("[Coroutine] failed to create coroutine.\n");
 		return;
 	}
-
-	RunScheduler();
 }
 
 FYieldInstruction* FCoroutineHelper::CreateWaitForSeconds(float Seconds)

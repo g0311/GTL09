@@ -1,51 +1,45 @@
--- ==================== GTL09 Engine Lua Script Template ====================
--- 이 파일은 새 액터 스크립트 생성 시 SceneName_ActorName.lua 형식으로 복사됩니다.
--- 복사 후 해당 파일을 편집하여 Actor의 동작을 커스터마이즈하세요.
---
--- 사용 가능한 전역 변수:
---   actor: 소유자 AActor 객체
---   self: 이 스크립트를 소유한 UScriptComponent
---
--- 사용 가능한 타입:
---   Vector(x, y, z): 3D 벡터 (연산 가능: +, *)
---   Actor: GetActorLocation, SetActorLocation, AddActorWorldLocation 등
--- ==============================================================================
+-- ==================== 코루틴 테스트 스크립트 ====================
+-- 이 스크립트는 코루틴 기능을 검증합니다.
+-- 1초 대기 → 출력 → 2초 대기 → 출력을 반복합니다.
 
----
---- 게임 시작 시 한 번 호출됩니다.
---- Actor가 씬에 배치되거나 게임이 시작될 때 실행됩니다.
----
+-- 코루틴 함수
+function TestCoroutine(component)
+    Log("[Coroutine] Step 1: Starting...")
+
+    -- 1초 대기 (self -> component로 변경)
+    Log("[Coroutine] Waiting for 1 second...")
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("[Coroutine] Step 2: After 1 second!")
+
+    -- 2초 대기 (self -> component로 변경)
+    Log("[Coroutine] Waiting for 2 seconds...")
+    coroutine.yield(component:WaitForSeconds(2.0))
+
+    Log("[Coroutine] Step 3: After 2 seconds!")
+
+    -- 다시 1초 대기 (self -> component로 변경)
+    Log("[Coroutine] Waiting for 1 more second...")
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("[Coroutine] Step 4: Finished! Total 4 seconds elapsed.")
+    Log("=== Coroutine Test Completed ===")
+end
+
 function BeginPlay()
-    local name = actor:GetName()
-    local pos = actor:GetActorLocation()
-    Log("[BeginPlay] " .. name .. " at (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+    Log("=== Coroutine Test Started ===")
+    Log("Actor: " .. actor:GetName())
+
+    -- 코루틴 시작 (익명 함수로 self를 캡처하여 전달)
+    self:StartCoroutine(function() TestCoroutine(self) end)
+
+    Log("Coroutine has been started!")
 end
 
----
---- 게임 종료 시 한 번 호출됩니다.
---- Actor가 제거되거나 게임이 종료될 때 실행됩니다.
----
-function EndPlay()
-    local name = actor:GetName()
-    Log("[EndPlay] " .. name)
-end
-
----
---- 다른 Actor와 충돌했을 때 호출됩니다.
----
-function OnOverlap(OtherActor)
-    local otherName = OtherActor:GetName()
-    local otherPos = OtherActor:GetActorLocation()
-    Log("[OnOverlap] Collision with " .. otherName)
-end
-
----
---- 매 프레임마다 호출됩니다.
---- 이동, 회전, 애니메이션 등의 로직을 여기에 구현하세요.
----
 function Tick(dt)
-    -- 예시: 전진 이동 (Actor 앞 방향으로 움직임)
-    -- local forward = actor:GetActorForward()
-    -- local movement = forward * (100.0 * dt)  -- 초당 100 단위 이동
-    -- actor:AddActorWorldLocation(movement)  -- 주석 해제하면 이동 활성화
+    -- 매 프레임마다 실행되지만, 로그는 출력하지 않음 (너무 많아서)
+end
+
+function EndPlay()
+    Log("=== Test Script Ended ===")
 end
