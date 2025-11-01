@@ -377,6 +377,8 @@ void UEditorEngine::StartPIE()
     {
         Actor->BeginPlay();
     }
+
+    PIEWorld->GetGameMode()->BeginPlay();
     UE_LOG("START PIE CLICKED");
 }
 

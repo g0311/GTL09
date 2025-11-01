@@ -94,8 +94,8 @@ void UWorld::Tick(float DeltaSeconds)
         Collision->Update(DeltaSeconds, /*budget*/256);
     }
 
-    // GameMode Tick
-    if (GameMode)
+    // GameMode Tick (PIE 중에만)
+    if (GameMode && bPie)
     {
         GameMode->Tick(DeltaSeconds);
     }
@@ -134,6 +134,7 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	
 
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
+	PIEWorld->GameMode = InEditorWorld->GameMode;
 	for (AActor* SourceActor : SourceActors)
 	{
 		if (!SourceActor)
@@ -150,8 +151,7 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 			continue;
 		}
 		PIEWorld->AddActorToLevel(NewActor);
-		NewActor->SetWorld(PIEWorld);
-		
+		NewActor->SetWorld(PIEWorld);		
 	}
 
 	return PIEWorld;
@@ -370,6 +370,13 @@ void UWorld::CreateGameMode()
 	if (GameMode)
 	{
 		GameMode->SetWorld(this);
+
+		// PIE 모드일 때만 BeginPlay 호출
+		if (bPie)
+		{
+			GameMode->BeginPlay();
+		}
+
 		UE_LOG("[World] GameMode created\n");
 	}
 	else

@@ -26,6 +26,9 @@ AGameMode::AGameMode()
     //}
 
     GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
+
+    // 기본 테스트 스크립트 설정
+    ScriptPath = "test_gamemode_5sec.lua";
 }
 
 // ==================== Lifecycle ====================

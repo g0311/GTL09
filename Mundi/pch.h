@@ -104,6 +104,9 @@ extern const FString GCacheDir;
 //Editor
 #include "EditorEngine.h"
 
+// GameplayStatic
+#include "Source/Runtime/Engine/GameplayStatic/GameMode.h"
+
 //CUR ENGINE MODE
 #define _EDITOR
 
