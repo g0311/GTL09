@@ -150,6 +150,24 @@ public:
     bool IsOverlappingActor(const AActor* Other) const;
     bool IsOverlappingAnyActor() const;
 
+    // ───── Component Utilities ────────────────────────────
+    /**
+     * @brief 특정 타입의 컴포넌트를 찾습니다
+     * @return 찾은 컴포넌트 포인터 (없으면 nullptr)
+     */
+    template<typename T>
+    T* FindComponentByClass() const
+    {
+        for (UActorComponent* Component : OwnedComponents)
+        {
+            if (T* FoundComponent = Cast<T>(Component))
+            {
+                return FoundComponent;
+            }
+        }
+        return nullptr;
+    }
+
 public:
     FName Name;
     UWorld* World = nullptr;

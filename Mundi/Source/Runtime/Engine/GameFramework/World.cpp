@@ -25,6 +25,7 @@
 #include "Frustum.h"
 #include "Level.h"
 #include "LightManager.h"
+#include "PlayerController.h"
 
 IMPLEMENT_CLASS(UWorld)
 
@@ -350,4 +351,34 @@ AActor* UWorld::SpawnActor(UClass* Class)
 {
 	// 기본 Transform(원점)으로 스폰하는 메인 함수를 호출합니다.
 	return SpawnActor(Class, FTransform());
+}
+
+APlayerController* UWorld::SpawnPlayerController()
+{
+	if (!PlayerController)
+	{
+		// PlayerController는 Actor이므로 SpawnActor를 사용
+		PlayerController = SpawnActor<APlayerController>();
+	}
+	return PlayerController;
+}
+
+ACameraActor* UWorld::GetActiveCamera() const
+{
+	// PlayerController가 있고 ViewTarget이 설정되어 있으면 ViewTarget 반환
+	if (PlayerController)
+	{
+		AActor* ViewTarget = PlayerController->GetViewTarget();
+		if (ViewTarget)
+		{
+			// ViewTarget이 카메라 액터인지 확인
+			if (ACameraActor* CameraActor = Cast<ACameraActor>(ViewTarget))
+			{
+				return CameraActor;
+			}
+		}
+	}
+
+	// PlayerController가 없거나 ViewTarget이 없으면 MainCameraActor 반환
+	return MainCameraActor;
 }
