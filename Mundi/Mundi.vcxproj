@@ -638,8 +638,13 @@
     <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="LuaScripts\Default_Ambient Light Actor.lua" />
+    <Content Include="LuaScripts\Default_Directional Light Actor.lua" />
     <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="LuaScripts\Default_TempCar.lua" />
+    <Content Include="LuaScripts\teasd1.lua" />
+    <Content Include="LuaScripts\test.lua" />
+    <Content Include="LuaScripts\test2.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
