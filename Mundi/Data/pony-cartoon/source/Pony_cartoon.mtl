@@ -8,8 +8,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd ./Data/pony-cartoon/source/Body_dDo_d_orange.jpg
-map_Ka ./Data/pony-cartoon/source/Body_illumination.jpg
+map_Kd Body_dDo_d_orange.jpg
+map_Ka Body_illumination.jpg
 
 newmtl Ground_SG
 Ns 0.000000
@@ -28,8 +28,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd .Data/pony-cartoon/source/Interior_dDo_d_black.jpg
-map_Ks ./Data/pony-cartoon/source/Interior_dDo_s.jpg
+map_Kd Interior_dDo_d_black.jpg
+map_Ks Interior_dDo_s.jpg
 
 newmtl Windows_SG
 Ns 0.060000
@@ -38,5 +38,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd ./Data/pony-cartoon/source/Body_dDo_d_orange.jpg
-map_Ks ./Data/pony-cartoon/source/Body_illumination.jpg
+map_Kd Body_dDo_d_orange.jpg
+map_Ks Body_illumination.jpg
