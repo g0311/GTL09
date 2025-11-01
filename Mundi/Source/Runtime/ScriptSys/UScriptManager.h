@@ -73,4 +73,9 @@ private:
     void RegisterTransform(sol::state* state);
     void RegisterActor(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+
+    // Input bindings
+    void RegisterInputSubsystem(sol::state* state);
+    void RegisterInputContext(sol::state* state);
+    void RegisterInputEnums(sol::state* state);
 };

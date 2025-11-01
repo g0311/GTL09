@@ -3,6 +3,12 @@
 #include "Actor.h"
 #include "ScriptComponent.h"
 #include "ScriptUtils.h"
+// Input
+#include "Source/Runtime/InputCore/InputMappingSubsystem.h"
+#include "Source/Runtime/InputCore/InputMappingContext.h"
+#include "Source/Runtime/InputCore/InputMappingTypes.h"
+// Object factory
+#include "Source/Runtime/Core/Object/ObjectFactory.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -17,6 +23,11 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
 
     RegisterActor(state);
     RegisterScriptComponent(state);
+
+    // Input
+    RegisterInputEnums(state);
+    RegisterInputContext(state);
+    RegisterInputSubsystem(state);
 }
 void UScriptManager::RegisterLOG(sol::state* state)
 {
@@ -347,4 +358,118 @@ void UScriptManager::EditScript(const FString& ScriptPath)
     {
         MessageBoxA(NULL, "Failed to open script file", "Error", MB_OK | MB_ICONERROR);
     }
+}
+
+void UScriptManager::RegisterInputEnums(sol::state* state)
+{
+    // Expose EInputAxisSource as a table for convenience
+    auto axis = state->create_table("EInputAxisSource");
+    axis["Key"] = static_cast<int>(EInputAxisSource::Key);
+    axis["MouseX"] = static_cast<int>(EInputAxisSource::MouseX);
+    axis["MouseY"] = static_cast<int>(EInputAxisSource::MouseY);
+    axis["MouseWheel"] = static_cast<int>(EInputAxisSource::MouseWheel);
+
+    // Common virtual key codes as a Keys table
+    auto keys = state->create_table("Keys");
+    // Letters A-Z
+    for (int c = 'A'; c <= 'Z'; ++c) {
+        std::string name(1, static_cast<char>(c));
+        keys[name] = c;
+    }
+    // Digits 0-9
+    for (int d = 0; d <= 9; ++d) {
+        keys[std::to_string(d)] = 0x30 + d; // '0'..'9'
+    }
+    // Function keys F1..F12
+    for (int i = 1; i <= 12; ++i) {
+        keys[std::string("F") + std::to_string(i)] = 0x70 + (i - 1); // VK_F1=0x70
+    }
+    // Common controls
+    keys["Space"]   = 0x20; // VK_SPACE
+    keys["Escape"]  = 0x1B; // VK_ESCAPE
+    keys["Enter"]   = 0x0D; // VK_RETURN
+    keys["Tab"]     = 0x09; // VK_TAB
+    keys["Backspace"] = 0x08; // VK_BACK
+    keys["Shift"]   = 0x10; // VK_SHIFT
+    keys["Ctrl"]    = 0x11; // VK_CONTROL
+    keys["Alt"]     = 0x12; // VK_MENU
+    // Arrows
+    keys["Left"]  = 0x25; // VK_LEFT
+    keys["Up"]    = 0x26; // VK_UP
+    keys["Right"] = 0x27; // VK_RIGHT
+    keys["Down"]  = 0x28; // VK_DOWN
+    // Mouse buttons
+    keys["MouseLeft"]   = 0x01; // VK_LBUTTON
+    keys["MouseRight"]  = 0x02; // VK_RBUTTON
+    keys["MouseMiddle"] = 0x04; // VK_MBUTTON
+}
+
+void UScriptManager::RegisterInputContext(sol::state* state)
+{
+    BEGIN_LUA_TYPE_NO_CTOR(state, UInputMappingContext, "InputContext")
+        // Authoring API
+        ADD_LUA_FUNCTION("MapAction", &UInputMappingContext::MapAction)
+        ADD_LUA_FUNCTION("MapAxisKey", &UInputMappingContext::MapAxisKey)
+        ADD_LUA_FUNCTION("MapAxisMouse", &UInputMappingContext::MapAxisMouse)
+
+        // Lua-friendly binding helpers
+        usertype["BindActionPressed"] = [](UInputMappingContext* Ctx, const FString& ActionName, sol::function Fn)
+        {
+            if (!Ctx || !Fn.valid()) return (FDelegateHandle)0;
+            auto pf = sol::protected_function(Fn);
+            return Ctx->BindActionPressed(ActionName, [pf]() mutable {
+                sol::protected_function_result r = pf();
+                if (!r.valid()) {
+                    sol::error e = r; UE_LOG((FString("[Lua Error] ActionPressed: ") + e.what() + "\n").c_str());
+                }
+            });
+        };
+        usertype["BindActionReleased"] = [](UInputMappingContext* Ctx, const FString& ActionName, sol::function Fn)
+        {
+            if (!Ctx || !Fn.valid()) return (FDelegateHandle)0;
+            auto pf = sol::protected_function(Fn);
+            return Ctx->BindActionReleased(ActionName, [pf]() mutable {
+                sol::protected_function_result r = pf();
+                if (!r.valid()) {
+                    sol::error e = r; UE_LOG((FString("[Lua Error] ActionReleased: ") + e.what() + "\n").c_str());
+                }
+            });
+        };
+        usertype["BindAxis"] = [](UInputMappingContext* Ctx, const FString& AxisName, sol::function Fn)
+        {
+            if (!Ctx || !Fn.valid()) return (FDelegateHandle)0;
+            auto pf = sol::protected_function(Fn);
+            return Ctx->BindAxis(AxisName, [pf](float v) mutable {
+                sol::protected_function_result r = pf(v);
+                if (!r.valid()) {
+                    sol::error e = r; UE_LOG((FString("[Lua Error] Axis: ") + e.what() + "\n").c_str());
+                }
+            });
+        };
+    END_LUA_TYPE()
+
+    // Factory function: Create a new InputContext as a UObject
+    state->set_function("CreateInputContext", []() -> UInputMappingContext*
+    {
+        return ObjectFactory::NewObject<UInputMappingContext>();
+    });
+}
+
+void UScriptManager::RegisterInputSubsystem(sol::state* state)
+{
+    BEGIN_LUA_TYPE_NO_CTOR(state, UInputMappingSubsystem, "InputSubsystem")
+        ADD_LUA_FUNCTION("AddMappingContext", &UInputMappingSubsystem::AddMappingContext)
+        ADD_LUA_FUNCTION("RemoveMappingContext", &UInputMappingSubsystem::RemoveMappingContext)
+        ADD_LUA_FUNCTION("ClearContexts", &UInputMappingSubsystem::ClearContexts)
+        ADD_LUA_FUNCTION("WasActionPressed", &UInputMappingSubsystem::WasActionPressed)
+        ADD_LUA_FUNCTION("WasActionReleased", &UInputMappingSubsystem::WasActionReleased)
+        ADD_LUA_FUNCTION("IsActionDown", &UInputMappingSubsystem::IsActionDown)
+        ADD_LUA_FUNCTION("GetAxisValue", &UInputMappingSubsystem::GetAxisValue)
+    END_LUA_TYPE()
+
+    // Global accessor GetInput()
+    state->set_function("GetInput", []() -> UInputMappingSubsystem*
+    {
+        return &UInputMappingSubsystem::Get();
+    });
 }

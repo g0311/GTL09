@@ -19,6 +19,35 @@ function BeginPlay()
     local name = actor:GetName()
     local pos = actor:GetActorLocation()
     Log("[BeginPlay] " .. name .. " at (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+
+    -- Input setup example (uncomment to use)
+    -- local input = GetInput()
+    -- local ctx = CreateInputContext()
+    --
+    -- -- Map actions
+    -- ctx:MapAction("Jump", Keys.Space, false, false, false, true)
+    -- ctx:BindActionPressed("Jump", function()
+    --     Log("Jump pressed")
+    -- end)
+    --
+    -- -- Map axes (WASD as vertical/horizontal)
+    -- ctx:MapAxisKey("MoveForward", Keys.W,  1.0)
+    -- ctx:MapAxisKey("MoveForward", Keys.S, -1.0)
+    -- ctx:MapAxisKey("MoveRight",   Keys.D,  1.0)
+    -- ctx:MapAxisKey("MoveRight",   Keys.A, -1.0)
+    -- ctx:BindAxis("MoveForward", function(v)
+    --     if math.abs(v) > 0.0 then
+    --         actor:AddActorWorldLocation(actor:GetActorForward() * (v * 100.0 * (1/60)))
+    --     end
+    -- end)
+    -- ctx:BindAxis("MoveRight", function(v)
+    --     if math.abs(v) > 0.0 then
+    --         actor:AddActorWorldLocation(actor:GetActorRight() * (v * 100.0 * (1/60)))
+    --     end
+    -- end)
+    --
+    -- -- Add context with priority 0
+    -- input:AddMappingContext(ctx, 0)
 end
 
 ---
