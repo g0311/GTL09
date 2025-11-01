@@ -84,9 +84,10 @@ public:
 
 private:
 	void EnsureCoroutineHelper();
+
     FString ScriptPath;                 ///< 스크립트 파일 경로
     bool bScriptLoaded = false;   ///< 스크립트 로드 성공 여부
-    sol::state* lua;                         ///< 개별 Lua state (컴포넌트별 독립)
+    sol::state* lua = nullptr;          ///< Owning Lua state (per component)
 
     // Hot-reload on tick
     float HotReloadCheckTimer = 0.0f;        ///< 핫 리로드 체크 타이머
@@ -98,7 +99,7 @@ private:
 template <typename ... Args>
 void UScriptComponent::CallLuaFunction(const FString& InFunctionName, Args&&... InArgs)
 {
-    if (!bScriptLoaded)
+    if (!bScriptLoaded || !lua)
     {
         return;
     }

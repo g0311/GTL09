@@ -2,9 +2,10 @@
 #include "ScriptComponent.h"
 #include "UScriptManager.h"
 #include "Actor.h"
-#include "CoroutineHelper.h"
+#include "Source/Runtime/Core/Game/CoroutineHelper.h"
 #include <filesystem>
 #include <chrono>
+#include <memory>
 
 IMPLEMENT_CLASS(UScriptComponent)
 
@@ -16,11 +17,11 @@ END_PROPERTIES()
 // ==================== Construction / Destruction ====================
 UScriptComponent::UScriptComponent()
 {
-    // 틱 활성화
     SetCanEverTick(true);
     SetTickEnabled(true);
 
-    lua = new sol::state;
+	// Lua state 생성
+	lua = new sol::state();
 
 	EnsureCoroutineHelper();
 }
@@ -79,7 +80,8 @@ void UScriptComponent::TickComponent(float DeltaTime)
             try
             {
                 auto ftime = std::filesystem::last_write_time(ScriptPath);
-                long long currentTime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(ftime.time_since_epoch()).count();
+                long long currentTime_ms = 
+                    std::chrono::duration_cast<std::chrono::milliseconds>(ftime.time_since_epoch()).count();
 
                 if (currentTime_ms > LastScriptWriteTime_ms)
                 {
@@ -320,11 +322,23 @@ void UScriptComponent::DuplicateSubObjects()
     // 복제본은 런타임 로드 상태를 초기화하고 필요 시 BeginPlay/OnSerialized에서 로드
     bScriptLoaded = false;
 	CoroutineHelper = nullptr;
-    lua = new sol::state;
+	lua = nullptr;
 }
 
 void UScriptComponent::PostDuplicate()
 {
 	Super::PostDuplicate();
+
+	// Lua state 재생성
+	if (!lua)
+	{
+		lua = new sol::state();
+	}
+
 	EnsureCoroutineHelper();
 }
+
+
+
+
+

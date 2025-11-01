@@ -57,4 +57,5 @@ private:
     void RegisterQuat(sol::state* state);
     void RegisterTransform(sol::state* state);
     void RegisterActor(sol::state* state);
+    void RegisterScriptComponent(sol::state* state);
 };

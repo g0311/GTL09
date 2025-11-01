@@ -2,6 +2,7 @@
 #include "sol/sol.hpp"
 #include "UScriptManager.h"
 #include "Actor.h"
+#include "ScriptComponent.h"
 #include <filesystem>
 #include "ScriptUtils.h"
 
@@ -13,8 +14,9 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     if (!state) return;
 
     RegisterCoreTypes(state);
-    
+
     RegisterActor(state);
+    RegisterScriptComponent(state);
 }
 void UScriptManager::RegisterLOG(sol::state* state)
 {
@@ -103,7 +105,7 @@ void UScriptManager::RegisterActor(sol::state* state)
         )
         ADD_LUA_FUNCTION("GetActorScale", &AActor::GetActorScale)
         ADD_LUA_FUNCTION("SetActorScale", &AActor::SetActorScale)
-        
+
         // Movement API
         ADD_LUA_FUNCTION("AddActorWorldLocation", &AActor::AddActorWorldLocation)
         ADD_LUA_FUNCTION("AddActorLocalLocation", &AActor::AddActorLocalLocation)
@@ -115,19 +117,30 @@ void UScriptManager::RegisterActor(sol::state* state)
             static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorLocalRotation),
             static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorLocalRotation)
         )
-        
+
         // Direction API
         ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
         ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
         ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
-        
+
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", &AActor::GetName)
         ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
         ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
-        
+
         // Lifecycle
         ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterScriptComponent(sol::state* state)
+{
+    // ==================== UScriptComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
+        // Coroutine API
+        ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
+        ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
+        ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
     END_LUA_TYPE()
 }
 
