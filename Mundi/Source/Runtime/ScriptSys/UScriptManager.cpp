@@ -9,10 +9,6 @@
 #include "Source/Runtime/InputCore/InputMappingTypes.h"
 // Object factory
 #include "Source/Runtime/Core/Object/ObjectFactory.h"
-// Components
-#include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
-#include "Source/Runtime/Engine/Components/MovementComponent.h"
-#include "Source/Runtime/Engine/Components/SceneComponent.h"
 // World access
 #include "Source/Runtime/Engine/GameFramework/World.h"
 // Components
@@ -21,6 +17,8 @@
 #include "Source/Runtime/Engine/Components/StaticMeshComponent.h"
 #include "Source/Runtime/Engine/Components/LightComponent.h"
 #include "Source/Runtime/Engine/Components/CameraComponent.h"
+#include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
+#include "Source/Runtime/Engine/Components/MovementComponent.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)

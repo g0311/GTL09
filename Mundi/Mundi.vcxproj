@@ -188,6 +188,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
@@ -473,6 +474,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
