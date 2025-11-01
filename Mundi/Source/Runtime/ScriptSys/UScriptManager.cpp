@@ -1,13 +1,13 @@
 ﻿#include "pch.h"
-#include "sol/sol.hpp"
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "ScriptComponent.h"
-#include <filesystem>
 #include "ScriptUtils.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
+
+namespace fs = std::filesystem;
 
 void UScriptManager::RegisterTypesToState(sol::state* state)
 {
@@ -33,9 +33,30 @@ void UScriptManager::RegisterLOG(sol::state* state)
     });
 }
 
+std::wstring UScriptManager::FStringToWideString(const FString& UTF8Str)
+{
+    // Case A. 파일명이 비어 있으면 즉시 종료합니다.
+    if (UTF8Str.empty()) { return L""; }
+
+    // Case B. 정상적으로 변환하지 못하면 즉시 종료합니다.
+    int WideSize = MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, NULL, 0);
+    if (WideSize <= 0)
+    {
+        OutputDebugStringA("Failed to convert path to wide string\n");
+        return L"";
+    }
+
+    // 1. FString(UTF-8) 문자열을 wstring(UTF-16) 변환합니다.
+    std::wstring Path(WideSize - 1, 0); // null 종결 문자 제외
+    MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, &Path[0], WideSize);
+
+    return Path;
+}
+
 void UScriptManager::RegisterCoreTypes(sol::state* state)
 {
     RegisterLOG(state);
+    RegisterFName(state);
     RegisterVector(state);
     RegisterQuat(state);
     RegisterTransform(state);
@@ -43,6 +64,16 @@ void UScriptManager::RegisterCoreTypes(sol::state* state)
 
 void UScriptManager::RegisterReflectedClasses(sol::state* state)
 {
+}
+
+void UScriptManager::RegisterFName(sol::state* state)
+{
+    // ==================== FName 등록 ====================
+    BEGIN_LUA_TYPE(state, FName, "FName", FName(), FName(const char*))
+        ADD_LUA_FUNCTION("ToString", &FName::ToString)
+        // 문자열 연결을 위한 메타함수
+        ADD_LUA_META_FUNCTION(to_string, &FName::ToString)
+    END_LUA_TYPE()
 }
 
 void UScriptManager::RegisterVector(sol::state* state)
@@ -67,7 +98,7 @@ void UScriptManager::RegisterVector(sol::state* state)
         ADD_LUA_META_FUNCTION(division, [](const FVector& v, float f) {
             return v / f;
         })
-    END_LUA_TYPE() // ★ 4. (가독성용) 종료
+    END_LUA_TYPE() // 4. 종료
 }
 
 void UScriptManager::RegisterQuat(sol::state* state)
@@ -124,7 +155,9 @@ void UScriptManager::RegisterActor(sol::state* state)
         ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
 
         // Name/Visibility
-        ADD_LUA_FUNCTION("GetName", &AActor::GetName)
+        ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
+            return actor->GetName().ToString();
+        })
         ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
         ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
 
@@ -145,59 +178,158 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
 }
 
 // ==================== 스크립트 파일 관리 ====================
-
-bool UScriptManager::CreateScript(const FString& SceneName, const FString& ActorName)
+/**
+ * @brief 상대 스크립트 경로를 절대 경로(std::filesystem::path)로 변환
+ */
+std::filesystem::path UScriptManager::ResolveScriptPath(const FString& RelativePath)
 {
-    namespace fs = std::filesystem;
-
-    // 현재 작업 디렉토리 기준 절대 경로 생성
-    fs::path templatePath = fs::current_path() / "Source" / "Runtime" / "ScriptSys" / "template.lua";
-    
-    // 새 스크립트 파일명 생성: SceneName_ActorName.lua
-    FString scriptName = SceneName + "_" + ActorName + ".lua";
-    fs::path newScriptPath = fs::current_path() / "LuaScripts" / scriptName;
-
-    // 1. 템플릿 파일 존재 확인
-    if (!fs::exists(templatePath))
+    std::wstring PathW = FStringToWideString(RelativePath);
+    if (PathW.empty() && !RelativePath.empty())
     {
-        OutputDebugStringA("Error: template.lua not found\n");
+        OutputDebugStringA("Failed to convert path to wide string\n");
+        return fs::path();
+    }
+
+    fs::path ScriptPathFs(PathW);
+
+    if (ScriptPathFs.is_absolute())
+    {
+        OutputDebugStringA("Path is absolute\n");
+        return ScriptPathFs;
+    }
+    else
+    {
+        // 기본 경로: current_path (Mundi) / LuaScripts
+        fs::path Resolved = fs::current_path() / L"LuaScripts" / PathW;
+        OutputDebugStringA("Resolved to: ");
+        OutputDebugStringW((Resolved.wstring() + L"\n").c_str());
+        return Resolved;
+    }
+}
+
+bool UScriptManager::CreateScript(const FString& SceneName, const FString& ActorName, FString& OutScriptPath)
+{
+    // 디버그 로그
+    OutputDebugStringA("CreateScript called\n");
+    OutputDebugStringA(("  SceneName: '" + SceneName + "'\n").c_str());
+    OutputDebugStringA(("  ActorName: '" + ActorName + "'\n").c_str());
+
+    // 한글 확인을 위한 16진수 덤프
+    OutputDebugStringA("  ActorName hex: ");
+    for (unsigned char C : ActorName)
+    {
+        char Hex[4];
+        sprintf_s(Hex, "%02X ", C);
+        OutputDebugStringA(Hex);
+    }
+    OutputDebugStringA("\n");
+
+    // 입력값 검증
+    if (SceneName.empty() || ActorName.empty())
+    {
+        OutputDebugStringA("Error: SceneName or ActorName is empty\n");
         return false;
     }
 
-    // 2. 이미 파일이 존재하는 경우 성공 반환 (중복 생성 방지)
-    if (fs::exists(newScriptPath))
-    {
-        OutputDebugStringA(("Script already exists: " + scriptName + "\n").c_str());
-        return true;
-    }
-
-    // 3. 템플릿 파일을 새 이름으로 복사
     try
     {
-        fs::copy_file(templatePath, newScriptPath);
-        OutputDebugStringA(("Created script: " + scriptName + "\n").c_str());
+        // 현재 작업 디렉토리 확인
+        fs::path CurrentPath = fs::current_path();
+        OutputDebugStringA(("Current path: " + CurrentPath.string() + "\n").c_str());
+
+        // 템플릿 경로 (안전한 경로 조합)
+        fs::path TemplatePath = CurrentPath / L"Source" / L"Runtime" / L"ScriptSys" / L"template.lua";
+        OutputDebugStringA(("Template path: " + TemplatePath.string() + "\n").c_str());
+
+        // ActorName에서 파일명으로 사용할 수 없는 문자만 제거 (한글은 유지)
+        FString SanitizedActorName;
+        const std::string InvalidChars = "<>:\"/\\|?*";
+        for (char C : ActorName)
+        {
+            // 유효하지 않은 문자가 아니면 포함
+            if (InvalidChars.find(C) == std::string::npos)
+            {
+                SanitizedActorName += C;
+            }
+        }
+
+        if (SanitizedActorName.empty())
+        {
+            SanitizedActorName = "Actor";
+        }
+
+        // 새 스크립트 파일명 생성: SceneName_ActorName.lua
+        FString ScriptName = SceneName + "_" + SanitizedActorName + ".lua";
+        OutputDebugStringA(("Script name: " + ScriptName + "\n").c_str());
+
+        // LuaScripts 디렉토리 경로 (안전한 경로 조합)
+        fs::path LuaScriptsDir = CurrentPath / L"LuaScripts";
+
+        // LuaScripts 디렉토리가 없으면 생성
+        if (!fs::exists(LuaScriptsDir))
+        {
+            fs::create_directories(LuaScriptsDir);
+            OutputDebugStringA("Created LuaScripts directory\n");
+        }
+
+        std::wstring ScriptNameW = FStringToWideString(ScriptName);
+        if (ScriptNameW.empty() && !ScriptName.empty())
+        {
+            OutputDebugStringA("Failed to convert script name to wide string\n");
+            return false;
+        }
+
+        OutputDebugStringA("Script name (wide): ");
+        OutputDebugStringW((ScriptNameW + L"\n").c_str());
+
+        fs::path newScriptPath = LuaScriptsDir / ScriptNameW;
+        OutputDebugStringA("New script path created\n");
+
+        // 1. 템플릿 파일 존재 확인
+        if (!fs::exists(TemplatePath))
+        {
+            OutputDebugStringA(("Error: template.lua not found at: " + TemplatePath.string() + "\n").c_str());
+            return false;
+        }
+
+        // 2. 이미 파일이 존재하는 경우 성공 반환 (중복 생성 방지)
+        if (fs::exists(newScriptPath))
+        {
+            OutputDebugStringA(("Script already exists: " + ScriptName + "\n").c_str());
+            OutScriptPath = ScriptName;
+            return true;
+        }
+
+        // 3. 템플릿 파일을 새 이름으로 복사
+        fs::copy_file(TemplatePath, newScriptPath);
+        OutputDebugStringA(("Created script: " + newScriptPath.string() + "\n").c_str());
+
+        // 생성된 파일명 반환
+        OutScriptPath = ScriptName;
         return true;
     }
     catch (const std::exception& e)
     {
-        OutputDebugStringA(("Error creating script: " + std::string(e.what()) + "\n").c_str());
+        OutputDebugStringA(("Exception in CreateScript: " + std::string(e.what()) + "\n").c_str());
         return false;
     }
 }
 
 void UScriptManager::EditScript(const FString& ScriptPath)
 {
-    // Windows 확장자 연결을 사용하여 .lua 파일을 기본 프로그램으로 열기
-    HINSTANCE hInst = ShellExecuteA(
-        NULL,                   // 부모 윈도우 핸들
-        "open",                 // 동작 (open = 열기)
-        ScriptPath.c_str(),     // 열 파일 경로
-        NULL,                   // 명령줄 인자
-        NULL,                   // 작업 디렉토리
-        SW_SHOWNORMAL           // 창 표시 상태
-    );
+    // 1. 경로 해석
+    fs::path absolutePath = UScriptManager::ResolveScriptPath(ScriptPath);
 
-    // ShellExecute는 성공 시 32보다 큰 값 반환
+    // 2. 파일 존재 확인
+    if (!fs::exists(absolutePath))
+    {
+        MessageBoxA(NULL, "Script file not found", "Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    // 3. Windows 기본 에디터로 열기 (wide string 버전 사용)
+    HINSTANCE hInst = ShellExecuteW(NULL, L"open", absolutePath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+
     if ((INT_PTR)hInst <= 32)
     {
         MessageBoxA(NULL, "Failed to open script file", "Error", MB_OK | MB_ICONERROR);
