@@ -636,10 +636,8 @@
     <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="LuaScripts\" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
