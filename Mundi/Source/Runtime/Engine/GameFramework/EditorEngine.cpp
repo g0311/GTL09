@@ -188,7 +188,6 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     //매니저 초기화
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
-    SCRIPT.Initialize();
     
     FObjManager::Preload();
 
