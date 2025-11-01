@@ -225,9 +225,9 @@ bool UScriptManager::CreateScript(const FString& SceneName, const FString& Actor
     OutputDebugStringA("\n");
 
     // 입력값 검증
-    if (SceneName.empty() || ActorName.empty())
+    if (ActorName.empty())
     {
-        OutputDebugStringA("Error: SceneName or ActorName is empty\n");
+        OutputDebugStringA("Error: ActorName is empty\n");
         return false;
     }
 
@@ -258,8 +258,22 @@ bool UScriptManager::CreateScript(const FString& SceneName, const FString& Actor
             SanitizedActorName = "Actor";
         }
 
-        // 새 스크립트 파일명 생성: SceneName_ActorName.lua
-        FString ScriptName = SceneName + "_" + SanitizedActorName + ".lua";
+        // 새 스크립트 파일명 생성
+        // SceneName이 비어있으면 ActorName만 사용, 아니면 SceneName_ActorName 형식
+        FString ScriptName;
+        if (SceneName.empty())
+        {
+            ScriptName = SanitizedActorName;
+            // .lua 확장자가 없으면 추가
+            if (ScriptName.find(".lua") == FString::npos)
+            {
+                ScriptName += ".lua";
+            }
+        }
+        else
+        {
+            ScriptName = SceneName + "_" + SanitizedActorName + ".lua";
+        }
         OutputDebugStringA(("Script name: " + ScriptName + "\n").c_str());
 
         // LuaScripts 디렉토리 경로 (안전한 경로 조합)

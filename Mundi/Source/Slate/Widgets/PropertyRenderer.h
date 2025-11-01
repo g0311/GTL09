@@ -42,6 +42,8 @@ private:
 	static bool RenderTextureSelectionCombo(const char* Label, UTexture* CurrentTexture, UTexture*& OutNewTexture);
 	static bool RenderScriptPathProperty(const FProperty& property, void* object_instance);
 
+	// Script path selection helper
+	static std::filesystem::path OpenScriptFileDialog();
 
 	// Transform 프로퍼티 렌더링 헬퍼 함수
 	static bool RenderTransformProperty(const FProperty& Prop, void* Instance);
