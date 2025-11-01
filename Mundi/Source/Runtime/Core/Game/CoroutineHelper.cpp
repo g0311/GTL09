@@ -1,76 +1,88 @@
 ﻿#include "pch.h"
 #include "CoroutineHelper.h"
 #include "YieldInstruction.h"
+#include "Source/Runtime/ScriptSys/ScriptComponent.h"
 
-FCoroutineHelper::FCoroutineHelper(ULuaScriptComponent* InOwner)
-	: OwnerComponent(InOwner), CurrentInstruction(nullptr)
+FCoroutineHelper::FCoroutineHelper(UScriptComponent* InOwner)
+	: OwnerComponent(InOwner)
 {
 }
 
 FCoroutineHelper::~FCoroutineHelper()
 {
-	OwnerComponent = nullptr;	// 참조만 할 뿐이므로, nullptr 명시적 선언
-	delete CurrentInstruction;
+	Stop();
+	OwnerComponent = nullptr;
 }
 
-void FCoroutineHelper::RunSceduler(float DeltaTime)
+void FCoroutineHelper::CleanupInstruction()
 {
-    if (ActiveCoroutine.valid() == false) { return; }
+	if (CurrentInstruction)
+	{
+		delete CurrentInstruction;
+		CurrentInstruction = nullptr;
+	}
+}
 
-    bool bShouldResume = false;
+void FCoroutineHelper::Stop()
+{
+	ActiveCoroutine = sol::nil;
+	CleanupInstruction();
+}
 
-    if (CurrentInstruction)
-    {
-        if (CurrentInstruction->IsReady(this, DeltaTime))
-        {
-            delete CurrentInstruction;
-            CurrentInstruction = nullptr;
-            bShouldResume = true;
-        }
-    }
-    else
-    {
-        // Instruction이 없으면 즉시 재개
-        bShouldResume = true;
-    }
+void FCoroutineHelper::RunScheduler(float DeltaTime)
+{
+	if (!ActiveCoroutine.valid()) { return; }
 
-    auto Result = ActiveCoroutine();
+	if (CurrentInstruction)
+	{
+		if (const bool bReady = CurrentInstruction->IsReady(this, DeltaTime); bReady == false) 
+		{
+			return;
+		}
 
-    // 코루틴 종료 확인
-    if (Result.get_type() == sol::type::none ||
-        ActiveCoroutine.status() == sol::call_status::ok)
-    {
-        // 코루틴 완료
-        ActiveCoroutine = sol::nil;
-        if (CurrentInstruction)
-        {
-            delete CurrentInstruction;
-            CurrentInstruction = nullptr;
-        }
-        return;
-    }
+		CleanupInstruction();
+	}
 
-    if (Result.get_type() == sol::type::userdata)
-    {
-        sol::object YieldResult = Result;
-        CurrentInstruction = YieldResult.as<FYieldInstruction*>();
-    }
+	sol::protected_function_result Result = ActiveCoroutine();
+	if (!Result.valid())
+	{
+		sol::error Err = Result;
+		OutputDebugStringA(("[Coroutine] resume error: " + std::string(Err.what()) + "\n").c_str());
+		Stop();
+		return;
+	}
+
+	sol::object YieldValue = Result.get<sol::object>();
+
+	const sol::call_status Status = ActiveCoroutine.status();
+	if (Status == sol::call_status::ok)
+	{
+		Stop();
+		return;
+	}
+
+	const sol::type ValueType = YieldValue.get_type();
+	if (ValueType == sol::type::userdata)
+	{
+		CurrentInstruction = YieldValue.as<FYieldInstruction*>();
+	}
 }
 
 void FCoroutineHelper::StartCoroutine(sol::function EntryPoint)
 {
-    if (EntryPoint.valid())
-    {
-        // 기존 코루틴 정리
-        if (CurrentInstruction)
-        {
-            delete CurrentInstruction;
-            CurrentInstruction = nullptr;
-        }
+	if (!EntryPoint.valid()) { return; }
 
-        ActiveCoroutine = EntryPoint;
-        RunSceduler();
-    }
+	Stop();
+
+	sol::state_view StateView(EntryPoint.lua_state());
+	ActiveCoroutine = sol::coroutine(StateView, EntryPoint);
+	if (!ActiveCoroutine.valid())
+	{
+		OutputDebugStringA("[Coroutine] failed to create coroutine.\n");
+		return;
+	}
+
+	RunScheduler();
 }
 
 FYieldInstruction* FCoroutineHelper::CreateWaitForSeconds(float Seconds)

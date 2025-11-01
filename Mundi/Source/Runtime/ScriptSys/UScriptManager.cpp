@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "ScriptComponent.h"
@@ -114,7 +114,10 @@ void UScriptManager::RegisterGlobalTypes()
     lua.new_usertype<UScriptComponent>("ScriptComponent",
         "GetScriptPath", &UScriptComponent::GetScriptPath,
         "ReloadScript", &UScriptComponent::ReloadScript,
-        "OpenScriptInEditor", &UScriptComponent::OpenScriptInEditor
+        "OpenScriptInEditor", &UScriptComponent::OpenScriptInEditor,
+        "StartCoroutine", &UScriptComponent::StartCoroutine,
+        "WaitForSeconds", &UScriptComponent::WaitForSeconds,
+        "StopAllCoroutines", &UScriptComponent::StopAllCoroutines
     );
 }
 

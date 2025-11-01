@@ -295,6 +295,8 @@
     <ClCompile Include="Source\Runtime\Core\Object\ActorComponent.cpp" />
     <ClCompile Include="Source\Runtime\Core\Object\Object.cpp" />
     <ClCompile Include="Source\Runtime\Core\Object\ObjectFactory.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\CoroutineHelper.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\YieldInstruction.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\AABB.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\BoundingSphere.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\Collision.cpp" />
@@ -541,6 +543,8 @@
     <ClInclude Include="Source\Runtime\Core\Object\ActorComponent.h" />
     <ClInclude Include="Source\Runtime\Core\Object\Object.h" />
     <ClInclude Include="Source\Runtime\Core\Object\ObjectFactory.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\YieldInstruction.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\AABB.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\BoundingSphere.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\Collision.h" />
