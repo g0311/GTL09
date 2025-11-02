@@ -20,6 +20,9 @@ public:
 	// 객체의 모든 프로퍼티를 카테고리별로 렌더링 (부모 클래스 프로퍼티 포함)
 	static void RenderAllPropertiesWithInheritance(UObject* Object);
 
+	// 액터별 커스텀 프로퍼티 렌더링 (타입별 특수 UI)
+	static void RenderCustomActorProperties(class AActor* Actor);
+
 private:
 	// 타입별 렌더링 함수들
 	static bool RenderBoolProperty(const FProperty& Prop, void* Instance);
@@ -50,6 +53,9 @@ private:
 
 	static void CacheResources();	// 필요할 때 리소스 목록을 멤버 변수에 캐시합니다.
 	static void ClearResourcesCache();	// 렌더링 패스가 끝날 때 캐시를 비웁니다.
+
+	// 액터 타입별 커스텀 렌더링 헬퍼 함수들
+	static void RenderGameModeProperties(class AGameModeBase* GameMode);
 
 private:
 	// 렌더링 중 캐시되는 리소스 목록

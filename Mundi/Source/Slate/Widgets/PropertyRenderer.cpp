@@ -17,6 +17,9 @@
 #include "SpotLightComponent.h"
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
+#include "GameModeBase.h"
+#include "Actor.h"
+#include "World.h"
 #include <commdlg.h>
 #include <filesystem>
 
@@ -1424,4 +1427,86 @@ bool UPropertyRenderer::RenderTransformProperty(const FProperty& Prop, void* Ins
 	ImGui::PopID();
 
 	return bAnyChanged;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 액터별 커스텀 프로퍼티 렌더링
+// ───────────────────────────────────────────────────────────────────────────
+//@TODO 컴포넌트처럼 액터 내부로 의존성 주입 필요
+void UPropertyRenderer::RenderCustomActorProperties(AActor* Actor)
+{
+	if (!Actor) return;
+
+	// GameMode 타입 체크
+	if (AGameModeBase* GameMode = Cast<AGameModeBase>(Actor))
+	{
+		RenderGameModeProperties(GameMode);
+		return;
+	}
+
+	// 여기에 다른 액터 타입 추가 가능
+	// if (ASomeOtherActor* OtherActor = Cast<ASomeOtherActor>(Actor))
+	// {
+	//     RenderSomeOtherActorProperties(OtherActor);
+	//     return;
+	// }
+}
+
+void UPropertyRenderer::RenderGameModeProperties(AGameModeBase* GameMode)
+{
+	if (!GameMode) return;
+
+	ImGui::Separator();
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.2f, 1.0f)); // 금색
+	ImGui::Text("[GameMode Settings]");
+	ImGui::PopStyleColor();
+	ImGui::Spacing();
+
+	// DefaultPawnActor 선택 드롭다운
+	ImGui::Text("Default Pawn Actor:");
+
+	// 현재 선택된 액터 이름 표시
+	AActor* CurrentPawnActor = GameMode->GetDefaultPawnActor();
+	FString CurrentPawnNameStr = CurrentPawnActor ? CurrentPawnActor->GetName().ToString() : "None";
+
+	if (ImGui::BeginCombo("##DefaultPawnActor", CurrentPawnNameStr.c_str()))
+	{
+		// "None" 옵션
+		bool bIsSelected = (CurrentPawnActor == nullptr);
+		if (ImGui::Selectable("None", bIsSelected))
+		{
+			GameMode->SetDefaultPawnActor(nullptr);
+		}
+		if (bIsSelected)
+		{
+			ImGui::SetItemDefaultFocus();
+		}
+
+		// 레벨의 모든 액터 목록
+		UWorld* World = GameMode->GetWorld();
+		if (World)
+		{
+			const TArray<AActor*>& AllActors = World->GetActors();
+			for (AActor* Actor : AllActors)
+			{
+				if (Actor)
+				{
+					bIsSelected = (CurrentPawnActor == Actor);
+					FString ActorNameStr = Actor->GetName().ToString();
+					if (ImGui::Selectable(ActorNameStr.c_str(), bIsSelected))
+					{
+						GameMode->SetDefaultPawnActor(Actor);
+					}
+					if (bIsSelected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::Spacing();
+	ImGui::Separator();
 }
