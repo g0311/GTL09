@@ -412,7 +412,7 @@ void UScriptManager::RegisterWorld(sol::state* state)
         END_LUA_TYPE()
 
         // Global accessor GetGameMode()
-        state->set_function("GetGameMode", [](sol::this_state L) -> AGameMode* {
+        state->set_function("GetGameMode", [](sol::this_state L) -> AGameModeBase* {
         // Actor의 World를 통해 GameMode 접근
         // 이 함수는 ScriptComponent의 sol::state에서 호출되므로
         // state["actor"]에 바인딩된 AActor*를 사용
@@ -439,7 +439,7 @@ void UScriptManager::RegisterWorld(sol::state* state)
             return nullptr;
         }
 
-        AGameMode* gameMode = world->GetGameMode();
+        AGameModeBase* gameMode = world->GetGameMode();
         if (!gameMode)
         {
             UE_LOG("[Lua] Error: GetGameMode() - world has no GameMode\n");
@@ -501,7 +501,7 @@ void UScriptManager::RegisterWorld(sol::state* state)
             UWorld* world = actor ? actor->GetWorld() : nullptr;
             if (!world) return nullptr;
 
-            AGameMode* gameMode = world->GetGameMode();
+            AGameModeBase* gameMode = world->GetGameMode();
             if (!gameMode) return nullptr;
 
             return gameMode->SpawnActorFromLua(className, location);
@@ -834,45 +834,45 @@ void UScriptManager::RegisterInputSubsystem(sol::state* state)
 
 void UScriptManager::RegisterGameMode(sol::state* state)
 {
-    UE_LOG("[UScriptManager] Registering AGameMode to Lua...\n");
+    UE_LOG("[UScriptManager] Registering AGameModeBase to Lua...\n");
 
-    // ==================== AGameMode 등록 ====================
-    BEGIN_LUA_TYPE_NO_CTOR(state, AGameMode, "GameMode")
+    // ==================== AGameModeBase 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, AGameModeBase, "GameMode")
         // 게임 상태 API
-        ADD_LUA_FUNCTION("GetScore", &AGameMode::GetScore)
-        ADD_LUA_FUNCTION("SetScore", &AGameMode::SetScore)
-        ADD_LUA_FUNCTION("AddScore", &AGameMode::AddScore)
-        ADD_LUA_FUNCTION("GetGameTime", &AGameMode::GetGameTime)
-        ADD_LUA_FUNCTION("IsGameOver", &AGameMode::IsGameOver)
-        ADD_LUA_FUNCTION("EndGame", &AGameMode::EndGame)
+        ADD_LUA_FUNCTION("GetScore", &AGameModeBase::GetScore)
+        ADD_LUA_FUNCTION("SetScore", &AGameModeBase::SetScore)
+        ADD_LUA_FUNCTION("AddScore", &AGameModeBase::AddScore)
+        ADD_LUA_FUNCTION("GetGameTime", &AGameModeBase::GetGameTime)
+        ADD_LUA_FUNCTION("IsGameOver", &AGameModeBase::IsGameOver)
+        ADD_LUA_FUNCTION("EndGame", &AGameModeBase::EndGame)
 
         // Actor 스폰/파괴 API
-        ADD_LUA_FUNCTION("SpawnActorFromLua", &AGameMode::SpawnActorFromLua)
-        ADD_LUA_FUNCTION("DestroyActorWithEvent", &AGameMode::DestroyActorWithEvent)
+        ADD_LUA_FUNCTION("SpawnActorFromLua", &AGameModeBase::SpawnActorFromLua)
+        ADD_LUA_FUNCTION("DestroyActorWithEvent", &AGameModeBase::DestroyActorWithEvent)
 
         // ScriptComponent 접근
-        ADD_LUA_FUNCTION("GetScriptComponent", &AGameMode::GetScriptComponent)
+        ADD_LUA_FUNCTION("GetScriptComponent", &AGameModeBase::GetScriptComponent)
 
         // 동적 이벤트 시스템 API
-        ADD_LUA_FUNCTION("RegisterEvent", &AGameMode::RegisterEvent)
-        ADD_LUA_FUNCTION("SubscribeEvent", &AGameMode::SubscribeEvent)
-        ADD_LUA_FUNCTION("UnsubscribeEvent", &AGameMode::UnsubscribeEvent)
-        ADD_LUA_FUNCTION("PrintRegisteredEvents", &AGameMode::PrintRegisteredEvents)
+        ADD_LUA_FUNCTION("RegisterEvent", &AGameModeBase::RegisterEvent)
+        ADD_LUA_FUNCTION("SubscribeEvent", &AGameModeBase::SubscribeEvent)
+        ADD_LUA_FUNCTION("UnsubscribeEvent", &AGameModeBase::UnsubscribeEvent)
+        ADD_LUA_FUNCTION("PrintRegisteredEvents", &AGameModeBase::PrintRegisteredEvents)
 
         // FireEvent - sol::object를 받기 위한 커스텀 바인딩
         ADD_LUA_OVERLOAD("FireEvent",
             // 파라미터 없이 호출
-            [](AGameMode* gm, const FString& eventName) {
+            [](AGameModeBase* gm, const FString& eventName) {
                 gm->FireEvent(eventName, sol::nil);
             },
             // 파라미터와 함께 호출
-            [](AGameMode* gm, const FString& eventName, sol::object data) {
+            [](AGameModeBase* gm, const FString& eventName, sol::object data) {
                 gm->FireEvent(eventName, data);
             }
         )
 
         // 정적 Delegate 바인딩 (기존)
-        ADD_LUA_FUNCTION("BindOnGameStart", [](AGameMode* gm, sol::function fn) {
+        ADD_LUA_FUNCTION("BindOnGameStart", [](AGameModeBase* gm, sol::function fn) {
             if (!gm || !fn.valid()) return (FDelegateHandle)0;
             auto FnPtr = std::make_shared<sol::protected_function>(fn);
             return gm->BindOnGameStart([FnPtr]() mutable {
@@ -884,7 +884,7 @@ void UScriptManager::RegisterGameMode(sol::state* state)
             });
         })
 
-        ADD_LUA_FUNCTION("BindOnGameEnd", [](AGameMode* gm, sol::function fn) {
+        ADD_LUA_FUNCTION("BindOnGameEnd", [](AGameModeBase* gm, sol::function fn) {
             if (!gm || !fn.valid()) return (FDelegateHandle)0;
             auto FnPtr = std::make_shared<sol::protected_function>(fn);
             return gm->BindOnGameEnd([FnPtr](bool bVictory) mutable {
@@ -896,7 +896,7 @@ void UScriptManager::RegisterGameMode(sol::state* state)
             });
         })
 
-        ADD_LUA_FUNCTION("BindOnActorSpawned", [](AGameMode* gm, sol::function fn) {
+        ADD_LUA_FUNCTION("BindOnActorSpawned", [](AGameModeBase* gm, sol::function fn) {
             if (!gm || !fn.valid()) return (FDelegateHandle)0;
             auto FnPtr = std::make_shared<sol::protected_function>(fn);
             return gm->BindOnActorSpawned([FnPtr](AActor* actor) mutable {
@@ -909,7 +909,7 @@ void UScriptManager::RegisterGameMode(sol::state* state)
             });
         })
 
-        ADD_LUA_FUNCTION("BindOnActorDestroyed", [](AGameMode* gm, sol::function fn) {
+        ADD_LUA_FUNCTION("BindOnActorDestroyed", [](AGameModeBase* gm, sol::function fn) {
             if (!gm || !fn.valid()) return (FDelegateHandle)0;
 
             // shared_ptr로 Lua 함수 수명 관리
@@ -930,7 +930,7 @@ void UScriptManager::RegisterGameMode(sol::state* state)
             });
         })
 
-        ADD_LUA_FUNCTION("BindOnScoreChanged", [](AGameMode* gm, sol::function fn) {
+        ADD_LUA_FUNCTION("BindOnScoreChanged", [](AGameModeBase* gm, sol::function fn) {
             if (!gm || !fn.valid()) return (FDelegateHandle)0;
             auto FnPtr = std::make_shared<sol::protected_function>(fn);
             return gm->BindOnScoreChanged([FnPtr](int32 newScore) mutable {
