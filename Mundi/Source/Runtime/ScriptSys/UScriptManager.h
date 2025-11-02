@@ -64,15 +64,24 @@ private:
      * @brief 전역 타입 바인딩 등록
      */
     void RegisterCoreTypes(sol::state* state);
-    void RegisterReflectedClasses(sol::state* state);
 
     void RegisterLOG(sol::state* state);
     void RegisterFName(sol::state* state);
     void RegisterVector(sol::state* state);
     void RegisterQuat(sol::state* state);
     void RegisterTransform(sol::state* state);
+    
+    // Actor bindings
     void RegisterActor(sol::state* state);
+
+    // Component bindings
+    void RegisterActorComponent(sol::state* state);
+    void RegisterSceneComponent(sol::state* state);
+    void RegisterStaticMeshComponent(sol::state* state);
+    void RegisterLightComponent(sol::state* state);
+    void RegisterCameraComponent(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+    void RegisterProjectileMovement(sol::state* state);
 
     // Input bindings
     void RegisterInputSubsystem(sol::state* state);

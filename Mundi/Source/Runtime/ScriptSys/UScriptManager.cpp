@@ -9,214 +9,24 @@
 #include "Source/Runtime/InputCore/InputMappingTypes.h"
 // Object factory
 #include "Source/Runtime/Core/Object/ObjectFactory.h"
+// Components
+#include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
+#include "Source/Runtime/Engine/Components/MovementComponent.h"
+#include "Source/Runtime/Engine/Components/SceneComponent.h"
+// World access
+#include "Source/Runtime/Engine/GameFramework/World.h"
+// Components
+#include "Source/Runtime/Core/Object/ActorComponent.h"
+#include "Source/Runtime/Engine/Components/SceneComponent.h"
+#include "Source/Runtime/Engine/Components/StaticMeshComponent.h"
+#include "Source/Runtime/Engine/Components/LightComponent.h"
+#include "Source/Runtime/Engine/Components/CameraComponent.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
 
 namespace fs = std::filesystem;
 
-void UScriptManager::RegisterTypesToState(sol::state* state)
-{
-    if (!state) return;
-
-    RegisterCoreTypes(state);
-
-    RegisterActor(state);
-    RegisterScriptComponent(state);
-
-    // Input
-    RegisterInputEnums(state);
-    RegisterInputContext(state);
-    RegisterInputSubsystem(state);
-}
-void UScriptManager::RegisterLOG(sol::state* state)
-{
-    // ==================== Log 등록 ====================
-    state->open_libraries();
-    state->set_function("Log", [](const std::string& msg) {
-        UE_LOG(("[Lua] " + msg + "\n").c_str());
-    });
-    state->set_function("LogWarning", [](const std::string& msg) {
-        UE_LOG(("[Lua Warning] " + msg + "\n").c_str());
-    });
-    state->set_function("LogError", [](const std::string& msg) {
-        UE_LOG(("[Lua Error] " + msg + "\n").c_str());
-    });
-}
-
-std::wstring UScriptManager::FStringToWideString(const FString& UTF8Str)
-{
-    // Case A. 파일명이 비어 있으면 즉시 종료합니다.
-    if (UTF8Str.empty()) { return L""; }
-
-    // Case B. 정상적으로 변환하지 못하면 즉시 종료합니다.
-    int WideSize = MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, NULL, 0);
-    if (WideSize <= 0)
-    {
-        OutputDebugStringA("Failed to convert path to wide string\n");
-        return L"";
-    }
-
-    // 1. FString(UTF-8) 문자열을 wstring(UTF-16) 변환합니다.
-    std::wstring Path(WideSize - 1, 0); // null 종결 문자 제외
-    MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, &Path[0], WideSize);
-
-    return Path;
-}
-
-void UScriptManager::RegisterCoreTypes(sol::state* state)
-{
-    RegisterLOG(state);
-    RegisterFName(state);
-    RegisterVector(state);
-    RegisterQuat(state);
-    RegisterTransform(state);
-}
-
-void UScriptManager::RegisterReflectedClasses(sol::state* state)
-{
-}
-
-void UScriptManager::RegisterFName(sol::state* state)
-{
-    // ==================== FName 등록 ====================
-    BEGIN_LUA_TYPE(state, FName, "FName", FName(), FName(const char*))
-        ADD_LUA_FUNCTION("ToString", &FName::ToString)
-        // 문자열 연결을 위한 메타함수
-        ADD_LUA_META_FUNCTION(to_string, &FName::ToString)
-    END_LUA_TYPE()
-}
-
-void UScriptManager::RegisterVector(sol::state* state)
-{
-    // ==================== FVector 등록 ====================
-    BEGIN_LUA_TYPE(state, FVector, "Vector", FVector(), FVector(float, float, float))
-        ADD_LUA_PROPERTY("X", &FVector::X)
-        ADD_LUA_PROPERTY("Y", &FVector::Y)
-        ADD_LUA_PROPERTY("Z", &FVector::Z)
-        ADD_LUA_META_FUNCTION(addition, [](const FVector& a, const FVector& b) {
-            return a + b;
-        })
-        ADD_LUA_META_FUNCTION(subtraction, [](const FVector& a, const FVector& b) {
-            return a - b;
-        })
-        ADD_LUA_META_FUNCTION(multiplication, [](const FVector& v, float f) -> FVector {
-            return v * f;
-        })
-        ADD_LUA_META_FUNCTION(division, [](const FVector& v, float f) {
-            return v / f;
-        })
-    END_LUA_TYPE() // 4. 종료
-}
-
-void UScriptManager::RegisterQuat(sol::state* state)
-{
-    // ==================== FQuat 등록 ====================
-    BEGIN_LUA_TYPE(state, FQuat, "Quat", FQuat(), FQuat())
-        ADD_LUA_PROPERTY("X", &FQuat::X)
-        ADD_LUA_PROPERTY("Y", &FQuat::Y)
-        ADD_LUA_PROPERTY("Z", &FQuat::Z)
-        ADD_LUA_PROPERTY("W", &FQuat::W)
-    END_LUA_TYPE()
-}
-
-void UScriptManager::RegisterTransform(sol::state* state)
-{
-    // ==================== FTransform 등록 ====================
-    BEGIN_LUA_TYPE(state, FTransform, "Transform", FTransform(), FTransform())
-        ADD_LUA_PROPERTY("Location", &FTransform::Translation)
-        ADD_LUA_PROPERTY("Rotation", &FTransform::Rotation)
-        ADD_LUA_PROPERTY("Scale", &FTransform::Scale3D)
-    END_LUA_TYPE()
-}
-
-void UScriptManager::RegisterActor(sol::state* state)
-{
-    // ==================== AActor 등록 ====================
-    BEGIN_LUA_TYPE_NO_CTOR(state, AActor, "Actor")
-        // Transform API
-        ADD_LUA_FUNCTION("GetActorLocation", &AActor::GetActorLocation)
-        ADD_LUA_FUNCTION("SetActorLocation", &AActor::SetActorLocation)
-        ADD_LUA_FUNCTION("GetActorRotation", &AActor::GetActorRotation)
-        ADD_LUA_OVERLOAD("SetActorRotation",
-            static_cast<void(AActor::*)(const FQuat&)>(&AActor::SetActorRotation),
-            static_cast<void(AActor::*)(const FVector&)>(&AActor::SetActorRotation)
-        )
-        ADD_LUA_FUNCTION("GetActorScale", &AActor::GetActorScale)
-        ADD_LUA_FUNCTION("SetActorScale", &AActor::SetActorScale)
-
-        // Movement API
-        ADD_LUA_FUNCTION("AddActorWorldLocation", &AActor::AddActorWorldLocation)
-        ADD_LUA_FUNCTION("AddActorLocalLocation", &AActor::AddActorLocalLocation)
-        ADD_LUA_OVERLOAD("AddActorWorldRotation",
-            static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorWorldRotation),
-            static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorWorldRotation)
-        )
-        ADD_LUA_OVERLOAD("AddActorLocalRotation",
-            static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorLocalRotation),
-            static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorLocalRotation)
-        )
-
-        ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
-        ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
-        ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
-
-        // Name/Visibility
-        ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
-            return actor->GetName().ToString();
-        })
-        ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
-        ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
-
-        // Lifecycle
-        ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
-    END_LUA_TYPE()
-}
-
-void UScriptManager::RegisterScriptComponent(sol::state* state)
-{
-    // ==================== UScriptComponent 등록 ====================
-    BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
-        // Coroutine API
-        ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
-        ADD_LUA_FUNCTION("StopCoroutine", &UScriptComponent::StopCoroutine)
-        ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
-        ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
-
-        // Owner Actor 접근
-        ADD_LUA_FUNCTION("GetOwner", &UScriptComponent::GetOwner)
-    END_LUA_TYPE()
-}
-
-// ==================== 스크립트 파일 관리 ====================
-/**
- * @brief 상대 스크립트 경로를 절대 경로(std::filesystem::path)로 변환
- */
-std::filesystem::path UScriptManager::ResolveScriptPath(const FString& RelativePath)
-{
-    std::wstring PathW = FStringToWideString(RelativePath);
-    if (PathW.empty() && !RelativePath.empty())
-    {
-        OutputDebugStringA("Failed to convert path to wide string\n");
-        return fs::path();
-    }
-
-    fs::path ScriptPathFs(PathW);
-
-    if (ScriptPathFs.is_absolute())
-    {
-        OutputDebugStringA("Path is absolute\n");
-        return ScriptPathFs;
-    }
-    else
-    {
-        // 기본 경로: current_path (Mundi) / LuaScripts
-        fs::path Resolved = fs::current_path() / L"LuaScripts" / PathW;
-        OutputDebugStringA("Resolved to: ");
-        OutputDebugStringW((Resolved.wstring() + L"\n").c_str());
-        return Resolved;
-    }
-}
 
 bool UScriptManager::CreateScript(const FString& SceneName, const FString& ActorName, FString& OutScriptPath)
 {
@@ -361,6 +171,338 @@ void UScriptManager::EditScript(const FString& ScriptPath)
     }
 }
 
+void UScriptManager::RegisterTypesToState(sol::state* state)
+{
+    if (!state) return;
+
+    RegisterCoreTypes(state);
+
+    // Actor 먼저 등록
+    RegisterActor(state);
+
+    // 컴포넌트 등록 (상속 순서대로)
+    RegisterActorComponent(state);
+    RegisterSceneComponent(state);
+    RegisterStaticMeshComponent(state);
+    RegisterLightComponent(state);
+    RegisterCameraComponent(state);
+    RegisterProjectileMovement(state);
+    RegisterScriptComponent(state);
+
+    // Input
+    RegisterInputEnums(state);
+    RegisterInputContext(state);
+    RegisterInputSubsystem(state);
+}
+
+// ==================== 스크립트 파일 관리 ====================
+/**
+ * @brief 상대 스크립트 경로를 절대 경로(std::filesystem::path)로 변환
+ */
+std::filesystem::path UScriptManager::ResolveScriptPath(const FString& RelativePath)
+{
+    std::wstring PathW = FStringToWideString(RelativePath);
+    if (PathW.empty() && !RelativePath.empty())
+    {
+        OutputDebugStringA("Failed to convert path to wide string\n");
+        return fs::path();
+    }
+
+    fs::path ScriptPathFs(PathW);
+
+    if (ScriptPathFs.is_absolute())
+    {
+        OutputDebugStringA("Path is absolute\n");
+        return ScriptPathFs;
+    }
+    else
+    {
+        // 기본 경로: current_path (Mundi) / LuaScripts
+        fs::path Resolved = fs::current_path() / L"LuaScripts" / PathW;
+        OutputDebugStringA("Resolved to: ");
+        OutputDebugStringW((Resolved.wstring() + L"\n").c_str());
+        return Resolved;
+    }
+}
+
+std::wstring UScriptManager::FStringToWideString(const FString& UTF8Str)
+{
+    // Case A. 파일명이 비어 있으면 즉시 종료합니다.
+    if (UTF8Str.empty()) { return L""; }
+
+    // Case B. 정상적으로 변환하지 못하면 즉시 종료합니다.
+    int WideSize = MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, NULL, 0);
+    if (WideSize <= 0)
+    {
+        OutputDebugStringA("Failed to convert path to wide string\n");
+        return L"";
+    }
+
+    // 1. FString(UTF-8) 문자열을 wstring(UTF-16) 변환합니다.
+    std::wstring Path(WideSize - 1, 0); // null 종결 문자 제외
+    MultiByteToWideChar(CP_UTF8, 0, UTF8Str.c_str(), -1, &Path[0], WideSize);
+
+    return Path;
+}
+
+void UScriptManager::RegisterCoreTypes(sol::state* state)
+{
+    RegisterLOG(state);
+    RegisterFName(state);
+    RegisterVector(state);
+    RegisterQuat(state);
+    RegisterTransform(state);
+}
+
+void UScriptManager::RegisterLOG(sol::state* state)
+{
+    // ==================== Log 등록 ====================
+    state->open_libraries();
+    state->set_function("Log", [](const std::string& msg) {
+        UE_LOG(("[Lua] " + msg + "\n").c_str());
+    });
+    state->set_function("LogWarning", [](const std::string& msg) {
+        UE_LOG(("[Lua Warning] " + msg + "\n").c_str());
+    });
+    state->set_function("LogError", [](const std::string& msg) {
+        UE_LOG(("[Lua Error] " + msg + "\n").c_str());
+    });
+}
+
+void UScriptManager::RegisterFName(sol::state* state)
+{
+    // ==================== FName 등록 ====================
+    BEGIN_LUA_TYPE(state, FName, "FName",
+        []() { return FName(); },
+        [](const char* s) { return FName(s); }
+    )
+        ADD_LUA_FUNCTION("ToString", &FName::ToString)
+        // 문자열 연결을 위한 메타함수
+        ADD_LUA_META_FUNCTION(to_string, &FName::ToString)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterVector(sol::state* state)
+{
+    // ==================== FVector 등록 ====================
+    BEGIN_LUA_TYPE(state, FVector, "Vector",
+        []() { return FVector(); },
+        [](float x, float y, float z) { return FVector(x, y, z); }
+    )
+        ADD_LUA_PROPERTY("X", &FVector::X)
+        ADD_LUA_PROPERTY("Y", &FVector::Y)
+        ADD_LUA_PROPERTY("Z", &FVector::Z)
+        ADD_LUA_META_FUNCTION(addition, [](const FVector& a, const FVector& b) {
+            return a + b;
+        })
+        ADD_LUA_META_FUNCTION(subtraction, [](const FVector& a, const FVector& b) {
+            return a - b;
+        })
+        ADD_LUA_META_FUNCTION(multiplication, [](const FVector& v, float f) -> FVector {
+            return v * f;
+        })
+        ADD_LUA_META_FUNCTION(division, [](const FVector& v, float f) {
+            return v / f;
+        })
+    END_LUA_TYPE() // 4. 종료
+}
+
+void UScriptManager::RegisterQuat(sol::state* state)
+{
+    // ==================== FQuat 등록 ====================
+    BEGIN_LUA_TYPE(state, FQuat, "Quat",
+        []() { return FQuat(); },
+        [](float x, float y, float z, float w) { return FQuat(x, y, z, w); }
+    )
+        ADD_LUA_PROPERTY("X", &FQuat::X)
+        ADD_LUA_PROPERTY("Y", &FQuat::Y)
+        ADD_LUA_PROPERTY("Z", &FQuat::Z)
+        ADD_LUA_PROPERTY("W", &FQuat::W)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterTransform(sol::state* state)
+{
+    // ==================== FTransform 등록 ====================
+    BEGIN_LUA_TYPE(state, FTransform, "Transform",
+        []() { return FTransform(); },
+        [](const FVector& t, const FQuat& r, const FVector& s) { return FTransform(t, r, s); }
+    )
+        ADD_LUA_PROPERTY("Location", &FTransform::Translation)
+        ADD_LUA_PROPERTY("Rotation", &FTransform::Rotation)
+        ADD_LUA_PROPERTY("Scale", &FTransform::Scale3D)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterActor(sol::state* state)
+{
+    // ==================== AActor 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, AActor, "Actor")
+        // Transform API
+        ADD_LUA_FUNCTION("GetActorLocation", &AActor::GetActorLocation)
+        ADD_LUA_FUNCTION("SetActorLocation", &AActor::SetActorLocation)
+        ADD_LUA_FUNCTION("GetActorRotation", &AActor::GetActorRotation)
+        ADD_LUA_OVERLOAD("SetActorRotation",
+            static_cast<void(AActor::*)(const FQuat&)>(&AActor::SetActorRotation),
+            static_cast<void(AActor::*)(const FVector&)>(&AActor::SetActorRotation)
+        )
+        ADD_LUA_FUNCTION("GetActorScale", &AActor::GetActorScale)
+        ADD_LUA_FUNCTION("SetActorScale", &AActor::SetActorScale)
+
+        // Movement API
+        ADD_LUA_FUNCTION("AddActorWorldLocation", &AActor::AddActorWorldLocation)
+        ADD_LUA_FUNCTION("AddActorLocalLocation", &AActor::AddActorLocalLocation)
+        ADD_LUA_OVERLOAD("AddActorWorldRotation",
+            static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorWorldRotation),
+            static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorWorldRotation)
+        )
+        ADD_LUA_OVERLOAD("AddActorLocalRotation",
+            static_cast<void(AActor::*)(const FQuat&)>(&AActor::AddActorLocalRotation),
+            static_cast<void(AActor::*)(const FVector&)>(&AActor::AddActorLocalRotation)
+        )
+
+        ADD_LUA_FUNCTION("GetActorForward", &AActor::GetActorForward)
+        ADD_LUA_FUNCTION("GetActorRight", &AActor::GetActorRight)
+        ADD_LUA_FUNCTION("GetActorUp", &AActor::GetActorUp)
+
+        // TODO: TEMP!! 내일 와서 고칠게요...
+        // Components (helpers)
+        ADD_LUA_FUNCTION("GetProjectileMovementComponent", [](AActor* actor) -> UProjectileMovementComponent*
+        {
+            if (!actor) return nullptr;
+            for (UActorComponent* Comp : actor->GetOwnedComponents())
+            {
+                if (auto* M = Cast<UProjectileMovementComponent>(Comp))
+                    return M;
+            }
+            return nullptr;
+        })
+
+        // Name/Visibility
+        ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
+            return actor->GetName().ToString();
+        })
+        ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
+        ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
+
+        // Component Access
+        ADD_LUA_FUNCTION("GetOwnedComponents", [](AActor* actor, sol::this_state s) -> sol::table {
+            // TSet을 Lua 테이블로 변환
+            sol::state_view lua(s);
+            sol::table components = lua.create_table();
+            int index = 1;
+            for (UActorComponent* comp : actor->GetOwnedComponents()) {
+                components[index++] = comp;
+            }
+            return components;
+        })
+        ADD_LUA_FUNCTION("GetRootComponent", &AActor::GetRootComponent)
+
+        // Lifecycle
+        ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterActorComponent(sol::state* state)
+{
+    // ==================== UActorComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UActorComponent, "ActorComponent")
+        ADD_LUA_FUNCTION("GetOwner", &UActorComponent::GetOwner)
+        ADD_LUA_FUNCTION("GetName", [](UActorComponent* comp) -> std::string {
+            return comp->GetName();
+        })
+        ADD_LUA_FUNCTION("IsActive", &UActorComponent::IsActive)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterSceneComponent(sol::state* state)
+{
+    // ==================== USceneComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, USceneComponent, "SceneComponent")
+        // Transform - Relative
+        ADD_LUA_FUNCTION("GetRelativeLocation", &USceneComponent::GetRelativeLocation)
+        ADD_LUA_FUNCTION("SetRelativeLocation", &USceneComponent::SetRelativeLocation)
+        ADD_LUA_FUNCTION("GetRelativeRotation", &USceneComponent::GetRelativeRotation)
+        ADD_LUA_FUNCTION("SetRelativeRotationEuler", &USceneComponent::SetRelativeRotationEuler)
+        ADD_LUA_FUNCTION("GetRelativeScale", &USceneComponent::GetRelativeScale)
+        ADD_LUA_FUNCTION("SetRelativeScale", &USceneComponent::SetRelativeScale)
+
+        // Transform - World
+        ADD_LUA_FUNCTION("GetWorldLocation", &USceneComponent::GetWorldLocation)
+        ADD_LUA_FUNCTION("SetWorldLocation", &USceneComponent::SetWorldLocation)
+        ADD_LUA_FUNCTION("GetWorldRotation", &USceneComponent::GetWorldRotation)
+        ADD_LUA_FUNCTION("SetWorldRotation", &USceneComponent::SetWorldRotation)
+        ADD_LUA_FUNCTION("GetWorldScale", &USceneComponent::GetWorldScale)
+
+        // Hierarchy
+        ADD_LUA_FUNCTION("GetAttachParent", &USceneComponent::GetAttachParent)
+        ADD_LUA_FUNCTION("GetAttachChildren", [](USceneComponent* comp, sol::this_state s) -> sol::table {
+            sol::state_view lua(s);
+            sol::table children = lua.create_table();
+            int index = 1;
+            for (USceneComponent* child : comp->GetAttachChildren()) {
+                children[index++] = child;
+            }
+            return children;
+        })
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterStaticMeshComponent(sol::state* state)
+{
+    // ==================== UStaticMeshComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UStaticMeshComponent, "StaticMeshComponent")
+        ADD_LUA_FUNCTION("SetStaticMesh", [](UStaticMeshComponent* comp, const std::string& path) {
+            comp->SetStaticMesh(path);
+        })
+        ADD_LUA_FUNCTION("GetStaticMesh", &UStaticMeshComponent::GetStaticMesh)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterLightComponent(sol::state* state)
+{
+    // ==================== ULightComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, ULightComponent, "LightComponent")
+        ADD_LUA_FUNCTION("SetIntensity", &ULightComponent::SetIntensity)
+        ADD_LUA_FUNCTION("GetIntensity", &ULightComponent::GetIntensity)
+        ADD_LUA_FUNCTION("SetLightColor", [](ULightComponent* comp, float r, float g, float b) {
+            comp->SetLightColor(FLinearColor(r, g, b, 1.0f));
+        })
+        ADD_LUA_FUNCTION("GetLightColor", [](ULightComponent* comp) -> sol::table {
+            // FLinearColor를 Lua 테이블로 변환 {r, g, b, a}
+            // 간단하게 하려면 테이블 대신 개별 값 반환도 가능
+            return sol::nil; // TODO: FLinearColor 바인딩 필요
+        })
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterCameraComponent(sol::state* state)
+{
+    // ==================== UCameraComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UCameraComponent, "CameraComponent")
+        ADD_LUA_FUNCTION("SetFOV", &UCameraComponent::SetFOV)
+        ADD_LUA_FUNCTION("GetFOV", &UCameraComponent::GetFOV)
+        ADD_LUA_FUNCTION("SetNearClipPlane", &UCameraComponent::SetNearClipPlane)
+        ADD_LUA_FUNCTION("GetNearClipPlane", &UCameraComponent::GetNearClip)
+        ADD_LUA_FUNCTION("SetFarClipPlane", &UCameraComponent::SetFarClipPlane)
+        ADD_LUA_FUNCTION("GetFarClipPlane", &UCameraComponent::GetFarClip)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterScriptComponent(sol::state* state)
+{
+    // ==================== UScriptComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
+        // Coroutine API
+        ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
+        ADD_LUA_FUNCTION("StopCoroutine", &UScriptComponent::StopCoroutine)
+        ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
+        ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
+        // Owner Actor 접근
+        ADD_LUA_FUNCTION("GetOwner", &UScriptComponent::GetOwner)
+    END_LUA_TYPE()
+}
+
 void UScriptManager::RegisterInputEnums(sol::state* state)
 {
     // Expose EInputAxisSource as a table for convenience
@@ -473,4 +615,101 @@ void UScriptManager::RegisterInputSubsystem(sol::state* state)
     {
         return &UInputMappingSubsystem::Get();
     });
+}
+
+void UScriptManager::RegisterProjectileMovement(sol::state* state)
+{
+    BEGIN_LUA_TYPE_NO_CTOR(state, UProjectileMovementComponent, "ProjectileMovement")
+        // Movement base API
+        // Use lambdas to avoid any base-class binding ambiguity and ensure correct dispatch
+        usertype["SetVelocity"] = [](UProjectileMovementComponent* Self, const FVector& V)
+        {
+            if (!Self) return;
+            Self->SetVelocity(V);
+        };
+        usertype["GetVelocity"] = [](UProjectileMovementComponent* Self) -> FVector
+        {
+            return Self ? Self->GetVelocity() : FVector(0,0,0);
+        };
+        usertype["SetAcceleration"] = [](UProjectileMovementComponent* Self, const FVector& A)
+        {
+            if (!Self) return;
+            Self->SetAcceleration(A);
+        };
+        usertype["GetAcceleration"] = [](UProjectileMovementComponent* Self) -> FVector
+        {
+            return Self ? Self->GetAcceleration() : FVector(0,0,0);
+        };
+        usertype["StopMovement"] = [](UProjectileMovementComponent* Self)
+        {
+            if (!Self) return;
+            Self->StopMovement();
+        };
+
+        // Projectile specific
+        ADD_LUA_FUNCTION("SetGravity", &UProjectileMovementComponent::SetGravity)
+        ADD_LUA_FUNCTION("GetGravity", &UProjectileMovementComponent::GetGravity)
+        ADD_LUA_FUNCTION("SetInitialSpeed", &UProjectileMovementComponent::SetInitialSpeed)
+        ADD_LUA_FUNCTION("GetInitialSpeed", &UProjectileMovementComponent::GetInitialSpeed)
+        ADD_LUA_FUNCTION("SetMaxSpeed", &UProjectileMovementComponent::SetMaxSpeed)
+        ADD_LUA_FUNCTION("GetMaxSpeed", &UProjectileMovementComponent::GetMaxSpeed)
+        ADD_LUA_FUNCTION("SetRotationFollowsVelocity", &UProjectileMovementComponent::SetRotationFollowsVelocity)
+        ADD_LUA_FUNCTION("GetRotationFollowsVelocity", &UProjectileMovementComponent::GetRotationFollowsVelocity)
+        ADD_LUA_FUNCTION("SetProjectileLifespan", &UProjectileMovementComponent::SetProjectileLifespan)
+        ADD_LUA_FUNCTION("GetProjectileLifespan", &UProjectileMovementComponent::GetProjectileLifespan)
+        ADD_LUA_FUNCTION("SetAutoDestroyWhenLifespanExceeded", &UProjectileMovementComponent::SetAutoDestroyWhenLifespanExceeded)
+        ADD_LUA_FUNCTION("GetAutoDestroyWhenLifespanExceeded", &UProjectileMovementComponent::GetAutoDestroyWhenLifespanExceeded)
+        ADD_LUA_FUNCTION("FireInDirection", &UProjectileMovementComponent::FireInDirection)
+        ADD_LUA_FUNCTION("SetVelocityInLocalSpace", &UProjectileMovementComponent::SetVelocityInLocalSpace)
+
+        // Convenience: set updated to owner's root
+        usertype["SetUpdatedToOwnerRoot"] = [](UProjectileMovementComponent* C)
+        {
+            if (!C) return;
+            AActor* Owner = C->GetOwner();
+            if (!Owner) return;
+            USceneComponent* Root = Owner->GetRootComponent();
+            if (Root) C->SetUpdatedComponent(Root);
+        };
+    END_LUA_TYPE()
+
+    // Factory: add to an actor and set updated to root; register immediately
+    state->set_function("AddProjectileMovement", sol::overload(
+        [](AActor* Owner) -> UProjectileMovementComponent*
+        {
+            if (!Owner) return nullptr;
+            UProjectileMovementComponent* Comp = ObjectFactory::NewObject<UProjectileMovementComponent>();
+            Owner->AddOwnedComponent(Comp);
+            if (USceneComponent* Root = Owner->GetRootComponent())
+            {
+                Comp->SetUpdatedComponent(Root);
+            }
+            if (UWorld* World = Owner->GetWorld())
+            {
+                Comp->RegisterComponent(World);
+                Comp->InitializeComponent();
+                if (World->bPie) { Comp->BeginPlay(); }
+            }
+            return Comp;
+        },
+        [](sol::this_state ts) -> UProjectileMovementComponent*
+        {
+            sol::state_view sv(ts);
+            AActor* Owner = sv["actor"];
+            if (!Owner) return nullptr;
+            UProjectileMovementComponent* Comp = ObjectFactory::NewObject<UProjectileMovementComponent>();
+            Owner->AddOwnedComponent(Comp);
+            if (USceneComponent* Root = Owner->GetRootComponent())
+            {
+                Comp->SetUpdatedComponent(Root);
+            }
+            if (UWorld* World = Owner->GetWorld())
+            {
+                Comp->RegisterComponent(World);
+                Comp->InitializeComponent();
+                if (World->bPie) { Comp->BeginPlay(); }
+            }
+            return Comp;
+        }
+    ));
 }

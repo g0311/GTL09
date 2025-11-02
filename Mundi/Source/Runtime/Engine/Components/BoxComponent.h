@@ -6,6 +6,7 @@ class UBoxComponent : public UShapeComponent
 public:
     DECLARE_CLASS(UBoxComponent, UShapeComponent)
     GENERATED_REFLECTION_BODY()
+    DECLARE_DUPLICATE(UBoxComponent)
 
     UBoxComponent();
     virtual ~UBoxComponent() override;
