@@ -21,12 +21,15 @@ public:
     virtual void Tick(float DeltaTime);
 
     // 입력 처리
-    virtual void MouseMove(FViewport* Viewport, int32 X, int32 Y);
-    virtual void MouseButtonDown(FViewport* Viewport, int32 X, int32 Y, int32 Button);
-    virtual void MouseButtonUp(FViewport* Viewport, int32 X, int32 Y, int32 Button);
     virtual void MouseWheel(float DeltaSeconds);
-    virtual void KeyDown(FViewport* Viewport, int32 KeyCode) {}
-    virtual void KeyUp(FViewport* Viewport, int32 KeyCode) {}
+
+    // 입력 컨텍스트 관리
+    void SetupInputContext();
+    void OnFocusGained();
+    void OnFocusLost();
+
+    // 입력 컨텍스트 (public - USlateManager에서 포커스 관리 위해 필요)
+    class UInputMappingContext* ViewportInputContext = nullptr;
 
     // 뷰포트 설정
     void SetViewportType(EViewportType InType) { ViewportType = InType; }
@@ -37,6 +40,9 @@ public:
 
     void SetCamera(ACameraActor* InCamera) { Camera = InCamera; }
     ACameraActor* GetCamera() const { return Camera; }
+
+    void SetViewport(FViewport* InViewport) { Viewport = InViewport; }
+    FViewport* GetViewport() const { return Viewport; }
 
     // 카메라 매트릭스 계산
     FMatrix GetViewMatrix() const;
@@ -53,9 +59,7 @@ protected:
     EViewportType ViewportType = EViewportType::Perspective;
     UWorld* World = nullptr;
     ACameraActor* Camera = nullptr;
-    int32 MouseLastX{};
-    int32 MouseLastY{};
-    bool bIsMouseButtonDown = false;
+    FViewport* Viewport = nullptr;
     bool bIsMouseRightButtonDown = false;
     static FVector CameraAddPosition;
 

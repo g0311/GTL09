@@ -70,28 +70,48 @@ void UInputMappingSubsystem::Tick(float /*DeltaSeconds*/)
             if (!TestModifiers(M.Modifiers))
                 continue;
 
-            const int VK = M.KeyCode;
+            bool bPressed = false;
+            bool bReleased = false;
+            bool bDown = false;
+            int ConsumeKey = 0;
+
+            if (M.Source == EInputAxisSource::Key)
+            {
+                const int VK = M.KeyCode;
+                ConsumeKey = VK;
+                bPressed = IM.IsKeyPressed(VK);
+                bReleased = IM.IsKeyReleased(VK);
+                bDown = IM.IsKeyDown(VK);
+            }
+            else if (M.Source == EInputAxisSource::MouseButton)
+            {
+                // 마우스 버튼은 고유 ID로 consume 처리 (음수로 구분)
+                ConsumeKey = -(int)M.MouseButton - 1;
+                bPressed = IM.IsMouseButtonPressed(M.MouseButton);
+                bReleased = IM.IsMouseButtonReleased(M.MouseButton);
+                bDown = IM.IsMouseButtonDown(M.MouseButton);
+            }
 
             // Pressed
-            if (!ConsumedKeys.Contains(VK) && IM.IsKeyPressed(VK))
+            if (!ConsumedKeys.Contains(ConsumeKey) && bPressed)
             {
                 ActionPressed.Add(M.ActionName, true);
                 ActionDown.Add(M.ActionName, true);
                 // Broadcast pressed
                 Ctx.Context->GetActionPressedDelegate(M.ActionName).Broadcast();
-                if (M.bConsume) ConsumedKeys.Add(VK);
+                if (M.bConsume) ConsumedKeys.Add(ConsumeKey);
             }
             // Released
-            if (!ConsumedKeys.Contains(VK) && IM.IsKeyReleased(VK))
+            if (!ConsumedKeys.Contains(ConsumeKey) && bReleased)
             {
                 ActionReleased.Add(M.ActionName, true);
                 // Broadcast released
                 Ctx.Context->GetActionReleasedDelegate(M.ActionName).Broadcast();
-                if (M.bConsume) ConsumedKeys.Add(VK);
+                if (M.bConsume) ConsumedKeys.Add(ConsumeKey);
             }
 
             // Down state (does not consume)
-            if (IM.IsKeyDown(VK))
+            if (bDown)
             {
                 ActionDown.Add(M.ActionName, true);
             }

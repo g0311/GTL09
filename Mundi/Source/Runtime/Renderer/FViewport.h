@@ -41,13 +41,6 @@ public:
     
     FVector2D GetViewportMousePosition() { return ViewportMousePosition; }
 
-    // 마우스/키보드 입력 처리
-    void ProcessMouseMove(int32 X, int32 Y);
-    void ProcessMouseButtonDown(int32 X, int32 Y, int32 Button);
-
-    void ProcessMouseButtonUp(int32 X, int32 Y, int32 Button);
-    void ProcessKeyDown(int32 KeyCode);
-    void ProcessKeyUp(int32 KeyCode);
 
 private:
     // 뷰포트 속성

@@ -14,6 +14,8 @@
 #include "PrimitiveComponent.h"
 #include "Clipboard/ClipboardManager.h"
 #include "InputManager.h"
+#include "InputMappingContext.h"
+#include "InputMappingSubsystem.h"
 
 FVector FViewportClient::CameraAddPosition{};
 
@@ -23,6 +25,9 @@ FViewportClient::FViewportClient()
 	// 직교 뷰별 기본 카메라 설정
 	Camera = NewObject<ACameraActor>();
 	SetupCameraMode();
+
+	// 입력 컨텍스트 설정
+	SetupInputContext();
 }
 
 FViewportClient::~FViewportClient()
@@ -36,6 +41,19 @@ void FViewportClient::Tick(float DeltaTime)
 		Camera->ProcessEditorCameraInput(DeltaTime);
 	}
 	MouseWheel(DeltaTime);
+
+	// 기즈모 상호작용 처리 (매 프레임)
+	if (World && World->GetGizmoActor() && Camera && Viewport)
+	{
+		FVector2D MousePos = UInputManager::GetInstance().GetMousePosition();
+
+		// 전역 마우스 위치를 뷰포트 로컬 좌표로 변환
+		float LocalX = MousePos.X - Viewport->GetStartX();
+		float LocalY = MousePos.Y - Viewport->GetStartY();
+
+		World->GetGizmoActor()->ProcessGizmoInteraction(Camera, Viewport, LocalX, LocalY);
+	}
+
 	static UClipboardManager* ClipboardManager = NewObject<UClipboardManager>();
 
 	// 키보드 입력 처리 (Ctrl+C/V)
@@ -98,7 +116,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 		// 폴백: PlayerController나 카메라가 없으면 뷰포트 카메라 사용
 		if (!RenderCameraComponent)
 		{
-			UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController 카메라가 없습니다. 뷰포트 카메라를 사용합니다.");
+			//UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController 카메라가 없습니다. 뷰포트 카메라를 사용합니다.");
 			if (Camera)
 			{
 				Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);
@@ -111,7 +129,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 		// 에디터 모드: 에디터 카메라 사용
 		if (!Camera)
 		{
-			UE_LOG("[FViewportClient::Draw]: 에디터 카메라가 없습니다.");
+			//UE_LOG("[FViewportClient::Draw]: 에디터 카메라가 없습니다.");
 			return;
 		}
 
@@ -196,121 +214,6 @@ void FViewportClient::SetupCameraMode()
 	}
 }
 
-void FViewportClient::MouseMove(FViewport* Viewport, int32 X, int32 Y)
-{
-	if (World->GetGizmoActor())
-		World->GetGizmoActor()->ProcessGizmoInteraction(Camera, Viewport, static_cast<float>(X), static_cast<float>(Y));
-
-	if (!bIsMouseButtonDown &&
-		(!World->GetGizmoActor() || !World->GetGizmoActor()->GetbIsHovering()) &&
-		bIsMouseRightButtonDown) // 직교투영이고 마우스 버튼이 눌려있을 때
-	{
-		if (ViewportType != EViewportType::Perspective)
-		{
-			int32 deltaX = X - MouseLastX;
-			int32 deltaY = Y - MouseLastY;
-
-			if (Camera && (deltaX != 0 || deltaY != 0))
-			{
-				// 기준 픽셀→월드 스케일
-				const float basePixelToWorld = 0.05f;
-
-				// 줌인(값↑)일수록 더 천천히 움직이도록 역수 적용
-				float zoom = Camera->GetCameraComponent()->GetZoomFactor();
-				zoom = (zoom <= 0.f) ? 1.f : zoom; // 안전장치
-				const float pixelToWorld = basePixelToWorld * zoom;
-
-				const FVector right = Camera->GetRight();
-				const FVector up = Camera->GetUp();
-
-				CameraAddPosition = CameraAddPosition
-					- right * (deltaX * pixelToWorld)
-					+ up * (deltaY * pixelToWorld);
-
-				SetupCameraMode();
-			}
-
-			MouseLastX = X;
-			MouseLastY = Y;
-		}
-		else if (ViewportType == EViewportType::Perspective)
-		{
-			PerspectiveCameraInput = true;
-		}
-	}
-}
-
-void FViewportClient::MouseButtonDown(FViewport* Viewport, int32 X, int32 Y, int32 Button)
-{
-	if (!Viewport || !World) // Only handle left mouse button
-		return;
-
-	// GetInstance viewport size
-	FVector2D ViewportSize(static_cast<float>(Viewport->GetSizeX()), static_cast<float>(Viewport->GetSizeY()));
-	FVector2D ViewportOffset(static_cast<float>(Viewport->GetStartX()), static_cast<float>(Viewport->GetStartY()));
-
-	// X, Y are already local coordinates within the viewport, convert to global coordinates for picking
-	FVector2D ViewportMousePos(static_cast<float>(X) + ViewportOffset.X, static_cast<float>(Y) + ViewportOffset.Y);
-	UPrimitiveComponent* PickedComponent = nullptr;
-	TArray<AActor*> AllActors = World->GetActors();
-	if (Button == 0)
-	{
-		if (!World->GetGizmoActor())
-			return;
-
-		bIsMouseButtonDown = true;
-		// 뷰포트의 실제 aspect ratio 계산
-		float PickingAspectRatio = ViewportSize.X / ViewportSize.Y;
-		if (ViewportSize.Y == 0) PickingAspectRatio = 1.0f; // 0으로 나누기 방지
-		if (World->GetGizmoActor()->GetbIsHovering())
-		{
-			return;
-		}
-		Camera->SetWorld(World);
-		PickedComponent = URenderManager::GetInstance().GetRenderer()->GetPrimitiveCollided(static_cast<int>(ViewportMousePos.X), static_cast<int>(ViewportMousePos.Y));
-		// PickedActor = CPickingSystem::PerformViewportPicking(AllActors, Camera, ViewportMousePos, ViewportSize, ViewportOffset, PickingAspectRatio,  Viewport);
-
-
-		if (PickedComponent)
-		{
-			if (World) World->GetSelectionManager()->SelectComponent(PickedComponent);
-
-		}
-		else
-		{
-			// Clear selection if nothing was picked
-			if (World) World->GetSelectionManager()->ClearSelection();
-		}
-	}
-	else if (Button == 1)
-	{
-		//우클릭시 
-		bIsMouseRightButtonDown = true;
-		MouseLastX = X;
-		MouseLastY = Y;
-	}
-
-}
-
-void FViewportClient::MouseButtonUp(FViewport* Viewport, int32 X, int32 Y, int32 Button)
-{
-	if (Button == 0) // Left mouse button
-	{
-		bIsMouseButtonDown = false;
-
-		// 드래그 종료 처리를 위해 한번 더 호출
-		if (World->GetGizmoActor())
-		{
-			World->GetGizmoActor()->ProcessGizmoInteraction(Camera, Viewport, static_cast<float>(X), static_cast<float>(Y));
-		}
-	}
-	else
-	{
-		bIsMouseRightButtonDown = false;
-		PerspectiveCameraInput = false;
-	}
-}
-
 void FViewportClient::MouseWheel(float DeltaSeconds)
 {
 	if (!Camera) return;
@@ -323,5 +226,171 @@ void FViewportClient::MouseWheel(float DeltaSeconds)
 	zoomFactor *= (1.0f - WheelDelta * DeltaSeconds * 100.0f);
 
 	CameraComponent->SetZoomFactor(zoomFactor);
+}
+
+void FViewportClient::SetupInputContext()
+{
+	// 입력 컨텍스트 생성
+	ViewportInputContext = NewObject<UInputMappingContext>();
+
+	// ==================== 입력 매핑 ====================
+	// 좌클릭 액션 (피킹, PIE 커서 캡처)
+	ViewportInputContext->MapActionMouse("Select", LeftButton, true);
+
+	// 우클릭 액션 (카메라 컨트롤)
+	ViewportInputContext->MapActionMouse("CameraControl", RightButton, true); // bConsume=true (포커스된 뷰포트만 받음)
+
+	// ESC 키 액션 (PIE 커서 해제)
+	ViewportInputContext->MapAction("ReleaseCursor", VK_ESCAPE, false, false, false, true);
+
+	// 마우스 축 매핑
+	ViewportInputContext->MapAxisMouse("CameraYaw", EInputAxisSource::MouseX, 1.0f);
+	ViewportInputContext->MapAxisMouse("CameraPitch", EInputAxisSource::MouseY, 1.0f);
+
+	// ==================== Delegate 바인딩 ====================
+	// 좌클릭 누름
+	ViewportInputContext->BindActionPressed("Select", [this]()
+	{
+		if (!World) return;
+
+		// PIE 모드일 때 뷰포트 클릭 시 커서 캡처
+		if (World->bPie)
+		{
+			UInputManager::GetInstance().SetCursorVisible(false);
+			UInputManager::GetInstance().LockCursor();
+			return; // PIE 모드에서는 피킹 안 함
+		}
+
+		// 에디터 모드: 피킹 시스템
+		if (!World->GetGizmoActor()) return;
+
+		if (World->GetGizmoActor()->GetbIsHovering())
+		{
+			return;
+		}
+
+		// 마우스 위치 가져오기
+		FVector2D MousePos = UInputManager::GetInstance().GetMousePosition();
+
+		Camera->SetWorld(World);
+		UPrimitiveComponent* PickedComponent = URenderManager::GetInstance().GetRenderer()->GetPrimitiveCollided(
+			static_cast<int>(MousePos.X),
+			static_cast<int>(MousePos.Y)
+		);
+
+		if (PickedComponent)
+		{
+			World->GetSelectionManager()->SelectComponent(PickedComponent);
+		}
+		else
+		{
+			World->GetSelectionManager()->ClearSelection();
+		}
+	});
+
+	// 좌클릭 해제
+	// (기즈모는 Tick에서 InputManager를 직접 확인하여 드래그 종료를 감지함)
+
+	// ESC 키 누름 (PIE 커서 해제)
+	ViewportInputContext->BindActionPressed("ReleaseCursor", [this]()
+	{
+		if (World && World->bPie)
+		{
+			UInputManager::GetInstance().SetCursorVisible(true);
+			UInputManager::GetInstance().ReleaseCursor();
+		}
+	});
+
+	// 우클릭 누름
+	ViewportInputContext->BindActionPressed("CameraControl", [this]()
+	{
+		bIsMouseRightButtonDown = true;
+		if (ViewportType == EViewportType::Perspective)
+		{
+			PerspectiveCameraInput = true;	
+		}
+
+		// 에디터 모드에서 우클릭 카메라 이동 시 커서 숨김/잠금
+		if (World && !World->bPie)
+		{
+			UInputManager::GetInstance().SetCursorVisible(false);
+			UInputManager::GetInstance().LockCursor();
+		}
+	});
+
+	// 우클릭 뗌
+	ViewportInputContext->BindActionReleased("CameraControl", [this]()
+	{
+		bIsMouseRightButtonDown = false;
+		PerspectiveCameraInput = false;
+
+		// 에디터 모드에서 커서 복원
+		if (World && !World->bPie)
+		{
+			UInputManager::GetInstance().SetCursorVisible(true);
+			UInputManager::GetInstance().ReleaseCursor();
+		}
+	});
+
+	// 마우스 이동 (직교 투영 카메라)
+	ViewportInputContext->BindAxis("CameraYaw", [this](float Value)
+	{
+		if (!bIsMouseRightButtonDown || !Camera) return;
+		if (ViewportType == EViewportType::Perspective) return; // 원근은 Tick에서 처리
+
+		// 직교 투영 카메라 이동
+		const float basePixelToWorld = 0.05f;
+		float zoom = Camera->GetCameraComponent()->GetZoomFactor();
+		zoom = (zoom <= 0.f) ? 1.f : zoom;
+		const float pixelToWorld = basePixelToWorld * zoom;
+
+		const FVector right = Camera->GetRight();
+		CameraAddPosition = CameraAddPosition - right * (Value * pixelToWorld);
+		SetupCameraMode();
+	});
+
+	ViewportInputContext->BindAxis("CameraPitch", [this](float Value)
+	{
+		if (!bIsMouseRightButtonDown || !Camera) return;
+		if (ViewportType == EViewportType::Perspective) return;
+
+		// 직교 투영 카메라 이동
+		const float basePixelToWorld = 0.05f;
+		float zoom = Camera->GetCameraComponent()->GetZoomFactor();
+		zoom = (zoom <= 0.f) ? 1.f : zoom;
+		const float pixelToWorld = basePixelToWorld * zoom;
+
+		const FVector up = Camera->GetUp();
+		CameraAddPosition = CameraAddPosition + up * (Value * pixelToWorld);
+		SetupCameraMode();
+	});
+
+	// 낮은 Priority로 초기 등록 (포커스 없는 상태)
+	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, -100);
+}
+
+void FViewportClient::OnFocusGained()
+{
+	if (!ViewportInputContext) return;
+
+	// InputContext priority를 높임
+	UInputMappingSubsystem::Get().RemoveMappingContext(ViewportInputContext);
+	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, 100);
+}
+
+void FViewportClient::OnFocusLost()
+{
+	if (!ViewportInputContext) return;
+
+	// InputContext priority를 낮춤
+	UInputMappingSubsystem::Get().RemoveMappingContext(ViewportInputContext);
+	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, -100);
+
+	// PIE 모드에서 포커스를 잃으면 커서 해제
+	if (World && World->bPie)
+	{
+		UInputManager::GetInstance().SetCursorVisible(true);
+		UInputManager::GetInstance().ReleaseCursor();
+	}
 }
 

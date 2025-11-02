@@ -17,10 +17,6 @@ public:
     virtual void OnRender() override;
     virtual void OnUpdate(float DeltaSeconds) override;
 
-    virtual void OnMouseMove(FVector2D MousePos) override;
-    virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
-    virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
-
     void SetActive(bool bInActive) { bIsActive = bInActive; }
     bool IsActive() const { return bIsActive; }
 
@@ -45,7 +41,6 @@ private:
     FName ViewportName;
 
     bool bIsActive;
-    bool bIsMouseDown;
 
     // ViewMode 관련 상태 저장
     int CurrentLitSubMode = 0; // 0=default(Phong) 1=Gouraud, 2=Lambert, 3=Phong [기본값: default(Phong)]

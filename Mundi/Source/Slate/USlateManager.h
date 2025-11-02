@@ -54,12 +54,7 @@ public:
     void SetRect(const FRect& InRect) { Rect = InRect; }
     const FRect& GetRect() const { return Rect; }
 
-    void SetWorld(UWorld* InWorld)
-    {
-        World = InWorld;
-    }
-
-    void SetPIEWorld(UWorld* InWorld);
+    void SetWorld(UWorld* InWorld);
 
     // 콘솔 관리
     void ToggleConsole();

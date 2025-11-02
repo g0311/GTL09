@@ -14,8 +14,19 @@ void UInputMappingContext::MapAction(const FString& ActionName, int KeyCode, boo
 {
     FActionKeyMapping M;
     M.ActionName = ActionName;
+    M.Source = EInputAxisSource::Key;
     M.KeyCode = KeyCode;
     M.Modifiers = { bCtrl, bAlt, bShift };
+    M.bConsume = bConsume;
+    ActionMappings.Add(M);
+}
+
+void UInputMappingContext::MapActionMouse(const FString& ActionName, EMouseButton Button, bool bConsume)
+{
+    FActionKeyMapping M;
+    M.ActionName = ActionName;
+    M.Source = EInputAxisSource::MouseButton;
+    M.MouseButton = Button;
     M.bConsume = bConsume;
     ActionMappings.Add(M);
 }

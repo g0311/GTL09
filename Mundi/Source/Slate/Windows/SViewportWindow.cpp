@@ -20,7 +20,6 @@ SViewportWindow::SViewportWindow()
 {
 	ViewportType = EViewportType::Perspective;
 	bIsActive = false;
-	bIsMouseDown = false;
 }
 
 SViewportWindow::~SViewportWindow()
@@ -113,6 +112,7 @@ bool SViewportWindow::Initialize(float StartX, float StartY, float Width, float 
 
 	// 양방향 연결
 	Viewport->SetViewportClient(ViewportClient);
+	ViewportClient->SetViewport(Viewport);
 
 	// 툴바 아이콘 로드
 	LoadToolbarIcons(Device);
@@ -145,35 +145,6 @@ void SViewportWindow::OnUpdate(float DeltaSeconds)
 
 	Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
 	ViewportClient->Tick(DeltaSeconds);
-}
-
-void SViewportWindow::OnMouseMove(FVector2D MousePos)
-{
-	if (!Viewport) return;
-
-	// 툴바 영역 아래에서만 마우스 이벤트 처리
-	FVector2D LocalPos = MousePos - FVector2D(Rect.Left, Rect.Top);
-	Viewport->ProcessMouseMove((int32)LocalPos.X, (int32)LocalPos.Y);
-}
-
-void SViewportWindow::OnMouseDown(FVector2D MousePos, uint32 Button)
-{
-	if (!Viewport) return;
-
-	// 툴바 영역 아래에서만 마우스 이벤트 처리s
-	bIsMouseDown = true;
-	FVector2D LocalPos = MousePos - FVector2D(Rect.Left, Rect.Top);
-	Viewport->ProcessMouseButtonDown((int32)LocalPos.X, (int32)LocalPos.Y, Button);
-
-}
-
-void SViewportWindow::OnMouseUp(FVector2D MousePos, uint32 Button)
-{
-	if (!Viewport) return;
-
-	bIsMouseDown = false;
-	FVector2D LocalPos = MousePos - FVector2D(Rect.Left, Rect.Top);
-	Viewport->ProcessMouseButtonUp((int32)LocalPos.X, (int32)LocalPos.Y, Button);
 }
 
 void SViewportWindow::SetVClientWorld(UWorld* InWorld)

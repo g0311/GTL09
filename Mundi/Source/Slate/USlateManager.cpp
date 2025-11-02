@@ -11,6 +11,7 @@
 #include "FViewportClient.h"
 #include "UIManager.h"
 #include "GlobalConsole.h"
+#include "InputMappingSubsystem.h"
 
 IMPLEMENT_CLASS(USlateManager)
 
@@ -312,6 +313,39 @@ void USlateManager::Update(float DeltaSeconds)
     {
         ConsoleWindow->Update();
     }
+
+    // 마우스 위치 기반 포커스 관리
+    FVector2D MousePos = INPUT.GetMousePosition();
+    SViewportWindow* HoveredViewport = nullptr;
+
+    // 마우스 위치에 있는 뷰포트 찾기
+    for (auto* VP : Viewports)
+    {
+        if (VP && VP->Rect.Contains(MousePos))
+        {
+            HoveredViewport = VP;
+            break;
+        }
+    }
+
+    // 포커스 변경 감지 및 이벤트 전달
+    static SViewportWindow* PrevHoveredViewport = nullptr;
+    if (HoveredViewport != PrevHoveredViewport)
+    {
+        // 이전 뷰포트 포커스 상실
+        if (PrevHoveredViewport && PrevHoveredViewport->GetViewportClient())
+        {
+            PrevHoveredViewport->GetViewportClient()->OnFocusLost();
+        }
+
+        // 새 뷰포트 포커스 획득
+        if (HoveredViewport && HoveredViewport->GetViewportClient())
+        {
+            HoveredViewport->GetViewportClient()->OnFocusGained();
+        }
+
+        PrevHoveredViewport = HoveredViewport;
+    }
 }
 
 void USlateManager::ProcessInput()
@@ -456,9 +490,19 @@ void USlateManager::Shutdown()
     ActiveViewport = nullptr;
 }
 
-void USlateManager::SetPIEWorld(UWorld* InWorld)
+void USlateManager::SetWorld(UWorld* InWorld)
 {
+    World = InWorld;
+
+    // 모든 뷰포트에 World 전파
     MainViewport->SetVClientWorld(InWorld);
+
+    // PIE 종료 시 모든 뷰포트의 커서 해제
+    if (InWorld && !InWorld->bPie)
+    {
+        INPUT.SetCursorVisible(true);
+        INPUT.ReleaseCursor();
+    }
 }
 
 void USlateManager::ToggleConsole()

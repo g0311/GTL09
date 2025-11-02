@@ -405,7 +405,30 @@ FVector2D UInputManager::GetScreenSize() const
 
 void UInputManager::SetCursorVisible(bool bVisible)
 {
-    ShowCursor(bVisible ? TRUE : FALSE);
+    // 이미 원하는 상태면 중복 호출 방지
+    if (bIsCursorVisible == bVisible)
+        return;
+
+    // ShowCursor는 카운터 방식이므로 원하는 상태가 될 때까지 반복 호출
+    int counter = 0;
+    if (bVisible)
+    {
+        // 커서를 보이게 (카운터를 0 이상으로)
+        while ((counter = ShowCursor(TRUE)) < 0)
+        {
+            // 카운터가 0 이상이 될 때까지 반복
+        }
+    }
+    else
+    {
+        // 커서를 숨김 (카운터를 음수로)
+        while ((counter = ShowCursor(FALSE)) >= 0)
+        {
+            // 카운터가 음수가 될 때까지 반복
+        }
+    }
+
+    bIsCursorVisible = bVisible;
 }
 
 void UInputManager::LockCursor()
@@ -434,13 +457,4 @@ void UInputManager::ReleaseCursor()
 
     // 잠금 해제
     bIsCursorLocked = false;
-
-    // 원래 커서 위치로 복원
-    POINT lockedPoint = { static_cast<int>(LockedCursorPosition.X), static_cast<int>(LockedCursorPosition.Y) };
-    ClientToScreen(WindowHandle, &lockedPoint);
-    SetCursorPos(lockedPoint.x, lockedPoint.y);
-
-    // 마우스 위치 동기화
-    MousePosition = LockedCursorPosition;
-    PreviousMousePosition = LockedCursorPosition;
 }

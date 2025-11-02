@@ -113,6 +113,26 @@ LRESULT CALLBACK UEditorEngine::WndProc(HWND hWnd, UINT message, WPARAM wParam, 
         }
     }
     break;
+    case WM_ACTIVATE:
+    {
+        // PIE 모드일 때 Alt+Tab 처리
+        if (GWorld && GWorld->bPie)
+        {
+            if (LOWORD(wParam) != WA_INACTIVE)
+            {
+                // 윈도우 활성화 - 커서 숨김
+                INPUT.SetCursorVisible(false);
+                INPUT.LockCursor();
+            }
+            else
+            {
+                // 윈도우 비활성화 (Alt+Tab) - 커서 복원
+                INPUT.SetCursorVisible(true);
+                INPUT.ReleaseCursor();
+            }
+        }
+    }
+    break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
@@ -308,7 +328,7 @@ void UEditorEngine::MainLoop()
             GWorld = WorldContexts[0].World;
             GWorld->GetSelectionManager()->ClearSelection();
             GWorld->GetLightManager()->SetDirtyFlag();
-            SLATE.SetPIEWorld(GWorld);
+            SLATE.SetWorld(GWorld);
 
             bPIEActive = false;
             UE_LOG("END PIE CLICKED");
@@ -366,7 +386,7 @@ void UEditorEngine::StartPIE()
     UWorld* PIEWorld = UWorld::DuplicateWorldForPIE(EditorWorld);
 
     GWorld = PIEWorld;
-    SLATE.SetPIEWorld(GWorld);
+    SLATE.SetWorld(GWorld);
 
     bPIEActive = true;
 
