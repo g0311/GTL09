@@ -9,6 +9,7 @@
 // Collision components
 #include "Source/Runtime/Engine/Components/PrimitiveComponent.h"
 #include "Source/Runtime/Engine/Components/ShapeComponent.h"
+#include "Source/Runtime/Engine/Components/BoxComponent.h"
 // Input
 #include "Source/Runtime/InputCore/InputMappingSubsystem.h"
 #include "Source/Runtime/InputCore/InputMappingContext.h"
@@ -201,6 +202,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     // Collision components
     RegisterPrimitiveComponent(state);
     RegisterShapeComponent(state);
+    RegisterBoxComponent(state);
 
     // Input
     RegisterInputEnums(state);
@@ -616,10 +618,28 @@ void UScriptManager::RegisterActor(sol::state* state)
         // Lifecycle
         ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
 
-        // 스크립트 컴포넌트 추가 (루아는 c++ 템플릿 인식을 못해서 직접 지명해야 함!)
+        // 스크립트 컴포넌트 추가 (런타임 동적 생성)
         ADD_LUA_FUNCTION("AddScriptComponent", [](AActor* actor) -> UScriptComponent* {
             if (!actor) return nullptr;
-            return actor->CreateDefaultSubobject<UScriptComponent>("ScriptComponent");
+
+            // 런타임에 동적으로 컴포넌트 생성
+            UScriptComponent* comp = ObjectFactory::NewObject<UScriptComponent>();
+            if (!comp) return nullptr;
+
+            // Actor에 컴포넌트 추가
+            actor->AddOwnedComponent(comp);
+
+            // World가 있으면 컴포넌트 등록 및 초기화
+            if (UWorld* world = actor->GetWorld())
+            {
+                comp->RegisterComponent(world);
+                comp->InitializeComponent();
+
+                // BeginPlay는 SetScriptPath 후에 호출되도록 여기서는 호출하지 않음
+                // Lua에서 SetScriptPath 후 수동으로 BeginPlay를 호출해야 함
+            }
+
+            return comp;
         })
     END_LUA_TYPE()
 }
@@ -672,7 +692,7 @@ void UScriptManager::RegisterSceneComponent(sol::state* state)
 void UScriptManager::RegisterStaticMeshComponent(sol::state* state)
 {
     // ==================== UStaticMeshComponent 등록 ====================
-    BEGIN_LUA_TYPE_NO_CTOR(state, UStaticMeshComponent, "StaticMeshComponent")
+    BEGIN_LUA_TYPE_WITH_BASE(state, UStaticMeshComponent, "StaticMeshComponent", UPrimitiveComponent, USceneComponent, UActorComponent)
         ADD_LUA_FUNCTION("SetStaticMesh", [](UStaticMeshComponent* comp, const std::string& path) {
             comp->SetStaticMesh(path);
         })
@@ -725,6 +745,9 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
         ADD_LUA_FUNCTION("SetScriptPath", &UScriptComponent::SetScriptPath)
         ADD_LUA_FUNCTION("GetScriptPath", &UScriptComponent::GetScriptPath)
         ADD_LUA_FUNCTION("ReloadScript", &UScriptComponent::ReloadScript)
+
+        // Lifecycle
+        ADD_LUA_FUNCTION("BeginPlay", &UScriptComponent::BeginPlay)
 
         // Coroutine API
         ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
@@ -1034,6 +1057,35 @@ void UScriptManager::RegisterShapeComponent(sol::state* state)
         // Overlap test
         ADD_LUA_FUNCTION("Overlaps", &UShapeComponent::Overlaps)
     END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterBoxComponent(sol::state* state)
+{
+    BEGIN_LUA_TYPE_WITH_BASE(state, UBoxComponent, "BoxComponent",
+        UShapeComponent, UPrimitiveComponent, USceneComponent, UActorComponent)
+        ADD_LUA_PROPERTY("BoxExtent", &UBoxComponent::BoxExtent)
+    END_LUA_TYPE()
+
+    // 반드시 루아스크립트를 통해서 사이즈 인자를 받아야 합니다!
+    state->set_function("AddBoxComponent",
+        [](AActor* Owner, const FVector& extent) -> UBoxComponent*
+        {
+            if (!Owner) return nullptr;
+
+            UBoxComponent* Comp = ObjectFactory::NewObject<UBoxComponent>();
+            if (!Comp) return nullptr;
+
+            Comp->BoxExtent = extent;
+            Owner->AddOwnedComponent(Comp);
+
+            if (UWorld* World = Owner->GetWorld())
+            {
+                Comp->RegisterComponent(World);
+                Comp->InitializeComponent();
+            }
+            return Comp;
+        }
+    );
 }
 
 void UScriptManager::RegisterProjectileMovement(sol::state* state)

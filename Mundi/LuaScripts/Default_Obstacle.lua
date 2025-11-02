@@ -10,8 +10,7 @@ local GravityZ = -9.8         -- Z-up world; tune to your scale
 
 function BeginPlay()
     -- Create projectile movement and keep obstacle stationary initially
-    projectileMovement = AddProjectileMovement(actor)   -- uses global `actor`
-    --projectileMovement:SetUpdatedToOwnerRoot()
+    projectileMovement = AddProjectileMovement(actor)
     projectileMovement:SetGravity(0.0)
 end
 
@@ -21,14 +20,15 @@ end
 
 function OnOverlap(other)
     if not other then return end
-    Log("overlapped!!!")
-    -- Try to read the other actor's current velocity from its MovementComponent
+
+    -- Read the other actor's velocity from its MovementComponent
     local v = Vector(0.0, 0.0, 0.0)
     local move = other:GetProjectileMovementComponent()
     if move ~= nil then
         v = move:GetVelocity()
     end
-    
+
+    -- Apply reaction: invert and amplify velocity, add upward kick
     v = v * 1.5
     v = v + Vector(0, 0, UpSpeed)
 
@@ -39,7 +39,5 @@ function OnOverlap(other)
 
     projectileMovement:SetGravity(GravityZ)
     projectileMovement:SetVelocity(v)
-
-    Log("Obstacle reacted to overlap with inverted velocity")
 end
 
