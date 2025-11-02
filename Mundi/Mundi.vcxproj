@@ -188,6 +188,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
@@ -474,6 +476,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
@@ -640,8 +644,14 @@
     <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="LuaScripts\Default_Ambient Light Actor.lua" />
+    <Content Include="LuaScripts\Default_Directional Light Actor.lua" />
     <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="LuaScripts\Default_TempCar.lua" />
+    <Content Include="LuaScripts\PlayerController.lua" />
+    <Content Include="LuaScripts\teasd1.lua" />
+    <Content Include="LuaScripts\test.lua" />
+    <Content Include="LuaScripts\test2.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

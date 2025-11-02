@@ -31,21 +31,11 @@ function BeginPlay()
     --     Log("Jump pressed")
     -- end)
     --
-    -- -- Map axes (WASD as vertical/horizontal)
+    -- -- Map axes (WASD movement - use GetAxisValue() in Tick)
     -- ctx:MapAxisKey("MoveForward", Keys.W,  1.0)
     -- ctx:MapAxisKey("MoveForward", Keys.S, -1.0)
     -- ctx:MapAxisKey("MoveRight",   Keys.D,  1.0)
     -- ctx:MapAxisKey("MoveRight",   Keys.A, -1.0)
-    -- ctx:BindAxis("MoveForward", function(v)
-    --     if math.abs(v) > 0.0 then
-    --         actor:AddActorWorldLocation(actor:GetActorForward() * (v * 100.0 * (1/60)))
-    --     end
-    -- end)
-    -- ctx:BindAxis("MoveRight", function(v)
-    --     if math.abs(v) > 0.0 then
-    --         actor:AddActorWorldLocation(actor:GetActorRight() * (v * 100.0 * (1/60)))
-    --     end
-    -- end)
     --
     -- -- Add context with priority 0
     -- input:AddMappingContext(ctx, 0)
@@ -81,14 +71,25 @@ end
 
 ---
 --- 매 프레임마다 호출됩니다.
+--- dt: 델타타임 (초 단위)
 --- 이동, 회전, 애니메이션 등의 로직을 여기에 구현하세요.
 ---
 function Tick(dt)
-    -- 예시: 전진 이동 (Actor 앞 방향으로 움직임)
-    -- local forward = actor:GetActorForward()
-    -- local speed = 100.0
-    -- local movement = forward * (speed * dt)  -- 초당 100 단위 이동
-    -- actor:AddActorWorldLocation(movement)  -- 주석 해제하면 이동 활성화
+    -- 예시: WASD 입력으로 이동 (BeginPlay에서 입력 컨텍스트 설정 필요)
+    -- local input = GetInput()
+    -- local moveForward = input:GetAxisValue("MoveForward")
+    -- local moveRight = input:GetAxisValue("MoveRight")
+    -- local speed = 300.0
+    --
+    -- if math.abs(moveForward) > 0.01 then
+    --     local forward = actor:GetActorForward()
+    --     actor:AddActorWorldLocation(forward * (moveForward * speed * dt))
+    -- end
+    --
+    -- if math.abs(moveRight) > 0.01 then
+    --     local right = actor:GetActorRight()
+    --     actor:AddActorWorldLocation(right * (moveRight * speed * dt))
+    -- end
 end
 
 -- ==============================================================================

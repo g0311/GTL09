@@ -4,12 +4,11 @@
 #include "FViewport.h"
 #include "Frustum.h"
 
-FSceneView::FSceneView(ACameraActor* InCamera, FViewport* InViewport, EViewModeIndex InViewMode)
+FSceneView::FSceneView(UCameraComponent* InCameraComponent, FViewport* InViewport, EViewModeIndex InViewMode)
 {
-    UCameraComponent* CamComp = InCamera->GetCameraComponent();
-    if (!CamComp || !InViewport)
+    if (!InCameraComponent || !InViewport)
     {
-        UE_LOG("[FSceneView::FSceneView()]: CamComp 또는 InViewport 가 없습니다.");
+        UE_LOG("[FSceneView::FSceneView()]: CameraComponent 또는 InViewport 가 없습니다.");
         return;
     }
 
@@ -21,12 +20,12 @@ FSceneView::FSceneView(ACameraActor* InCamera, FViewport* InViewport, EViewModeI
         AspectRatio = (float)InViewport->GetSizeX() / (float)InViewport->GetSizeY();
     }
 
-    ViewMatrix = CamComp->GetViewMatrix();
-    ProjectionMatrix = CamComp->GetProjectionMatrix(AspectRatio, InViewport);
-    ViewFrustum = CreateFrustumFromCamera(*CamComp, AspectRatio);
-    ViewLocation = CamComp->GetWorldLocation();
-    ZNear = CamComp->GetNearClip();
-    ZFar = CamComp->GetFarClip();
+    ViewMatrix = InCameraComponent->GetViewMatrix();
+    ProjectionMatrix = InCameraComponent->GetProjectionMatrix(AspectRatio, InViewport);
+    ViewFrustum = CreateFrustumFromCamera(*InCameraComponent, AspectRatio);
+    ViewLocation = InCameraComponent->GetWorldLocation();
+    ZNear = InCameraComponent->GetNearClip();
+    ZFar = InCameraComponent->GetFarClip();
 
     ViewRect.MinX = InViewport->GetStartX();
     ViewRect.MinY = InViewport->GetStartY();
@@ -35,8 +34,8 @@ FSceneView::FSceneView(ACameraActor* InCamera, FViewport* InViewport, EViewModeI
 
     // ViewMode는 World나 RenderSettings에서 가져와야 함 (임시)
     ViewMode = InViewMode;
-    ProjectionMode = InCamera->GetCameraComponent()->GetProjectionMode();
+    ProjectionMode = InCameraComponent->GetProjectionMode();
 
-    Camera = InCamera->GetCameraComponent();
+    Camera = InCameraComponent;
     Viewport = InViewport;
 }

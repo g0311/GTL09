@@ -23,8 +23,10 @@
 #include "StaticMeshComponent.h"
 #include "DirectionalLightActor.h"
 #include "Frustum.h"
+#include "GameModeBase.h"
 #include "Level.h"
 #include "LightManager.h"
+#include "PlayerController.h"
 #include "../GameplayStatic/GameMode.h"
 
 IMPLEMENT_CLASS(UWorld)
@@ -145,6 +147,8 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
 
+	// 액터 매핑 (원본 -> 복사본)
+	TMap<AActor*, AActor*> ActorMapping;
 
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
 	// GameMode는 복사하지 않고 PIE World에서 새로 생성
@@ -165,10 +169,34 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 		}
 		PIEWorld->AddActorToLevel(NewActor);
 		NewActor->SetWorld(PIEWorld);
+
+		// 매핑 저장
+		ActorMapping[SourceActor] = NewActor;
 	}
 
-	// PIE World에서 GameMode 생성 및 초기화
-	PIEWorld->CreateGameMode();
+	// GameMode의 DefaultPawnActor 참조를 복사된 액터로 리매핑
+	// (GameMode 자체는 이미 SetWorld() 오버라이드를 통해 PIEWorld->GameMode에 등록됨)
+	if (PIEWorld->GetGameMode())
+	{
+		AGameModeBase* DuplicatedGameMode = PIEWorld->GetGameMode();
+
+		// DefaultPawnActor 참조를 복사된 액터로 교체
+		if (DuplicatedGameMode->GetDefaultPawnActor())
+		{
+			AActor* OriginalPawn = DuplicatedGameMode->GetDefaultPawnActor();
+			AActor** DuplicatedPawn = ActorMapping.Find(OriginalPawn);
+			if (DuplicatedPawn)
+			{
+				DuplicatedGameMode->SetDefaultPawnActor(*DuplicatedPawn);
+				UE_LOG("GameMode DefaultPawnActor remapped to duplicated actor");
+			}
+			else
+			{
+				UE_LOG("Warning: DefaultPawnActor not found in duplicated actors");
+				DuplicatedGameMode->SetDefaultPawnActor(nullptr);
+			}
+		}
+	}
 
 	return PIEWorld;
 }
@@ -370,23 +398,44 @@ AActor* UWorld::SpawnActor(UClass* Class)
 	return SpawnActor(Class, FTransform());
 }
 
-void UWorld::CreateGameMode()
+APlayerController* UWorld::SpawnPlayerController()
 {
-	// 이미 GameMode가 있으면 스킵
-	if (GameMode)
+	if (!PlayerController)
 	{
-		return;
+		// PlayerController는 Actor이므로 SpawnActor를 사용
+		PlayerController = SpawnActor<APlayerController>();
+	}
+	return PlayerController;
+}
+
+ACameraActor* UWorld::GetActiveCamera() const
+{
+	// PIE 모드에서는 PlayerController의 카메라를 우선 사용
+	if (bPie && PlayerController)
+	{
+		AActor* ViewTarget = PlayerController->GetViewTarget();
+		if (ViewTarget)
+		{
+			// ViewTarget이 카메라 액터인지 확인
+			if (ACameraActor* CameraActor = Cast<ACameraActor>(ViewTarget))
+			{
+				return CameraActor;
+			}
+
+			// ViewTarget이 일반 액터인 경우, 카메라 컴포넌트를 찾아서
+			// 그 Owner가 CameraActor인지 확인
+			UCameraComponent* CamComp = PlayerController->GetActiveCameraComponent();
+			if (CamComp)
+			{
+				AActor* Owner = CamComp->GetOwner();
+				if (ACameraActor* CamActor = Cast<ACameraActor>(Owner))
+				{
+					return CamActor;
+				}
+			}
+		}
 	}
 
-	// GameMode 생성 (BeginPlay는 StartPIE()에서 호출)
-	GameMode = ObjectFactory::NewObject<AGameMode>();
-	if (GameMode)
-	{
-		GameMode->SetWorld(this);
-		UE_LOG("[World] GameMode created\n");
-	}
-	else
-	{
-		UE_LOG("[World] Error: Failed to create GameMode\n");
-	}
+	// 에디터 모드이거나 PlayerController가 없으면 MainCameraActor 반환
+	return MainCameraActor;
 }

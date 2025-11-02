@@ -15,7 +15,7 @@ function TestCoroutine(component)
     -- 2초 대기 (self -> component로 변경)
     Log("[Coroutine] Waiting for 2 seconds...")
     coroutine.yield(component:WaitForSeconds(2.0))
-
+    
     Log("[Coroutine] Step 3: After 2 seconds!")
 
     -- 다시 1초 대기 (self -> component로 변경)
