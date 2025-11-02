@@ -28,8 +28,8 @@ struct FViewportRect
 class FSceneView
 {
 public:
-    // 메인 뷰(카메라)를 위한 생성자
-    FSceneView(ACameraActor* InCamera, FViewport* InViewport, EViewModeIndex InViewMode);
+    // 메인 뷰(카메라 컴포넌트)를 위한 생성자
+    FSceneView(UCameraComponent* InCameraComponent, FViewport* InViewport, EViewModeIndex InViewMode);
 
     // TODO: 섀도우 맵(광원) 등을 위한 생성자 추가
     // FSceneView(ALightActor* InLight, FTexture* RenderTarget);

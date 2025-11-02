@@ -365,8 +365,8 @@ APlayerController* UWorld::SpawnPlayerController()
 
 ACameraActor* UWorld::GetActiveCamera() const
 {
-	// PlayerController가 있고 ViewTarget이 설정되어 있으면 ViewTarget 반환
-	if (PlayerController)
+	// PIE 모드에서는 PlayerController의 카메라를 우선 사용
+	if (bPie && PlayerController)
 	{
 		AActor* ViewTarget = PlayerController->GetViewTarget();
 		if (ViewTarget)
@@ -376,9 +376,21 @@ ACameraActor* UWorld::GetActiveCamera() const
 			{
 				return CameraActor;
 			}
+
+			// ViewTarget이 일반 액터인 경우, 카메라 컴포넌트를 찾아서
+			// 그 Owner가 CameraActor인지 확인
+			UCameraComponent* CamComp = PlayerController->GetActiveCameraComponent();
+			if (CamComp)
+			{
+				AActor* Owner = CamComp->GetOwner();
+				if (ACameraActor* CamActor = Cast<ACameraActor>(Owner))
+				{
+					return CamActor;
+				}
+			}
 		}
 	}
 
-	// PlayerController가 없거나 ViewTarget이 없으면 MainCameraActor 반환
+	// 에디터 모드이거나 PlayerController가 없으면 MainCameraActor 반환
 	return MainCameraActor;
 }
