@@ -98,7 +98,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 		// 폴백: PlayerController나 카메라가 없으면 뷰포트 카메라 사용
 		if (!RenderCameraComponent)
 		{
-			UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController 카메라가 없습니다. 뷰포트 카메라를 사용합니다.");
+			// UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController 카메라가 없습니다. 뷰포트 카메라를 사용합니다.");
 			if (Camera)
 			{
 				Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);

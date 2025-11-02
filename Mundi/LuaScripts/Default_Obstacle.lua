@@ -3,7 +3,8 @@
 -- and adding an upward kick, then enabling gravity.
 
 local projectileMovement = nil
-local rotationalMovement = nil
+local rotatingMovement = nil
+local initialRotation = nil
 
 -- Tunables
 local UpSpeed = 10.0           -- upward impulse on hit (units/s)
@@ -40,6 +41,9 @@ function BeginPlay()
         rotatingMovement:SetUpdatedToOwnerRoot()   -- convenience setter
         rotatingMovement:SetRotationRate(Vector(0.0, 0.0, 0.0))
     end
+
+    -- Cache initial rotation to restore on reset
+    initialRotation = actor:GetActorRotation()
 end
 
 function Tick(dt)
@@ -47,9 +51,39 @@ function Tick(dt)
 end
 
 function ResetState()
-    projectileMovement:SetVelocity(0,0)
-    projectileMovement:SetGravity(0.0)
-    rotatingMovement:SetRotationRate(Vector(0.0, 0.0, 0.0))
+    -- Ensure components exist before using them
+    if projectileMovement == nil then
+        projectileMovement = AddProjectileMovement(actor)
+        if projectileMovement ~= nil then
+            projectileMovement:SetUpdatedToOwnerRoot()
+        end
+    end
+
+    if projectileMovement ~= nil then
+        -- Stop and clear velocity/accel; SetVelocity expects a Vector
+        projectileMovement:StopMovement()
+        projectileMovement:SetVelocity(Vector(0.0, 0.0, 0.0))
+        projectileMovement:SetAcceleration(Vector(0.0, 0.0, 0.0))
+        projectileMovement:SetGravity(0.0)
+        projectileMovement:SetRotationFollowsVelocity(false)
+    end
+
+    if rotatingMovement == nil then
+        rotatingMovement = AddRotatingMovement(actor)
+        if rotatingMovement ~= nil then
+            rotatingMovement:SetUpdatedToOwnerRoot()
+        end
+    end
+
+    if rotatingMovement ~= nil then
+        rotatingMovement:SetRotationRate(Vector(0.0, 0.0, 0.0))
+    end
+    -- Restore actor rotation
+    if initialRotation ~= nil then
+        actor:SetActorRotation(initialRotation)
+    else
+        actor:SetActorRotation(Quat())
+    end
 end
 
 function OnOverlap(other)

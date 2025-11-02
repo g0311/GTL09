@@ -735,6 +735,12 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
         ADD_LUA_FUNCTION("SetScriptPath", &UScriptComponent::SetScriptPath)
         ADD_LUA_FUNCTION("GetScriptPath", &UScriptComponent::GetScriptPath)
         ADD_LUA_FUNCTION("ReloadScript", &UScriptComponent::ReloadScript)
+        // 외부에서 스크립트의 전역 Lua 함수를 이름으로 호출
+        ADD_LUA_FUNCTION("CallLuaFunction", [](UScriptComponent* comp, const std::string& funcName)
+        {
+            if (!comp) return;
+            comp->CallLuaFunction(funcName);
+        })
 
         // Lifecycle
         ADD_LUA_FUNCTION("BeginPlay", &UScriptComponent::BeginPlay)

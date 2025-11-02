@@ -151,6 +151,7 @@ local function InitializeObstaclePool()
 
             table.insert(ObstaclePool, {
                 Actor = obstacleActor,
+                ScriptComponent = scriptComp,
                 ModelIndex = modelIndex,
                 IsActive = false,
                 Scale = scale,
@@ -190,15 +191,9 @@ end
 local function ReturnObstacleToPool(obstacle)
     if not obstacle then return end
 
-
-    ------------------------------------------------------------------------------------------------------------------
-    -- TODO(정세연): AABB, 충돌, 충돌 이벤트 등이 포함된 하나의 루아스크립트를 연결해야 함 (25.11.02 22:20:00 by박영빈)
-    -- 장애물 스크립트에 ResetState()를 추가하고, 잘 작동한다면 해당 주석을 지울 것
-    -- 오브젝트 재배치시, 날라가는 등의 효과 리셋이 반드시 필수임...
-    if obstacle.Actor and obstacle.Actor.ResetState then
-        obstacle.Actor:ResetState()
+    if obstacle.ScriptComponent then
+        obstacle.ScriptComponent:CallLuaFunction("ResetState")
     end
-    ------------------------------------------------------------------------------------------------------------------
 
     obstacle.IsActive = false
 
