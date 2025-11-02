@@ -23,6 +23,7 @@
 #include "StaticMeshComponent.h"
 #include "DirectionalLightActor.h"
 #include "Frustum.h"
+#include "GameModeBase.h"
 #include "Level.h"
 #include "LightManager.h"
 #include "PlayerController.h"
@@ -127,10 +128,12 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	//ULevel* NewLevel = ULevelService::CreateNewLevel();
 	UWorld* PIEWorld = NewObject<UWorld>(); // 레벨도 새로 생성됨
 	PIEWorld->bPie = true;
-	
+
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
-	
+
+	// 액터 매핑 (원본 -> 복사본)
+	TMap<AActor*, AActor*> ActorMapping;
 
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
 	for (AActor* SourceActor : SourceActors)
@@ -150,7 +153,33 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 		}
 		PIEWorld->AddActorToLevel(NewActor);
 		NewActor->SetWorld(PIEWorld);
-		
+
+		// 매핑 저장
+		ActorMapping[SourceActor] = NewActor;
+	}
+
+	// GameMode의 DefaultPawnActor 참조를 복사된 액터로 리매핑
+	// (GameMode 자체는 이미 SetWorld() 오버라이드를 통해 PIEWorld->GameMode에 등록됨)
+	if (PIEWorld->GetGameMode())
+	{
+		AGameModeBase* DuplicatedGameMode = PIEWorld->GetGameMode();
+
+		// DefaultPawnActor 참조를 복사된 액터로 교체
+		if (DuplicatedGameMode->GetDefaultPawnActor())
+		{
+			AActor* OriginalPawn = DuplicatedGameMode->GetDefaultPawnActor();
+			AActor** DuplicatedPawn = ActorMapping.Find(OriginalPawn);
+			if (DuplicatedPawn)
+			{
+				DuplicatedGameMode->SetDefaultPawnActor(*DuplicatedPawn);
+				UE_LOG("GameMode DefaultPawnActor remapped to duplicated actor");
+			}
+			else
+			{
+				UE_LOG("Warning: DefaultPawnActor not found in duplicated actors");
+				DuplicatedGameMode->SetDefaultPawnActor(nullptr);
+			}
+		}
 	}
 
 	return PIEWorld;

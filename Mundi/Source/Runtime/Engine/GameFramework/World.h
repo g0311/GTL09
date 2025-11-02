@@ -31,6 +31,7 @@ class FOcclusionCullingManagerCPU;
 struct Frustum;
 struct FCandidateDrawable;
 class APlayerController;
+class AGameModeBase;
 
 class UWorld final : public UObject
 {
@@ -85,6 +86,10 @@ public:
     APlayerController* GetPlayerController() const { return PlayerController; }
     APlayerController* SpawnPlayerController();
 
+    /** GameMode 관리 */
+    AGameModeBase* GetGameMode() const { return GameMode; }
+    void SetGameMode(AGameModeBase* InGameMode) { GameMode = InGameMode; }
+
     /** 현재 활성화된 카메라 (PlayerController의 ViewTarget 우선, 없으면 MainCameraActor) */
     ACameraActor* GetActiveCamera() const;
 
@@ -121,6 +126,9 @@ private:
 
     /** === PlayerController === */
     APlayerController* PlayerController = nullptr;
+
+    /** === GameMode === */
+    AGameModeBase* GameMode = nullptr;
 
     /** === 레벨 컨테이너 === */
     std::unique_ptr<ULevel> Level;

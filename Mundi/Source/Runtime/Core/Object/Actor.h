@@ -33,7 +33,7 @@ public:
     const FName& GetName() { return Name; }
 
     // 월드/표시
-    void SetWorld(UWorld* InWorld) { World = InWorld; this->RegisterAllComponents(InWorld); }
+    virtual void SetWorld(UWorld* InWorld) { World = InWorld; this->RegisterAllComponents(InWorld); }
     UWorld* GetWorld() const { return World; }
 
     // 루트/컴포넌트

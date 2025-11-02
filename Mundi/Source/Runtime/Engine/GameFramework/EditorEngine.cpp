@@ -4,6 +4,7 @@
 #include "SelectionManager.h"
 #include <ObjManager.h>
 #include "InputMappingSubsystem.h"
+#include "GameModeBase.h"
 
 // Delegate Test Actors - Force static initialization
 
@@ -375,6 +376,18 @@ void UEditorEngine::StartPIE()
 
     ////스폰을 위한 월드셋
     //UI.SetWorld(PIEWorld);
+
+    // GameMode가 있으면 InitGame 호출 (PlayerController 생성 및 Pawn 빙의)
+    AGameModeBase* GameMode = PIEWorld->GetGameMode();
+    if (GameMode)
+    {
+        UE_LOG("Initializing GameMode...");
+        GameMode->InitGame();
+    }
+    else
+    {
+        UE_LOG("No GameMode found - PlayerController will not be created automatically");
+    }
 
     // BeginPlay 중에 새 액터가 spawn될 수 있으므로 복사본 사용
     TArray<AActor*> ActorsCopy = GWorld->GetLevel()->GetActors();
