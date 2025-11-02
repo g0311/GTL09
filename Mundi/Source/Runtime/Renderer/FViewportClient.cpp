@@ -86,7 +86,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 
 	UCameraComponent* RenderCameraComponent = nullptr;
 
-	// PIE 모드: PlayerController의 카메라 컴포넌트 사용
+	// PIE 모드: PlayerController의 카메라 컴포넌트 우선 사용
 	if (World->bPie)
 	{
 		APlayerController* PC = World->GetPlayerController();
@@ -95,10 +95,15 @@ void FViewportClient::Draw(FViewport* Viewport)
 			RenderCameraComponent = PC->GetActiveCameraComponent();
 		}
 
+		// 폴백: PlayerController나 카메라가 없으면 뷰포트 카메라 사용
 		if (!RenderCameraComponent)
 		{
-			UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController의 카메라가 없습니다.");
-			return;
+			UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController 카메라가 없습니다. 뷰포트 카메라를 사용합니다.");
+			if (Camera)
+			{
+				Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);
+				RenderCameraComponent = Camera->GetCameraComponent();
+			}
 		}
 	}
 	else
