@@ -309,9 +309,9 @@ void FViewportClient::SetupInputContext()
 	{
 		if (World && World->bPie)
 		{
-			bPIEEjected = !bPIEEjected;
+			World->bPIEEjected = !World->bPIEEjected;
 
-			if (bPIEEjected)
+			if (World->bPIEEjected)
 			{
 				// Eject 모드: 에디터 카메라 제어 가능
 				UInputManager::GetInstance().SetCursorVisible(true);
@@ -332,7 +332,7 @@ void FViewportClient::SetupInputContext()
 	ViewportInputContext->BindActionPressed("CameraControl", [this]()
 	{
 		// PIE 모드 (Eject 아님): 우클릭 카메라 비활성화
-		if (World && World->bPie && !bPIEEjected)
+		if (World && World->bPie && !World->bPIEEjected)
 		{
 			return;
 		}
@@ -352,7 +352,7 @@ void FViewportClient::SetupInputContext()
 	ViewportInputContext->BindActionReleased("CameraControl", [this]()
 	{
 		// PIE 모드 (Eject 아님): 처리 안 함
-		if (World && World->bPie && !bPIEEjected)
+		if (World && World->bPie && !World->bPIEEjected)
 		{
 			return;
 		}
@@ -409,7 +409,7 @@ void FViewportClient::OnFocusGained()
 	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, 100);
 
 	// PIE 모드 (Eject 아님): 커서 다시 hide/lock
-	if (World && World->bPie && !bPIEEjected)
+	if (World && World->bPie && !World->bPIEEjected)
 	{
 		UInputManager::GetInstance().SetCursorVisible(false);
 		UInputManager::GetInstance().LockCursor();
@@ -424,7 +424,7 @@ void FViewportClient::OnFocusLost()
 	UInputMappingSubsystem::Get().RemoveMappingContext(ViewportInputContext);
 
 	// PIE 모드 (Eject 아님): 커서 해제
-	if (World && World->bPie && !bPIEEjected)
+	if (World && World->bPie && !World->bPIEEjected)
 	{
 		UInputManager::GetInstance().SetCursorVisible(true);
 		UInputManager::GetInstance().ReleaseCursor();
@@ -438,9 +438,9 @@ void FViewportClient::SetWorld(UWorld* InWorld)
 	// PIE 종료 시 Eject 플래그 리셋
 	if (InWorld && !InWorld->bPie)
 	{
-		if (bPIEEjected)
+		if (World->bPIEEjected)
 		{
-			bPIEEjected = false;
+			World->bPIEEjected = false;
 			UE_LOG("PIE Ended - Eject mode reset");
 		}
 	}

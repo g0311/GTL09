@@ -76,7 +76,4 @@ protected:
     FVector PerspectiveCameraPosition = FVector(-5.0f, 5.0f, 5.0f);
     FVector PerspectiveCameraRotation = FVector(0.0f, 22.5f, -45.0f);
     float PerspectiveCameraFov=60;
-
-    // PIE Eject 모드 (F8) - PIE 중 에디터 카메라 제어
-    bool bPIEEjected = false;
 };

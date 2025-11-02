@@ -641,9 +641,12 @@ void FSceneRenderer::GatherVisibleProxies()
 		};
 
 	// Collect from Editor Actors (Gizmo, Grid, etc.)
-	for (AActor* EditorActor : World->GetEditorActors())
+	if (!World->bPie || (World->bPie && World->bPIEEjected))
 	{
-		CollectComponentsFromActor(EditorActor, true);
+		for (AActor* EditorActor : World->GetEditorActors())
+		{
+			CollectComponentsFromActor(EditorActor, true);
+		}
 	}
 
 	// Collect from Level Actors (including their Gizmo components)

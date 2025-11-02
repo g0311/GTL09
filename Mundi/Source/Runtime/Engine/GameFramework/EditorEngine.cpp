@@ -330,6 +330,9 @@ void UEditorEngine::MainLoop()
             GWorld->GetLightManager()->SetDirtyFlag();
             SLATE.SetWorld(GWorld);
 
+            // ImGui UIManager도 Editor World로 복원 (Hierarchy 등 ImGui 위젯용)
+            UUIManager::GetInstance().SetWorld(GWorld);
+
             bPIEActive = false;
             UE_LOG("END PIE CLICKED");
 
@@ -387,6 +390,9 @@ void UEditorEngine::StartPIE()
 
     GWorld = PIEWorld;
     SLATE.SetWorld(GWorld);
+
+    // ImGui UIManager도 PIE World로 전환 (Hierarchy 등 ImGui 위젯용)
+    UUIManager::GetInstance().SetWorld(PIEWorld);
 
     bPIEActive = true;
 
