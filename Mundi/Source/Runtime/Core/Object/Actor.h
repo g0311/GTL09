@@ -33,7 +33,7 @@ public:
     const FName& GetName() { return Name; }
 
     // 월드/표시
-    void SetWorld(UWorld* InWorld) { World = InWorld; this->RegisterAllComponents(InWorld); }
+    virtual void SetWorld(UWorld* InWorld) { World = InWorld; this->RegisterAllComponents(InWorld); }
     UWorld* GetWorld() const { return World; }
 
     // 루트/컴포넌트
@@ -92,8 +92,8 @@ public:
 
     FMatrix GetWorldMatrix() const;
 
-    FVector GetActorForward() const { return GetActorRotation().RotateVector(FVector(0, 1, 0)); }
-    FVector GetActorRight()   const { return GetActorRotation().RotateVector(FVector(1, 0, 0)); }
+    FVector GetActorForward() const { return GetActorRotation().RotateVector(FVector(1, 0, 0)); }
+    FVector GetActorRight()   const { return GetActorRotation().RotateVector(FVector(0, 1, 0)); }
     FVector GetActorUp()      const { return GetActorRotation().RotateVector(FVector(0, 0, 1)); }
 
     void AddActorWorldRotation(const FQuat& DeltaRotation);
@@ -149,6 +149,24 @@ public:
     // ───── Collision System ────────────────────────────
     bool IsOverlappingActor(const AActor* Other) const;
     bool IsOverlappingAnyActor() const;
+
+    // ───── Component Utilities ────────────────────────────
+    /**
+     * @brief 특정 타입의 컴포넌트를 찾습니다
+     * @return 찾은 컴포넌트 포인터 (없으면 nullptr)
+     */
+    template<typename T>
+    T* FindComponentByClass() const
+    {
+        for (UActorComponent* Component : OwnedComponents)
+        {
+            if (T* FoundComponent = Cast<T>(Component))
+            {
+                return FoundComponent;
+            }
+        }
+        return nullptr;
+    }
 
 public:
     FName Name;

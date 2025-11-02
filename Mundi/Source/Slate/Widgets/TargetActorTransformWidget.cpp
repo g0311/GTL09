@@ -512,11 +512,14 @@ void UTargetActorTransformWidget::RenderSelectedActorDetails(AActor* SelectedAct
 		return;
 	}
 
+	// 액터 타입별 커스텀 프로퍼티 렌더링
+	UPropertyRenderer::RenderCustomActorProperties(SelectedActor);
+
 	for (auto& Component : SelectedActor->GetOwnedComponents())
 	{
 		if (!Component->IsEditable())
 			continue;
-		
+
 		// 컴포넌트 이름 헤더 표시
 		ImGui::Separator();
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f)); // 밝은 파란색

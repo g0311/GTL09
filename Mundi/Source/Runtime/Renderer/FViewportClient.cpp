@@ -4,6 +4,7 @@
 #include "CameraComponent.h"
 #include "CameraActor.h"
 #include "World.h"
+#include "PlayerController.h"
 #include "Picking.h"
 #include "SelectionManager.h"
 #include "Gizmo/GizmoActor.h"
@@ -83,30 +84,57 @@ void FViewportClient::Draw(FViewport* Viewport)
 {
 	if (!Viewport || !World) return;
 
-	// 1. 뷰 타입에 따라 카메라 설정 등 사전 작업을 먼저 수행
-	switch (ViewportType)
+	UCameraComponent* RenderCameraComponent = nullptr;
+
+	// PIE 모드: PlayerController의 카메라 컴포넌트 사용
+	if (World->bPie)
 	{
-	case EViewportType::Perspective:
-	{
-		Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);
-		break;
+		APlayerController* PC = World->GetPlayerController();
+		if (PC)
+		{
+			RenderCameraComponent = PC->GetActiveCameraComponent();
+		}
+
+		if (!RenderCameraComponent)
+		{
+			UE_LOG("[FViewportClient::Draw]: PIE 모드이지만 PlayerController의 카메라가 없습니다.");
+			return;
+		}
 	}
-	default: // 모든 Orthographic 케이스
+	else
 	{
-		Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Orthographic);
-		SetupCameraMode();
-		break;
-	}
+		// 에디터 모드: 에디터 카메라 사용
+		if (!Camera)
+		{
+			UE_LOG("[FViewportClient::Draw]: 에디터 카메라가 없습니다.");
+			return;
+		}
+
+		// 뷰 타입에 따라 카메라 설정
+		switch (ViewportType)
+		{
+		case EViewportType::Perspective:
+		{
+			Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);
+			break;
+		}
+		default: // 모든 Orthographic 케이스
+		{
+			Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Orthographic);
+			SetupCameraMode();
+			break;
+		}
+		}
+
+		RenderCameraComponent = Camera->GetCameraComponent();
 	}
 
-	// 2. 렌더링 호출은 뷰 타입 설정이 모두 끝난 후 마지막에 한 번만 수행
+	// 렌더링 수행
 	URenderer* Renderer = URenderManager::GetInstance().GetRenderer();
-	if (Renderer)
+	if (Renderer && RenderCameraComponent)
 	{
 		World->GetRenderSettings().SetViewModeIndex(ViewModeIndex);
-
-		// 더 명확한 이름의 함수를 호출
-		Renderer->RenderSceneForView(World, Camera, Viewport);
+		Renderer->RenderSceneForView(World, RenderCameraComponent, Viewport);
 	}
 }
 
