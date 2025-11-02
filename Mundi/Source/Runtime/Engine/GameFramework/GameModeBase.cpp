@@ -26,10 +26,31 @@ AGameModeBase::AGameModeBase()
     // ScriptComponent 생성 및 부착
     GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
 
-    // 기본 테스트 스크립트 설정
-    ScriptPath = "gamemode_test_simple.lua";
+    // ScriptPath를 빈 문자열로 초기화 (Scene에 저장된 기본값 무시)
+    ScriptPath = "";
 }
 
+
+AGameModeBase::~AGameModeBase()
+{
+    // CRITICAL: 델리게이트 소멸을 완전히 막아야 함
+    //
+    // 문제: TMap이 소멸되면 내부의 sol::function 소멸
+    //       → sol::protected_function 소멸자 호출
+    //       → 이미 해제된 lua_State 접근 → 💥 크래시
+    //
+    // 해결책: 메모리 릭을 허용하고 소멸을 완전히 막음
+    // 방법: TMap을 힙으로 옮기고 delete하지 않음
+
+    // 1. 현재 TMap을 힙으로 옮김 (이동 생성)
+    auto* leakedEventMap = new TMap<FString, TArray<std::pair<FDelegateHandle, sol::function>>>(std::move(DynamicEventMap));
+
+    // 2. delete하지 않음 - 의도적인 메모리 릭
+    // 프로세스 종료 시 OS가 정리
+    (void)leakedEventMap;
+
+    // 3. 멤버 변수는 이제 비어있으므로 자동 소멸 시 안전
+}
 // ==================== Lifecycle ====================
 void AGameModeBase::SetWorld(UWorld* InWorld)
 {
@@ -275,7 +296,18 @@ void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
                 // EventData가 유효하고 nil이 아니면 파라미터로 전달
                 if (EventData.valid() && EventData != sol::nil)
                 {
-                    Callback(EventData);
+                    // sol::object를 직접 전달하면 메타테이블이 손실될 수 있으므로
+                    // AActor*로 변환 시도
+                    if (EventData.is<AActor*>())
+                    {
+                        AActor* actor = EventData.as<AActor*>();
+                        Callback(actor);
+                    }
+                    else
+                    {
+                        // AActor*가 아니면 그냥 전달
+                        Callback(EventData);
+                    }
                 }
                 else
                 {
@@ -344,6 +376,13 @@ void AGameModeBase::PrintRegisteredEvents() const
     UE_LOG("[GameModeBase] =====================================\n");
 }
 
+void AGameModeBase::ClearAllDynamicEvents()
+{
+    // sol::function 참조를 해제하기 위해 동적 이벤트 맵을 명시적으로 비웁니다
+    // 이렇게 하면 Lua state가 무효화되기 전에 sol::function 소멸자가 호출됩니다
+    DynamicEventMap.Empty();
+}
+
 // ==================== Serialization ====================
 void AGameModeBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
@@ -368,6 +407,13 @@ void AGameModeBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 void AGameModeBase::OnSerialized()
 {
     AActor::OnSerialized();
+
+    // Scene에 저장된 오래된 테스트 스크립트 경로 무시
+    if (ScriptPath == "gamemode_test_simple.lua")
+    {
+        ScriptPath = "";
+        UE_LOG("[GameModeBase] Ignored legacy test script path from Scene file\n");
+    }
 
     // 스크립트 재로드
     if (GameModeScript && !ScriptPath.empty())

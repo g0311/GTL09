@@ -64,6 +64,9 @@ public:
     FOnActionEvent& GetActionReleasedDelegate(const FString& Name);
     FOnAxisEvent&   GetAxisDelegate(const FString& Name);
 
+    // 엔진 종료 시 델리게이트 정리 (sol::function 참조 해제)
+    void ClearAllDelegates();
+
 private:
     TArray<FActionKeyMapping> ActionMappings;
     TArray<FAxisKeyMapping> AxisMappings;

@@ -4,6 +4,10 @@
 
 IMPLEMENT_CLASS(UInputMappingSubsystem)
 
+// 싱글톤 유효성 추적용 정적 플래그
+static UInputMappingSubsystem* GInputSubsystemInstance = nullptr;
+static bool GInputSubsystemValid = false;
+
 static bool TestModifiers(const FKeyModifiers& Mods)
 {
     UInputManager& IM = UInputManager::GetInstance();
@@ -13,14 +17,30 @@ static bool TestModifiers(const FKeyModifiers& Mods)
     return true;
 }
 
+UInputMappingSubsystem::UInputMappingSubsystem()
+{
+    GInputSubsystemInstance = this;
+    GInputSubsystemValid = true;
+}
+
+UInputMappingSubsystem::~UInputMappingSubsystem()
+{
+    GInputSubsystemValid = false;
+    GInputSubsystemInstance = nullptr;
+}
+
 UInputMappingSubsystem& UInputMappingSubsystem::Get()
 {
-    static UInputMappingSubsystem* Instance = nullptr;
-    if (!Instance)
+    if (!GInputSubsystemInstance)
     {
-        Instance = NewObject<UInputMappingSubsystem>();
+        GInputSubsystemInstance = NewObject<UInputMappingSubsystem>();
     }
-    return *Instance;
+    return *GInputSubsystemInstance;
+}
+
+bool UInputMappingSubsystem::IsValid()
+{
+    return GInputSubsystemValid && GInputSubsystemInstance != nullptr;
 }
 
 void UInputMappingSubsystem::AddMappingContext(UInputMappingContext* Context, int32 Priority)

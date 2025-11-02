@@ -44,7 +44,7 @@ UWorld::UWorld()
 UWorld::~UWorld()
 {
 	// GameMode 정리 (PIE World에서만 존재)
-	if (GameMode)
+	if (GameMode && !GameMode->IsPendingDestroy())
 	{
 		GameMode->EndPlay(EEndPlayReason::Destroyed);
 		ObjectFactory::DeleteObject(GameMode);
