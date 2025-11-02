@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Actor.h"
 #include "Source/Runtime/Core/Delegates/Delegate.h"
+#include "sol.hpp"
 
 // Forward Declarations
 class UScriptComponent;
@@ -141,6 +142,42 @@ public:
         return OnScoreChangedDelegate.Add(Handler);
     }
 
+    // ==================== 동적 이벤트 시스템 ====================
+
+    /**
+     * @brief 동적 이벤트 등록 (Lua에서 호출)
+     * @param EventName 이벤트 이름 (예: "OnPlayerDeath", "OnItemCollected")
+     */
+    void RegisterEvent(const FString& EventName);
+
+    /**
+     * @brief 이벤트 발행 (Lua에서 호출)
+     * @param EventName 이벤트 이름
+     * @param EventData Lua 테이블 또는 값 (sol::object). nil이면 파라미터 없이 호출
+     */
+    void FireEvent(const FString& EventName, sol::object EventData = sol::nil);
+
+    /**
+     * @brief 이벤트 구독 (Lua에서 호출)
+     * @param EventName 이벤트 이름
+     * @param Callback Lua 함수
+     * @return 구독 핸들 (구독 해제 시 사용)
+     */
+    FDelegateHandle SubscribeEvent(const FString& EventName, sol::function Callback);
+
+    /**
+     * @brief 이벤트 구독 해제
+     * @param EventName 이벤트 이름
+     * @param Handle 구독 핸들
+     * @return 성공 여부
+     */
+    bool UnsubscribeEvent(const FString& EventName, FDelegateHandle Handle);
+
+    /**
+     * @brief 등록된 모든 이벤트 이름 출력 (디버깅용)
+     */
+    void PrintRegisteredEvents() const;
+
     // ==================== Serialization ====================
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
     void OnSerialized() override;
@@ -160,4 +197,12 @@ private:
 
     /** 스크립트 경로 (직렬화용) */
     FString ScriptPath;
+
+    /** 동적 이벤트 시스템 */
+    // 이벤트 이름 -> (핸들, Lua 콜백) 리스트
+    TMap<FString, TArray<std::pair<FDelegateHandle, sol::function>>> DynamicEventMap;
+    FDelegateHandle NextDynamicHandle{ 1 };
+
+    /** 지연 삭제 시스템 (Lua 콜백 중 삭제 방지) */
+    TArray<AActor*> PendingDestroyActors;
 };

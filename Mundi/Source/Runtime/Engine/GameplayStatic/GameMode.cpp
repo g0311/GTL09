@@ -28,19 +28,37 @@ AGameMode::AGameMode()
     GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
 
     // 기본 테스트 스크립트 설정
-    ScriptPath = "test_gamemode_5sec.lua";
+    ScriptPath = "gamemode_simple.lua";
 }
 
 // ==================== Lifecycle ====================
 void AGameMode::BeginPlay()
 {
-    AActor::BeginPlay();
+    UE_LOG("[GameMode] BeginPlay called\n");
+    UE_LOG(("  ScriptPath: '" + ScriptPath + "'\n").c_str());
+    UE_LOG(("  GameModeScript: " + std::string(GameModeScript ? "valid" : "null") + "\n").c_str());
 
-    // 스크립트 로드
+    // 스크립트 로드 (AActor::BeginPlay() 호출 전에!)
     if (GameModeScript && !ScriptPath.empty())
     {
-        GameModeScript->SetScriptPath(ScriptPath);
+        UE_LOG("  Setting ScriptPath on GameModeScript...\n");
+        bool setResult = GameModeScript->SetScriptPath(ScriptPath);
+        UE_LOG(("  SetScriptPath() result: " + std::string(setResult ? "SUCCESS" : "FAILED") + "\n").c_str());
     }
+    else
+    {
+        if (!GameModeScript)
+        {
+            UE_LOG("  WARNING: GameModeScript is null!\n");
+        }
+        if (ScriptPath.empty())
+        {
+            UE_LOG("  WARNING: ScriptPath is empty!\n");
+        }
+    }
+
+    // 컴포넌트들의 BeginPlay 호출
+    AActor::BeginPlay();
 
     // 게임 시작 이벤트 발행
     OnGameStartDelegate.Broadcast();
@@ -55,6 +73,27 @@ void AGameMode::Tick(float DeltaSeconds)
     if (!bIsGameOver)
     {
         GameTime += DeltaSeconds;
+    }
+
+    // 지연 삭제 처리 (Lua 콜백이 끝난 후 안전하게 삭제)
+    if (!PendingDestroyActors.IsEmpty())
+    {
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            for (AActor* Actor : PendingDestroyActors)
+            {
+                if (Actor && !Actor->IsPendingDestroy())
+                {
+                    // 이벤트 발행 (파괴 전에)
+                    OnActorDestroyedDelegate.Broadcast(Actor);
+
+                    // 실제 삭제
+                    World->DestroyActor(Actor);
+                }
+            }
+        }
+        PendingDestroyActors.Empty();
     }
 }
 
@@ -140,16 +179,14 @@ bool AGameMode::DestroyActorWithEvent(AActor* Actor)
         return false;
     }
 
-    UWorld* World = GetWorld();
-    if (!World)
+    // Lua 콜백 중 즉시 삭제하면 크래시하므로 다음 Tick에서 삭제
+    if (!PendingDestroyActors.Contains(Actor))
     {
-        return false;
+        PendingDestroyActors.Add(Actor);
+        UE_LOG(("[GameMode] Actor scheduled for destruction: " + Actor->GetName().ToString() + "\n").c_str());
     }
 
-    // 파괴 이벤트 발행 (파괴 전에)
-    OnActorDestroyedDelegate.Broadcast(Actor);
-
-    return World->DestroyActor(Actor);
+    return true;
 }
 
 // ==================== Script Component ====================
@@ -161,6 +198,105 @@ void AGameMode::SetScriptPath(const FString& Path)
     {
         GameModeScript->SetScriptPath(Path);
     }
+}
+
+// ==================== 동적 이벤트 시스템 ====================
+void AGameMode::RegisterEvent(const FString& EventName)
+{
+    if (!DynamicEventMap.Contains(EventName))
+    {
+        DynamicEventMap.Add(EventName, TArray<std::pair<FDelegateHandle, sol::function>>());
+        UE_LOG(("[GameMode] Registered dynamic event: " + EventName + "\n").c_str());
+    }
+}
+
+void AGameMode::FireEvent(const FString& EventName, sol::object EventData)
+{
+    if (!DynamicEventMap.Contains(EventName))
+    {
+        // 이벤트가 등록되지 않았으면 무시 (경고 없이)
+        return;
+    }
+
+    auto& Callbacks = DynamicEventMap[EventName];
+
+    // 모든 구독자에게 이벤트 발행
+    for (auto& [Handle, Callback] : Callbacks)
+    {
+        if (Callback.valid())
+        {
+            try
+            {
+                // EventData가 유효하고 nil이 아니면 파라미터로 전달
+                if (EventData.valid() && EventData != sol::nil)
+                {
+                    Callback(EventData);
+                }
+                else
+                {
+                    // 파라미터 없이 호출
+                    Callback();
+                }
+            }
+            catch (const sol::error& e)
+            {
+                UE_LOG(("[GameMode] Event callback error (" + EventName + "): " + FString(e.what()) + "\n").c_str());
+            }
+        }
+    }
+
+    UE_LOG(("[GameMode] Fired event: " + EventName + " (" + std::to_string(Callbacks.Num()) + " listeners)\n").c_str());
+}
+
+FDelegateHandle AGameMode::SubscribeEvent(const FString& EventName, sol::function Callback)
+{
+    // 이벤트가 없으면 자동 등록
+    if (!DynamicEventMap.Contains(EventName))
+    {
+        RegisterEvent(EventName);
+    }
+
+    FDelegateHandle Handle = NextDynamicHandle++;
+    DynamicEventMap[EventName].Add({ Handle, Callback });
+
+    UE_LOG(("[GameMode] Subscribed to event: " + EventName + " (handle: " + std::to_string(Handle) + ")\n").c_str());
+    return Handle;
+}
+
+bool AGameMode::UnsubscribeEvent(const FString& EventName, FDelegateHandle Handle)
+{
+    if (!DynamicEventMap.Contains(EventName))
+    {
+        return false;
+    }
+
+    auto& Callbacks = DynamicEventMap[EventName];
+    for (int32 i = 0; i < Callbacks.Num(); ++i)
+    {
+        if (Callbacks[i].first == Handle)
+        {
+            Callbacks.RemoveAt(i);
+            UE_LOG(("[GameMode] Unsubscribed from event: " + EventName + " (handle: " + std::to_string(Handle) + ")\n").c_str());
+            return true;
+        }
+    }
+    return false;
+}
+
+void AGameMode::PrintRegisteredEvents() const
+{
+    UE_LOG("[GameMode] ===== Registered Dynamic Events =====\n");
+    if (DynamicEventMap.Num() == 0)
+    {
+        UE_LOG("[GameMode] (No events registered)\n");
+        return;
+    }
+
+    for (const auto& [EventName, Callbacks] : DynamicEventMap)
+    {
+        UE_LOG(("[GameMode] - " + EventName + " (" + std::to_string(Callbacks.Num()) + " listeners)\n").c_str());
+    }
+    UE_LOG("[GameMode] =====================================\n");
 }
 
 // ==================== Serialization ====================
