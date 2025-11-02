@@ -314,38 +314,7 @@ void USlateManager::Update(float DeltaSeconds)
         ConsoleWindow->Update();
     }
 
-    // 마우스 위치 기반 포커스 관리
-    FVector2D MousePos = INPUT.GetMousePosition();
-    SViewportWindow* HoveredViewport = nullptr;
-
-    // 마우스 위치에 있는 뷰포트 찾기
-    for (auto* VP : Viewports)
-    {
-        if (VP && VP->Rect.Contains(MousePos))
-        {
-            HoveredViewport = VP;
-            break;
-        }
-    }
-
-    // 포커스 변경 감지 및 이벤트 전달
-    static SViewportWindow* PrevHoveredViewport = nullptr;
-    if (HoveredViewport != PrevHoveredViewport)
-    {
-        // 이전 뷰포트 포커스 상실
-        if (PrevHoveredViewport && PrevHoveredViewport->GetViewportClient())
-        {
-            PrevHoveredViewport->GetViewportClient()->OnFocusLost();
-        }
-
-        // 새 뷰포트 포커스 획득
-        if (HoveredViewport && HoveredViewport->GetViewportClient())
-        {
-            HoveredViewport->GetViewportClient()->OnFocusGained();
-        }
-
-        PrevHoveredViewport = HoveredViewport;
-    }
+    // 포커스는 마우스 클릭 시에만 변경됨 (OnMouseDown에서 처리)
 }
 
 void USlateManager::ProcessInput()
@@ -415,11 +384,31 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
         TopPanel->OnMouseDown(MousePos, Button);
 
         // 어떤 뷰포트 안에서 눌렸는지 확인
+        static SViewportWindow* FocusedViewport = nullptr;
+
         for (auto* VP : Viewports)
         {
             if (VP && VP->Rect.Contains(MousePos))
             {
-                ActiveViewport = VP; // 고정
+                ActiveViewport = VP; // 드래그용
+
+                // 포커스 변경
+                if (FocusedViewport != VP)
+                {
+                    // 이전 뷰포트 포커스 상실
+                    if (FocusedViewport && FocusedViewport->GetViewportClient())
+                    {
+                        FocusedViewport->GetViewportClient()->OnFocusLost();
+                    }
+
+                    // 새 뷰포트 포커스 획득
+                    if (VP->GetViewportClient())
+                    {
+                        VP->GetViewportClient()->OnFocusGained();
+                    }
+
+                    FocusedViewport = VP;
+                }
 
                 // 우클릭인 경우 커서 숨김 및 잠금
                 if (Button == 1)

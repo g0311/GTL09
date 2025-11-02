@@ -304,32 +304,38 @@ void FViewportClient::SetupInputContext()
 	// 우클릭 누름
 	ViewportInputContext->BindActionPressed("CameraControl", [this]()
 	{
+		// PIE 모드에서는 우클릭 카메라 컨트롤 비활성화
+		if (World && World->bPie)
+		{
+			return;
+		}
+
+		// 에디터 모드: 우클릭 카메라 활성화
 		bIsMouseRightButtonDown = true;
 		if (ViewportType == EViewportType::Perspective)
 		{
-			PerspectiveCameraInput = true;	
+			PerspectiveCameraInput = true;
 		}
 
-		// 에디터 모드에서 우클릭 카메라 이동 시 커서 숨김/잠금
-		if (World && !World->bPie)
-		{
-			UInputManager::GetInstance().SetCursorVisible(false);
-			UInputManager::GetInstance().LockCursor();
-		}
+		UInputManager::GetInstance().SetCursorVisible(false);
+		UInputManager::GetInstance().LockCursor();
 	});
 
 	// 우클릭 뗌
 	ViewportInputContext->BindActionReleased("CameraControl", [this]()
 	{
+		// PIE 모드에서는 처리 안 함
+		if (World && World->bPie)
+		{
+			return;
+		}
+
+		// 에디터 모드: 카메라 비활성화 및 커서 복원
 		bIsMouseRightButtonDown = false;
 		PerspectiveCameraInput = false;
 
-		// 에디터 모드에서 커서 복원
-		if (World && !World->bPie)
-		{
-			UInputManager::GetInstance().SetCursorVisible(true);
-			UInputManager::GetInstance().ReleaseCursor();
-		}
+		UInputManager::GetInstance().SetCursorVisible(true);
+		UInputManager::GetInstance().ReleaseCursor();
 	});
 
 	// 마우스 이동 (직교 투영 카메라)
@@ -365,28 +371,32 @@ void FViewportClient::SetupInputContext()
 		SetupCameraMode();
 	});
 
-	// 낮은 Priority로 초기 등록 (포커스 없는 상태)
-	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, -100);
+	// InputContext는 초기에는 등록하지 않음 (클릭 시 포커스 받을 때 등록)
 }
 
 void FViewportClient::OnFocusGained()
 {
 	if (!ViewportInputContext) return;
 
-	// InputContext priority를 높임
-	UInputMappingSubsystem::Get().RemoveMappingContext(ViewportInputContext);
+	// InputContext 활성화 (PIE/에디터 모두)
 	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, 100);
+
+	// PIE 모드: 커서 다시 hide/lock
+	if (World && World->bPie)
+	{
+		UInputManager::GetInstance().SetCursorVisible(false);
+		UInputManager::GetInstance().LockCursor();
+	}
 }
 
 void FViewportClient::OnFocusLost()
 {
 	if (!ViewportInputContext) return;
 
-	// InputContext priority를 낮춤
+	// InputContext 비활성화
 	UInputMappingSubsystem::Get().RemoveMappingContext(ViewportInputContext);
-	UInputMappingSubsystem::Get().AddMappingContext(ViewportInputContext, -100);
 
-	// PIE 모드에서 포커스를 잃으면 커서 해제
+	// PIE 모드: 커서 해제
 	if (World && World->bPie)
 	{
 		UInputManager::GetInstance().SetCursorVisible(true);
