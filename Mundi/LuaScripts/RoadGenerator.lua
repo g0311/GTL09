@@ -151,6 +151,7 @@ local function InitializeObstaclePool()
 
             table.insert(ObstaclePool, {
                 Actor = obstacleActor,
+                ScriptComponent = scriptComp,
                 ModelIndex = modelIndex,
                 IsActive = false,
                 Scale = scale,
@@ -189,6 +190,10 @@ end
 -- =====================================================
 local function ReturnObstacleToPool(obstacle)
     if not obstacle then return end
+
+    if obstacle.ScriptComponent then
+        obstacle.ScriptComponent:CallLuaFunction("ResetState")
+    end
 
     obstacle.IsActive = false
 
