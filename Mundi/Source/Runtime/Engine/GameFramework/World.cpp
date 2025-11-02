@@ -41,6 +41,14 @@ UWorld::UWorld()
 
 UWorld::~UWorld()
 {
+	// GameMode 정리 (PIE World에서만 존재)
+	if (GameMode)
+	{
+		GameMode->EndPlay(EEndPlayReason::Destroyed);
+		ObjectFactory::DeleteObject(GameMode);
+		GameMode = nullptr;
+	}
+
 	if (Level)
 	{
 		// DeleteObject 중에 배열이 수정될 수 있으므로 복사본 사용
@@ -133,13 +141,13 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	//ULevel* NewLevel = ULevelService::CreateNewLevel();
 	UWorld* PIEWorld = NewObject<UWorld>(); // 레벨도 새로 생성됨
 	PIEWorld->bPie = true;
-	
+
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
-	
+
 
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
-	PIEWorld->GameMode = InEditorWorld->GameMode;
+	// GameMode는 복사하지 않고 PIE World에서 새로 생성
 	for (AActor* SourceActor : SourceActors)
 	{
 		if (!SourceActor)
@@ -156,8 +164,11 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 			continue;
 		}
 		PIEWorld->AddActorToLevel(NewActor);
-		NewActor->SetWorld(PIEWorld);		
+		NewActor->SetWorld(PIEWorld);
 	}
+
+	// PIE World에서 GameMode 생성 및 초기화
+	PIEWorld->CreateGameMode();
 
 	return PIEWorld;
 }
@@ -313,9 +324,6 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
 
     // Clean any dangling selection references just in case
     if (SelectionMgr) SelectionMgr->CleanupInvalidActors();
-
-    // GameMode 생성 및 초기화
-    CreateGameMode();
 }
 
 void UWorld::AddActorToLevel(AActor* Actor)
@@ -370,18 +378,11 @@ void UWorld::CreateGameMode()
 		return;
 	}
 
-	// GameMode 생성
+	// GameMode 생성 (BeginPlay는 StartPIE()에서 호출)
 	GameMode = ObjectFactory::NewObject<AGameMode>();
 	if (GameMode)
 	{
 		GameMode->SetWorld(this);
-
-		// PIE 모드일 때만 BeginPlay 호출
-		if (bPie)
-		{
-			GameMode->BeginPlay();
-		}
-
 		UE_LOG("[World] GameMode created\n");
 	}
 	else

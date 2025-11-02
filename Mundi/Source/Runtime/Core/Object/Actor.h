@@ -177,7 +177,7 @@ protected:
     TSet<UActorComponent*> OwnedComponents;   // 모든 컴포넌트 (씬/비씬)
     TArray<USceneComponent*> SceneComponents; // 씬 컴포넌트들만 별도 캐시(트리/렌더/ImGui용)
     
-    bool bTickInEditor = true; // 에디터에서도 틱 허용 // TODO: TEMPORARILY ENABLED!!
+    bool bTickInEditor = false; // PIE와의 충돌 방지 - Editor에서는 Tick 안함, PIE에서만 Tick
     bool bHiddenInGame = false;
     // Actor의 Visibility는 루트 컴포넌트로 설정
     bool bHiddenInEditor = false;
