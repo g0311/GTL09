@@ -486,6 +486,12 @@ void UScriptManager::RegisterActor(sol::state* state)
 
         // Lifecycle
         ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+
+        // 스크립트 컴포넌트 추가 (루아는 c++ 템플릿 인식을 못해서 직접 지명해야 함!)
+        ADD_LUA_FUNCTION("AddScriptComponent", [](AActor* actor) -> UScriptComponent* {
+            if (!actor) return nullptr;
+            return actor->CreateDefaultSubobject<UScriptComponent>("ScriptComponent");
+        })
     END_LUA_TYPE()
 }
 
@@ -579,11 +585,17 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
 {
     // ==================== UScriptComponent 등록 ====================
     BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
+        // 스크립트 관리
+        ADD_LUA_FUNCTION("SetScriptPath", &UScriptComponent::SetScriptPath)
+        ADD_LUA_FUNCTION("GetScriptPath", &UScriptComponent::GetScriptPath)
+        ADD_LUA_FUNCTION("ReloadScript", &UScriptComponent::ReloadScript)
+
         // Coroutine API
         ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
         ADD_LUA_FUNCTION("StopCoroutine", &UScriptComponent::StopCoroutine)
         ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
         ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
+
         // Owner Actor 접근
         ADD_LUA_FUNCTION("GetOwner", &UScriptComponent::GetOwner)
     END_LUA_TYPE()
