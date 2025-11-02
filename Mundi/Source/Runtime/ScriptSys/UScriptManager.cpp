@@ -20,6 +20,7 @@
 #include "Source/Runtime/Engine/GameFramework/World.h"
 #include "Source/Runtime/Engine/GameFramework/CameraActor.h"
 // Components
+#include "PlayerController.h"
 #include "RotatingMovementComponent.h"
 #include "Source/Runtime/Core/Object/ActorComponent.h"
 #include "Source/Runtime/Engine/Components/SceneComponent.h"
@@ -197,6 +198,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterLightComponent(state);
     RegisterCameraComponent(state);
     RegisterScriptComponent(state);
+    RegisterPlayerController(state);
     RegisterGameMode(state);
 
     // Collision components
@@ -845,6 +847,8 @@ void UScriptManager::RegisterInputContext(sol::state* state)
     END_LUA_TYPE()
 
     // Factory function: Create a new InputContext as a UObject
+    // DEPRECATED: Use GetPlayerController():GetInputContext() instead
+    // 이 함수는 하위 호환성을 위해 남겨두었지만, 새 코드에서는 사용하지 마세요.
     state->set_function("CreateInputContext", []() -> UInputMappingContext*
     {
         return ObjectFactory::NewObject<UInputMappingContext>();
@@ -980,6 +984,39 @@ void UScriptManager::RegisterGameMode(sol::state* state)
             });
         })
     END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterPlayerController(sol::state* state)
+{
+    UE_LOG("[UScriptManager] Registering APlayerController to Lua...\n");
+
+    // ==================== APlayerController 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, APlayerController, "PlayerController")
+        // Possession API
+        ADD_LUA_FUNCTION("Possess", &APlayerController::Possess)
+        ADD_LUA_FUNCTION("UnPossess", &APlayerController::UnPossess)
+        ADD_LUA_FUNCTION("GetPawn", &APlayerController::GetPawn)
+
+        // ViewTarget API
+        ADD_LUA_FUNCTION("SetViewTarget", &APlayerController::SetViewTarget)
+        ADD_LUA_FUNCTION("GetViewTarget", &APlayerController::GetViewTarget)
+
+        // Camera API
+        ADD_LUA_FUNCTION("GetActiveCameraComponent", &APlayerController::GetActiveCameraComponent)
+        ADD_LUA_FUNCTION("GetCameraLocation", &APlayerController::GetCameraLocation)
+        ADD_LUA_FUNCTION("GetCameraRotation", &APlayerController::GetCameraRotation)
+
+        // Input API
+        ADD_LUA_FUNCTION("GetInputContext", &APlayerController::GetInputContext)
+    END_LUA_TYPE()
+
+    // Global accessor GetPlayerController()
+    state->set_function("GetPlayerController", []() -> APlayerController*
+    {
+        UWorld* World = GWorld;
+        if (!World) return nullptr;
+        return World->GetPlayerController();
+    });
 }
 
 void UScriptManager::RegisterPrimitiveComponent(sol::state* state)

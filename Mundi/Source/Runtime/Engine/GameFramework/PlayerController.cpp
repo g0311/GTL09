@@ -3,6 +3,8 @@
 #include "Actor.h"
 #include "CameraComponent.h"
 #include "ActorComponent.h"
+#include "Source/Runtime/InputCore/InputMappingContext.h"
+#include "Source/Runtime/InputCore/InputMappingSubsystem.h"
 
 IMPLEMENT_CLASS(APlayerController)
 
@@ -15,10 +17,19 @@ APlayerController::APlayerController()
 {
     Name = "PlayerController";
     bTickInEditor = false; // 게임 중에만 틱
+
+    // InputContext를 생성자에서 미리 생성
+    // (ScriptComponent BeginPlay가 PlayerController BeginPlay보다 먼저 호출될 수 있으므로)
+    InputContext = NewObject<UInputMappingContext>();
 }
 
 APlayerController::~APlayerController()
 {
+    // EndPlay에서 정리되지만, 안전을 위해 여기서도 확인
+    if (InputContext)
+    {
+        UInputMappingSubsystem::Get().RemoveMappingContext(InputContext);
+    }
 }
 
 void APlayerController::Possess(AActor* InPawn)
@@ -172,6 +183,36 @@ FQuat APlayerController::GetCameraRotation() const
     }
 
     return FQuat::Identity();
+}
+
+void APlayerController::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // 입력 컨텍스트 설정
+    SetupInputContext();
+}
+
+void APlayerController::EndPlay(EEndPlayReason Reason)
+{
+    // 입력 컨텍스트 정리
+    if (InputContext)
+    {
+        UInputMappingSubsystem::Get().RemoveMappingContext(InputContext);
+        InputContext = nullptr;
+    }
+
+    Super::EndPlay(Reason);
+}
+
+void APlayerController::SetupInputContext()
+{
+    // InputContext는 생성자에서 이미 생성됨
+    // 여기서는 InputMappingSubsystem에 등록만 함
+    if (InputContext)
+    {
+        UInputMappingSubsystem::Get().AddMappingContext(InputContext, 0);
+    }
 }
 
 void APlayerController::Serialize(const bool bInIsLoading, JSON& InOutHandle)
