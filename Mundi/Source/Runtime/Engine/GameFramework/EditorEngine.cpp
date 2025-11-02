@@ -398,6 +398,8 @@ void UEditorEngine::StartPIE()
             ActorsCopy[i]->BeginPlay();
         }
     }
+
+    PIEWorld->GetGameMode()->BeginPlay();
     UE_LOG("START PIE CLICKED");
 }
 

@@ -32,6 +32,7 @@ struct Frustum;
 struct FCandidateDrawable;
 class APlayerController;
 class AGameModeBase;
+class AGameMode;
 
 class UWorld final : public UObject
 {

@@ -27,6 +27,7 @@
 #include "Level.h"
 #include "LightManager.h"
 #include "PlayerController.h"
+#include "../GameplayStatic/GameMode.h"
 
 IMPLEMENT_CLASS(UWorld)
 
@@ -42,6 +43,14 @@ UWorld::UWorld()
 
 UWorld::~UWorld()
 {
+	// GameMode 정리 (PIE World에서만 존재)
+	if (GameMode)
+	{
+		GameMode->EndPlay(EEndPlayReason::Destroyed);
+		ObjectFactory::DeleteObject(GameMode);
+		GameMode = nullptr;
+	}
+
 	if (Level)
 	{
 		// DeleteObject 중에 배열이 수정될 수 있으므로 복사본 사용
@@ -100,6 +109,12 @@ void UWorld::Tick(float DeltaSeconds)
         Collision->Update(DeltaSeconds, /*budget*/256);
     }
 
+    // GameMode Tick (PIE 중에만)
+    if (GameMode && bPie)
+    {
+        GameMode->Tick(DeltaSeconds);
+    }
+
 //순서 바꾸면 안댐
 	if (Level)
 	{
@@ -136,6 +151,7 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	TMap<AActor*, AActor*> ActorMapping;
 
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
+	// GameMode는 복사하지 않고 PIE World에서 새로 생성
 	for (AActor* SourceActor : SourceActors)
 	{
 		if (!SourceActor)
