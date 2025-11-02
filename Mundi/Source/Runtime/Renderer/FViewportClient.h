@@ -47,12 +47,14 @@ public:
     // 카메라 매트릭스 계산
     FMatrix GetViewMatrix() const;
 
-
     // 뷰포트별 카메라 설정
     void SetupCameraMode();
     void SetViewModeIndex(EViewModeIndex InViewModeIndex) { ViewModeIndex = InViewModeIndex; }
-
     EViewModeIndex GetViewModeIndex() { return ViewModeIndex;}
+
+    // PIE Eject 모드 관리
+    void EnterPIEEjectMode();
+    void ExitPIEEjectMode();
 
 
 protected:

@@ -120,9 +120,13 @@ LRESULT CALLBACK UEditorEngine::WndProc(HWND hWnd, UINT message, WPARAM wParam, 
         {
             if (LOWORD(wParam) != WA_INACTIVE)
             {
-                // 윈도우 활성화 - 커서 숨김
-                INPUT.SetCursorVisible(false);
-                INPUT.LockCursor();
+                // 윈도우 활성화
+                // PIE Eject 모드가 아닐 때만 커서 잠금
+                if (!GWorld->bPIEEjected)
+                {
+                    INPUT.SetCursorVisible(false);
+                    INPUT.LockCursor();
+                }
             }
             else
             {
