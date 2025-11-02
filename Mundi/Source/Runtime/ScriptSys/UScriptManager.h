@@ -84,6 +84,11 @@ private:
     void RegisterLightComponent(sol::state* state);
     void RegisterCameraComponent(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+    void RegisterGameMode(sol::state* state);
+
+    // Collision components
+    void RegisterPrimitiveComponent(sol::state* state);
+    void RegisterShapeComponent(sol::state* state);
     void RegisterProjectileMovement(sol::state* state);
 
     // Input bindings
