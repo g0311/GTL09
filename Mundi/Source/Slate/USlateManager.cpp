@@ -410,12 +410,7 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
                     FocusedViewport = VP;
                 }
 
-                // 우클릭인 경우 커서 숨김 및 잠금
-                if (Button == 1)
-                {
-                    INPUT.SetCursorVisible(false);
-                    INPUT.LockCursor();
-                }
+                // 커서 관리는 FViewportClient의 InputContext에서 처리
                 break;
             }
         }
@@ -424,12 +419,7 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
 
 void USlateManager::OnMouseUp(FVector2D MousePos, uint32 Button)
 {
-    // 우클릭 해제 시 커서 복원 (ActiveViewport와 무관하게 처리)
-    if (Button == 1 && INPUT.IsCursorLocked())
-    {
-        INPUT.SetCursorVisible(true);
-        INPUT.ReleaseCursor();
-    }
+    // 커서 관리는 FViewportClient의 InputContext에서 처리
 
     if (ActiveViewport)
     {
