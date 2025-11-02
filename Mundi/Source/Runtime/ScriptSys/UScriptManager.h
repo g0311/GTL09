@@ -70,7 +70,10 @@ private:
     void RegisterVector(sol::state* state);
     void RegisterQuat(sol::state* state);
     void RegisterTransform(sol::state* state);
-    
+
+    // World bindings
+    void RegisterWorld(sol::state* state);
+
     // Actor bindings
     void RegisterActor(sol::state* state);
 

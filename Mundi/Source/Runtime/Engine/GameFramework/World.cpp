@@ -42,13 +42,18 @@ UWorld::~UWorld()
 {
 	if (Level)
 	{
-		for (AActor* Actor : Level->GetActors())
+		// DeleteObject 중에 배열이 수정될 수 있으므로 복사본 사용
+		TArray<AActor*> ActorsCopy = Level->GetActors();
+		for (AActor* Actor : ActorsCopy)
 		{
 			ObjectFactory::DeleteObject(Actor);
 		}
 		Level->Clear();
 	}
-	for (AActor* Actor : EditorActors)
+
+	// EditorActors도 복사본 사용
+	TArray<AActor*> EditorActorsCopy = EditorActors;
+	for (AActor* Actor : EditorActorsCopy)
 	{
 		ObjectFactory::DeleteObject(Actor);
 	}

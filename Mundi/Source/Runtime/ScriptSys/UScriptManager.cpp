@@ -15,6 +15,7 @@
 #include "Source/Runtime/Engine/Components/SceneComponent.h"
 // World access
 #include "Source/Runtime/Engine/GameFramework/World.h"
+#include "Source/Runtime/Engine/GameFramework/CameraActor.h"
 // Components
 #include "Source/Runtime/Core/Object/ActorComponent.h"
 #include "Source/Runtime/Engine/Components/SceneComponent.h"
@@ -177,6 +178,9 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
 
     RegisterCoreTypes(state);
 
+    // World 등록
+    RegisterWorld(state);
+
     // Actor 먼저 등록
     RegisterActor(state);
 
@@ -334,6 +338,63 @@ void UScriptManager::RegisterTransform(sol::state* state)
     END_LUA_TYPE()
 }
 
+void UScriptManager::RegisterWorld(sol::state* state)
+{
+    // ==================== UWorld 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UWorld, "World")
+        // Actor Spawning
+        ADD_LUA_FUNCTION("SpawnActorByClass", [](UWorld* world, const std::string& className) -> AActor* {
+            if (!world) return nullptr;
+
+            // UClass를 통해 클래스 이름으로 액터 생성
+            UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
+            if (!ActorClass)
+            {
+                UE_LOG(("Failed to find class: " + className + "\n").c_str());
+                return nullptr;
+            }
+
+            return world->SpawnActor(ActorClass);
+        })
+
+        ADD_LUA_FUNCTION("SpawnActorByClassWithTransform", [](UWorld* world, const std::string& className, const FTransform& transform) -> AActor* {
+            if (!world) return nullptr;
+
+            UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
+            if (!ActorClass)
+            {
+                UE_LOG(("Failed to find class: " + className + "\n").c_str());
+                return nullptr;
+            }
+
+            return world->SpawnActor(ActorClass, transform);
+        })
+
+        // Actor Destruction
+        ADD_LUA_FUNCTION("DestroyActor", &UWorld::DestroyActor)
+
+        // Actor Queries
+        ADD_LUA_FUNCTION("GetActors", [](UWorld* world, sol::this_state s) -> sol::table {
+            sol::state_view lua(s);
+            sol::table actorsTable = lua.create_table();
+
+            if (!world) return actorsTable;
+
+            const TArray<AActor*>& actors = world->GetActors();
+            for (int i = 0; i < actors.Num(); ++i)
+            {
+                actorsTable[i + 1] = actors[i];  // Lua는 1-based 인덱싱
+            }
+
+            return actorsTable;
+        })
+
+        // Camera
+        ADD_LUA_FUNCTION("GetCameraActor", &UWorld::GetCameraActor)
+        ADD_LUA_FUNCTION("SetCameraActor", &UWorld::SetCameraActor)
+    END_LUA_TYPE()
+}
+
 void UScriptManager::RegisterActor(sol::state* state)
 {
     // ==================== AActor 등록 ====================
@@ -378,12 +439,37 @@ void UScriptManager::RegisterActor(sol::state* state)
             return nullptr;
         })
 
+        ADD_LUA_FUNCTION("GetCameraComponent", [](AActor* actor) -> UCameraComponent*
+        {
+            if (!actor) return nullptr;
+            for (UActorComponent* Comp : actor->GetOwnedComponents())
+            {
+                if (auto* C = Cast<UCameraComponent>(Comp))
+                    return C;
+            }
+            return nullptr;
+        })
+
+        ADD_LUA_FUNCTION("GetStaticMeshComponent", [](AActor* actor) -> UStaticMeshComponent*
+        {
+            if (!actor) return nullptr;
+            for (UActorComponent* Comp : actor->GetOwnedComponents())
+            {
+                if (auto* M = Cast<UStaticMeshComponent>(Comp))
+                    return M;
+            }
+            return nullptr;
+        })
+
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
             return actor->GetName().ToString();
         })
         ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
         ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
+
+        // World Access
+        ADD_LUA_FUNCTION("GetWorld", &AActor::GetWorld)
 
         // Component Access
         ADD_LUA_FUNCTION("GetOwnedComponents", [](AActor* actor, sol::this_state s) -> sol::table {
