@@ -18,6 +18,14 @@
 auto usertype = state_ptr->new_usertype<ClassType>(LuaName);
 
 /**
+ * @brief Usertype 정의를 시작 (생성자 없음, 베이스 클래스 지정)
+ */
+#define BEGIN_LUA_TYPE_WITH_BASE(state_ptr, ClassType, LuaName, ...) \
+auto usertype = state_ptr->new_usertype<ClassType>(LuaName, \
+sol::base_classes, sol::bases<__VA_ARGS__>() \
+);
+
+/**
  * @brief Usertype 정의를 시작 (생성자 포함)
  * sol::call_constructor + sol::factories를 사용합니다. __VA_ARGS__에는 팩토리 람다들을 전달하세요.
  * 예) BEGIN_LUA_TYPE(state, FVector, "Vector", [](){return FVector();}, [](float x,float y,float z){return FVector(x,y,z);})
@@ -29,7 +37,7 @@ auto usertype = state_ptr->new_usertype<ClassType>(LuaName, \
 );
 
 /**
- * @brief (블록 내부) 함수 등록
+ * @brief (블록 내부) 함수 등록 (멤버 함수 포인터, Lambda 모두 가능)
  */
 #define ADD_LUA_FUNCTION(LuaName, ClassFunctionPtr) \
 usertype[LuaName] = ClassFunctionPtr;

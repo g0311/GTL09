@@ -398,6 +398,7 @@ void UEditorEngine::StartPIE()
             ActorsCopy[i]->BeginPlay();
         }
     }
+
     UE_LOG("START PIE CLICKED");
 }
 

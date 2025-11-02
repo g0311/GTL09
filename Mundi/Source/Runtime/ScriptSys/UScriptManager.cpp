@@ -3,6 +3,12 @@
 #include "Actor.h"
 #include "ScriptComponent.h"
 #include "ScriptUtils.h"
+// GameMode and World
+#include "Source/Runtime/Engine/GameplayStatic/GameMode.h"
+#include "Source/Runtime/Engine/GameFramework/World.h"
+// Collision components
+#include "Source/Runtime/Engine/Components/PrimitiveComponent.h"
+#include "Source/Runtime/Engine/Components/ShapeComponent.h"
 // Input
 #include "Source/Runtime/InputCore/InputMappingSubsystem.h"
 #include "Source/Runtime/InputCore/InputMappingContext.h"
@@ -190,6 +196,11 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterCameraComponent(state);
     RegisterProjectileMovement(state);
     RegisterScriptComponent(state);
+    RegisterGameMode(state);
+
+    // Collision components
+    RegisterPrimitiveComponent(state);
+    RegisterShapeComponent(state);
 
     // Input
     RegisterInputEnums(state);
@@ -342,55 +353,159 @@ void UScriptManager::RegisterWorld(sol::state* state)
     BEGIN_LUA_TYPE_NO_CTOR(state, UWorld, "World")
         // Actor Spawning
         ADD_LUA_FUNCTION("SpawnActorByClass", [](UWorld* world, const std::string& className) -> AActor* {
-            if (!world) return nullptr;
+        if (!world) return nullptr;
 
-            // UClass를 통해 클래스 이름으로 액터 생성
-            UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
-            if (!ActorClass)
-            {
-                UE_LOG(("Failed to find class: " + className + "\n").c_str());
-                return nullptr;
-            }
+        // UClass를 통해 클래스 이름으로 액터 생성
+        UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
+        if (!ActorClass)
+        {
+            UE_LOG(("Failed to find class: " + className + "\n").c_str());
+            return nullptr;
+        }
 
-            return world->SpawnActor(ActorClass);
-        })
+        return world->SpawnActor(ActorClass);
+            })
 
         ADD_LUA_FUNCTION("SpawnActorByClassWithTransform", [](UWorld* world, const std::string& className, const FTransform& transform) -> AActor* {
-            if (!world) return nullptr;
+        if (!world) return nullptr;
 
-            UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
-            if (!ActorClass)
-            {
-                UE_LOG(("Failed to find class: " + className + "\n").c_str());
-                return nullptr;
-            }
+        UClass* ActorClass = UClass::FindClass(FName(className.c_str()));
+        if (!ActorClass)
+        {
+            UE_LOG(("Failed to find class: " + className + "\n").c_str());
+            return nullptr;
+        }
 
-            return world->SpawnActor(ActorClass, transform);
-        })
+        return world->SpawnActor(ActorClass, transform);
+            })
 
         // Actor Destruction
         ADD_LUA_FUNCTION("DestroyActor", &UWorld::DestroyActor)
 
         // Actor Queries
         ADD_LUA_FUNCTION("GetActors", [](UWorld* world, sol::this_state s) -> sol::table {
-            sol::state_view lua(s);
-            sol::table actorsTable = lua.create_table();
+        sol::state_view lua(s);
+        sol::table actorsTable = lua.create_table();
 
-            if (!world) return actorsTable;
+        if (!world) return actorsTable;
 
-            const TArray<AActor*>& actors = world->GetActors();
-            for (int i = 0; i < actors.Num(); ++i)
-            {
-                actorsTable[i + 1] = actors[i];  // Lua는 1-based 인덱싱
-            }
+        const TArray<AActor*>& actors = world->GetActors();
+        for (int i = 0; i < actors.Num(); ++i)
+        {
+            actorsTable[i + 1] = actors[i];  // Lua는 1-based 인덱싱
+        }
 
-            return actorsTable;
-        })
+        return actorsTable;
+            })
 
         // Camera
         ADD_LUA_FUNCTION("GetCameraActor", &UWorld::GetCameraActor)
         ADD_LUA_FUNCTION("SetCameraActor", &UWorld::SetCameraActor)
-    END_LUA_TYPE()
+
+        // ==================== UWorld 등록 ====================
+        ADD_LUA_FUNCTION("GetGameMode", &UWorld::GetGameMode)
+        ADD_LUA_OVERLOAD("SpawnActor",
+            static_cast<AActor * (UWorld::*)(UClass*)>(&UWorld::SpawnActor),
+            static_cast<AActor * (UWorld::*)(UClass*, const FTransform&)>(&UWorld::SpawnActor)
+        )
+        ADD_LUA_FUNCTION("DestroyActor", &UWorld::DestroyActor)
+        END_LUA_TYPE()
+
+        // Global accessor GetGameMode()
+        state->set_function("GetGameMode", [](sol::this_state L) -> AGameModeBase* {
+        // Actor의 World를 통해 GameMode 접근
+        // 이 함수는 ScriptComponent의 sol::state에서 호출되므로
+        // state["actor"]에 바인딩된 AActor*를 사용
+        sol::state_view lua(L);
+        sol::optional<AActor*> actorOpt = lua["actor"];
+
+        if (!actorOpt)
+        {
+            UE_LOG("[Lua] Error: GetGameMode() - 'actor' global not found\n");
+            return nullptr;
+        }
+
+        AActor* actor = actorOpt.value();
+        if (!actor)
+        {
+            UE_LOG("[Lua] Error: GetGameMode() - actor is null\n");
+            return nullptr;
+        }
+
+        UWorld* world = actor->GetWorld();
+        if (!world)
+        {
+            UE_LOG("[Lua] Error: GetGameMode() - actor has no world\n");
+            return nullptr;
+        }
+
+        AGameModeBase* gameMode = world->GetGameMode();
+        if (!gameMode)
+        {
+            UE_LOG("[Lua] Error: GetGameMode() - world has no GameMode\n");
+            return nullptr;
+        }
+        return gameMode;
+        });
+
+
+    // Global actor search functions
+        state->set_function("FindActorByName", [](sol::this_state L, const FString& name) -> AActor* {
+            sol::state_view lua(L);
+            sol::optional<AActor*> actorOpt = lua["actor"];
+            if (!actorOpt) return nullptr;
+
+            AActor* actor = actorOpt.value();
+            UWorld* world = actor ? actor->GetWorld() : nullptr;
+            if (!world || !world->GetLevel()) return nullptr;
+
+            for (AActor* a : world->GetLevel()->GetActors())
+            {
+                if (a && a->GetName().ToString() == name)
+                {
+                    return a;
+                }
+            }
+            return nullptr; }
+        );
+
+        state->set_function("FindActorsByClass", [](sol::this_state L, const FString& className) -> sol::table {
+            sol::state_view lua(L);
+            sol::table result = lua.create_table();
+
+            sol::optional<AActor*> actorOpt = lua["actor"];
+            if (!actorOpt) return result;
+
+            AActor* actor = actorOpt.value();
+            UWorld* world = actor ? actor->GetWorld() : nullptr;
+            if (!world || !world->GetLevel()) return result;
+
+            int idx = 1;
+            for (AActor* a : world->GetLevel()->GetActors())
+            {
+                if (a && FName(a->GetClass()->Name) == FName(className.c_str()))
+                {
+                    result[idx++] = a;
+                }
+            }
+            return result;
+            });
+
+        // Global SpawnActor helper (위치만 지정)
+        state->set_function("SpawnActor", [](sol::this_state L, const FString& className, const FVector& location) -> AActor* {
+            sol::state_view lua(L);
+            sol::optional<AActor*> actorOpt = lua["actor"];
+            if (!actorOpt) return nullptr;
+
+            AActor* actor = actorOpt.value();
+            UWorld* world = actor ? actor->GetWorld() : nullptr;
+            if (!world) return nullptr;
+
+            AGameModeBase* gameMode = world->GetGameMode();
+            if (!gameMode) return nullptr;
+
+            return gameMode->SpawnActorFromLua(className, location);
+            });
 }
 
 void UScriptManager::RegisterActor(sol::state* state)
@@ -436,33 +551,49 @@ void UScriptManager::RegisterActor(sol::state* state)
             }
             return nullptr;
         })
-
-        ADD_LUA_FUNCTION("GetCameraComponent", [](AActor* actor) -> UCameraComponent*
-        {
-            if (!actor) return nullptr;
-            for (UActorComponent* Comp : actor->GetOwnedComponents())
-            {
-                if (auto* C = Cast<UCameraComponent>(Comp))
-                    return C;
-            }
-            return nullptr;
-        })
-
-        ADD_LUA_FUNCTION("GetStaticMeshComponent", [](AActor* actor) -> UStaticMeshComponent*
-        {
-            if (!actor) return nullptr;
-            for (UActorComponent* Comp : actor->GetOwnedComponents())
-            {
-                if (auto* M = Cast<UStaticMeshComponent>(Comp))
-                    return M;
-            }
-            return nullptr;
-        })
-
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
             return actor->GetName().ToString();
         })
+        ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
+        ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
+
+        // Lifecycle
+        ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+
+        // Component access helpers
+        ADD_LUA_FUNCTION("GetShapeComponent", [](AActor* actor) -> UShapeComponent* {
+            return actor ? actor->GetComponent<UShapeComponent>() : nullptr;
+        })
+        ADD_LUA_FUNCTION("GetPrimitiveComponent", [](AActor* actor) -> UPrimitiveComponent* {
+            return actor ? actor->GetComponent<UPrimitiveComponent>() : nullptr;
+        })
+        ADD_LUA_FUNCTION("GetCameraComponent", [](AActor* actor) -> UCameraComponent*
+            {
+                if (!actor) return nullptr;
+                for (UActorComponent* Comp : actor->GetOwnedComponents())
+                {
+                    if (auto* C = Cast<UCameraComponent>(Comp))
+                        return C;
+                }
+                return nullptr;
+            })
+
+        ADD_LUA_FUNCTION("GetStaticMeshComponent", [](AActor* actor) -> UStaticMeshComponent*
+            {
+                if (!actor) return nullptr;
+                for (UActorComponent* Comp : actor->GetOwnedComponents())
+                {
+                    if (auto* M = Cast<UStaticMeshComponent>(Comp))
+                        return M;
+                }
+                return nullptr;
+            })
+
+        // Name/Visibility
+        ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
+        return actor->GetName().ToString();
+            })
         ADD_LUA_FUNCTION("SetActorHiddenInGame", &AActor::SetActorHiddenInGame)
         ADD_LUA_FUNCTION("GetActorHiddenInGame", &AActor::GetActorHiddenInGame)
 
@@ -471,19 +602,25 @@ void UScriptManager::RegisterActor(sol::state* state)
 
         // Component Access
         ADD_LUA_FUNCTION("GetOwnedComponents", [](AActor* actor, sol::this_state s) -> sol::table {
-            // TSet을 Lua 테이블로 변환
-            sol::state_view lua(s);
-            sol::table components = lua.create_table();
-            int index = 1;
-            for (UActorComponent* comp : actor->GetOwnedComponents()) {
-                components[index++] = comp;
-            }
-            return components;
-        })
+        // TSet을 Lua 테이블로 변환
+        sol::state_view lua(s);
+        sol::table components = lua.create_table();
+        int index = 1;
+        for (UActorComponent* comp : actor->GetOwnedComponents()) {
+            components[index++] = comp;
+        }
+        return components;
+            })
         ADD_LUA_FUNCTION("GetRootComponent", &AActor::GetRootComponent)
 
         // Lifecycle
         ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
+
+        // 스크립트 컴포넌트 추가 (루아는 c++ 템플릿 인식을 못해서 직접 지명해야 함!)
+        ADD_LUA_FUNCTION("AddScriptComponent", [](AActor* actor) -> UScriptComponent* {
+            if (!actor) return nullptr;
+            return actor->CreateDefaultSubobject<UScriptComponent>("ScriptComponent");
+        })
     END_LUA_TYPE()
 }
 
@@ -584,11 +721,17 @@ void UScriptManager::RegisterScriptComponent(sol::state* state)
 {
     // ==================== UScriptComponent 등록 ====================
     BEGIN_LUA_TYPE_NO_CTOR(state, UScriptComponent, "ScriptComponent")
+        // 스크립트 관리
+        ADD_LUA_FUNCTION("SetScriptPath", &UScriptComponent::SetScriptPath)
+        ADD_LUA_FUNCTION("GetScriptPath", &UScriptComponent::GetScriptPath)
+        ADD_LUA_FUNCTION("ReloadScript", &UScriptComponent::ReloadScript)
+
         // Coroutine API
         ADD_LUA_FUNCTION("StartCoroutine", &UScriptComponent::StartCoroutine)
         ADD_LUA_FUNCTION("StopCoroutine", &UScriptComponent::StopCoroutine)
         ADD_LUA_FUNCTION("WaitForSeconds", &UScriptComponent::WaitForSeconds)
         ADD_LUA_FUNCTION("StopAllCoroutines", &UScriptComponent::StopAllCoroutines)
+
         // Owner Actor 접근
         ADD_LUA_FUNCTION("GetOwner", &UScriptComponent::GetOwner)
     END_LUA_TYPE()
@@ -706,6 +849,191 @@ void UScriptManager::RegisterInputSubsystem(sol::state* state)
     {
         return &UInputMappingSubsystem::Get();
     });
+}
+
+void UScriptManager::RegisterGameMode(sol::state* state)
+{
+    UE_LOG("[UScriptManager] Registering AGameModeBase to Lua...\n");
+
+    // ==================== AGameModeBase 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, AGameModeBase, "GameMode")
+        // 게임 상태 API
+        ADD_LUA_FUNCTION("GetScore", &AGameModeBase::GetScore)
+        ADD_LUA_FUNCTION("SetScore", &AGameModeBase::SetScore)
+        ADD_LUA_FUNCTION("AddScore", &AGameModeBase::AddScore)
+        ADD_LUA_FUNCTION("GetGameTime", &AGameModeBase::GetGameTime)
+        ADD_LUA_FUNCTION("IsGameOver", &AGameModeBase::IsGameOver)
+        ADD_LUA_FUNCTION("EndGame", &AGameModeBase::EndGame)
+
+        // Actor 스폰/파괴 API
+        ADD_LUA_FUNCTION("SpawnActorFromLua", &AGameModeBase::SpawnActorFromLua)
+        ADD_LUA_FUNCTION("DestroyActorWithEvent", &AGameModeBase::DestroyActorWithEvent)
+
+        // ScriptComponent 접근
+        ADD_LUA_FUNCTION("GetScriptComponent", &AGameModeBase::GetScriptComponent)
+
+        // 동적 이벤트 시스템 API
+        ADD_LUA_FUNCTION("RegisterEvent", &AGameModeBase::RegisterEvent)
+        ADD_LUA_FUNCTION("SubscribeEvent", &AGameModeBase::SubscribeEvent)
+        ADD_LUA_FUNCTION("UnsubscribeEvent", &AGameModeBase::UnsubscribeEvent)
+        ADD_LUA_FUNCTION("PrintRegisteredEvents", &AGameModeBase::PrintRegisteredEvents)
+
+        // FireEvent - sol::object를 받기 위한 커스텀 바인딩
+        ADD_LUA_OVERLOAD("FireEvent",
+            // 파라미터 없이 호출
+            [](AGameModeBase* gm, const FString& eventName) {
+                gm->FireEvent(eventName, sol::nil);
+            },
+            // 파라미터와 함께 호출
+            [](AGameModeBase* gm, const FString& eventName, sol::object data) {
+                gm->FireEvent(eventName, data);
+            }
+        )
+
+        // 정적 Delegate 바인딩 (기존)
+        ADD_LUA_FUNCTION("BindOnGameStart", [](AGameModeBase* gm, sol::function fn) {
+            if (!gm || !fn.valid()) return (FDelegateHandle)0;
+            auto FnPtr = std::make_shared<sol::protected_function>(fn);
+            return gm->BindOnGameStart([FnPtr]() mutable {
+                sol::protected_function_result r = (*FnPtr)();
+                if (!r.valid()) {
+                    sol::error e = r;
+                    UE_LOG((FString("[Lua Error] OnGameStart: ") + e.what() + "\n").c_str());
+                }
+            });
+        })
+
+        ADD_LUA_FUNCTION("BindOnGameEnd", [](AGameModeBase* gm, sol::function fn) {
+            if (!gm || !fn.valid()) return (FDelegateHandle)0;
+            auto FnPtr = std::make_shared<sol::protected_function>(fn);
+            return gm->BindOnGameEnd([FnPtr](bool bVictory) mutable {
+                sol::protected_function_result r = (*FnPtr)(bVictory);
+                if (!r.valid()) {
+                    sol::error e = r;
+                    UE_LOG((FString("[Lua Error] OnGameEnd: ") + e.what() + "\n").c_str());
+                }
+            });
+        })
+
+        ADD_LUA_FUNCTION("BindOnActorSpawned", [](AGameModeBase* gm, sol::function fn) {
+            if (!gm || !fn.valid()) return (FDelegateHandle)0;
+            auto FnPtr = std::make_shared<sol::protected_function>(fn);
+            return gm->BindOnActorSpawned([FnPtr](AActor* actor) mutable {
+                if (!actor || actor->IsPendingDestroy()) return;
+                sol::protected_function_result r = (*FnPtr)(actor);
+                if (!r.valid()) {
+                    sol::error e = r;
+                    UE_LOG((FString("[Lua Error] OnActorSpawned: ") + e.what() + "\n").c_str());
+                }
+            });
+        })
+
+        ADD_LUA_FUNCTION("BindOnActorDestroyed", [](AGameModeBase* gm, sol::function fn) {
+            if (!gm || !fn.valid()) return (FDelegateHandle)0;
+
+            // shared_ptr로 Lua 함수 수명 관리
+            auto FnPtr = std::make_shared<sol::protected_function>(fn);
+
+            return gm->BindOnActorDestroyed([FnPtr](AActor* actor) mutable {
+                // Actor가 유효한지 확인
+                if (!actor || actor->IsPendingDestroy()) {
+                    UE_LOG("[Lua] OnActorDestroyed called with invalid actor\n");
+                    return;
+                }
+
+                sol::protected_function_result r = (*FnPtr)(actor);
+                if (!r.valid()) {
+                    sol::error e = r;
+                    UE_LOG((FString("[Lua Error] OnActorDestroyed: ") + e.what() + "\n").c_str());
+                }
+            });
+        })
+
+        ADD_LUA_FUNCTION("BindOnScoreChanged", [](AGameModeBase* gm, sol::function fn) {
+            if (!gm || !fn.valid()) return (FDelegateHandle)0;
+            auto FnPtr = std::make_shared<sol::protected_function>(fn);
+            return gm->BindOnScoreChanged([FnPtr](int32 newScore) mutable {
+                sol::protected_function_result r = (*FnPtr)(newScore);
+                if (!r.valid()) {
+                    sol::error e = r;
+                    UE_LOG((FString("[Lua Error] OnScoreChanged: ") + e.what() + "\n").c_str());
+                }
+            });
+        })
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
+{
+    // ==================== UPrimitiveComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UPrimitiveComponent, "PrimitiveComponent")
+        // Collision settings
+        ADD_LUA_FUNCTION("SetCollisionEnabled", &UPrimitiveComponent::SetCollisionEnabled)
+        ADD_LUA_FUNCTION("IsCollisionEnabled", &UPrimitiveComponent::IsCollisionEnabled)
+        ADD_LUA_FUNCTION("SetGenerateOverlapEvents", &UPrimitiveComponent::SetGenerateOverlapEvents)
+        ADD_LUA_FUNCTION("GetGenerateOverlapEvents", &UPrimitiveComponent::GetGenerateOverlapEvents)
+
+        // Overlap queries
+        ADD_LUA_FUNCTION("IsOverlappingActor", &UPrimitiveComponent::IsOverlappingActor)
+
+        // Overlap event bindings - Lua-friendly wrappers
+        usertype["BindOnBeginOverlap"] = [](UPrimitiveComponent* Comp, sol::function Fn) -> FDelegateHandle
+        {
+            if (!Comp || !Fn.valid()) return (FDelegateHandle)0;
+
+            // sol::function을 shared_ptr로 래핑하여 수명 관리
+            auto FnPtr = std::make_shared<sol::protected_function>(Fn);
+
+            // shared_ptr이 수명을 관리하므로 일반 Add() 사용 (ListenerPtr 불필요)
+            return Comp->AddOnBeginOverlap(
+                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp) mutable
+                {
+                    sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp);
+                    if (!r.valid())
+                    {
+                        sol::error e = r;
+                        UE_LOG((FString("[Lua Error] OnBeginOverlap: ") + e.what() + "\n").c_str());
+                    }
+                }
+            );
+        };
+
+        usertype["BindOnEndOverlap"] = [](UPrimitiveComponent* Comp, sol::function Fn) -> FDelegateHandle
+        {
+            if (!Comp || !Fn.valid()) return (FDelegateHandle)0;
+
+            auto FnPtr = std::make_shared<sol::protected_function>(Fn);
+
+            // shared_ptr이 수명을 관리하므로 일반 Add() 사용 (ListenerPtr 불필요)
+            return Comp->AddOnEndOverlap(
+                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp) mutable
+                {
+                    sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp);
+                    if (!r.valid())
+                    {
+                        sol::error e = r;
+                        UE_LOG((FString("[Lua Error] OnEndOverlap: ") + e.what() + "\n").c_str());
+                    }
+                }
+            );
+        };
+
+        ADD_LUA_FUNCTION("UnbindOnBeginOverlap", &UPrimitiveComponent::RemoveOnBeginOverlap)
+        ADD_LUA_FUNCTION("UnbindOnEndOverlap", &UPrimitiveComponent::RemoveOnEndOverlap)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterShapeComponent(sol::state* state)
+{
+    // ==================== UShapeComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, UShapeComponent, "ShapeComponent")
+        // Shape-specific properties
+        ADD_LUA_PROPERTY("ShapeColor", &UShapeComponent::ShapeColor)
+        ADD_LUA_PROPERTY("bDrawOnlyIfSelected", &UShapeComponent::bDrawOnlyIfSelected)
+
+        // Overlap test
+        ADD_LUA_FUNCTION("Overlaps", &UShapeComponent::Overlaps)
+    END_LUA_TYPE()
 }
 
 void UScriptManager::RegisterProjectileMovement(sol::state* state)
