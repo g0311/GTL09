@@ -644,9 +644,12 @@
   <ItemGroup>
     <Content Include="LuaScripts\Default_Ambient Light Actor.lua" />
     <Content Include="LuaScripts\Default_Directional Light Actor.lua" />
+    <Content Include="LuaScripts\Default_Obstacle.backup.lua" />
     <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="LuaScripts\Default_TempCar.lua" />
-    <Content Include="LuaScripts\PlayerController.lua" />
+    <Content Include="LuaScripts\FirstPersonController.lua" />
+    <Content Include="LuaScripts\MultiCoroutineTest.lua" />
+    <Content Include="LuaScripts\RoadGenerator.lua" />
     <Content Include="LuaScripts\teasd1.lua" />
     <Content Include="LuaScripts\test.lua" />
     <Content Include="LuaScripts\test2.lua" />

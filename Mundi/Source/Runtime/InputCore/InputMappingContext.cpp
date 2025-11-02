@@ -1,7 +1,14 @@
 #include "pch.h"
 #include "InputMappingContext.h"
+#include "InputMappingSubsystem.h"
 
 IMPLEMENT_CLASS(UInputMappingContext)
+
+UInputMappingContext::~UInputMappingContext()
+{
+    // 소멸 시 InputMappingSubsystem에서 자동으로 제거 (dangling pointer 방지)
+    UInputMappingSubsystem::Get().RemoveMappingContext(this);
+}
 
 void UInputMappingContext::MapAction(const FString& ActionName, int KeyCode, bool bCtrl, bool bAlt, bool bShift, bool bConsume)
 {
