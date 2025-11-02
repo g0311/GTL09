@@ -474,7 +474,13 @@ void USlateManager::SetWorld(UWorld* InWorld)
     World = InWorld;
 
     // 모든 뷰포트에 World 전파
-    MainViewport->SetVClientWorld(InWorld);
+    for (int i = 0; i < 4; ++i)
+    {
+        if (Viewports[i])
+        {
+            Viewports[i]->SetVClientWorld(InWorld);
+        }
+    }
 
     // PIE 종료 시 모든 뷰포트의 커서 해제
     if (InWorld && !InWorld->bPie)

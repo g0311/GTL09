@@ -105,7 +105,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 	UCameraComponent* RenderCameraComponent = nullptr;
 
 	// PIE 모드 (Eject 아님): PlayerController의 카메라 컴포넌트 우선 사용
-	if (World->bPie && !bPIEEjected)
+	if (World->bPie && !World->bPIEEjected)
 	{
 		APlayerController* PC = World->GetPlayerController();
 		if (PC)
@@ -257,7 +257,7 @@ void FViewportClient::SetupInputContext()
 		if (!World) return;
 
 		// PIE 모드 (Eject 아님): 커서 캡처
-		if (World->bPie && !bPIEEjected)
+		if (World->bPie && !World->bPIEEjected)
 		{
 			UInputManager::GetInstance().SetCursorVisible(false);
 			UInputManager::GetInstance().LockCursor();
@@ -283,6 +283,8 @@ void FViewportClient::SetupInputContext()
 
 		if (PickedComponent)
 		{
+			UE_LOG("[ViewportClient Picking] World: %p, SelectionManager: %p, bPie: %d, bPIEEjected: %d",
+				World, World->GetSelectionManager(), World->bPie, World->bPIEEjected);
 			World->GetSelectionManager()->SelectComponent(PickedComponent);
 		}
 		else
@@ -297,7 +299,7 @@ void FViewportClient::SetupInputContext()
 	// ESC 키 누름 (PIE 커서 해제)
 	ViewportInputContext->BindActionPressed("ReleaseCursor", [this]()
 	{
-		if (World && World->bPie && !bPIEEjected)
+		if (World && World->bPie && !World->bPIEEjected)
 		{
 			UInputManager::GetInstance().SetCursorVisible(true);
 			UInputManager::GetInstance().ReleaseCursor();
@@ -316,6 +318,22 @@ void FViewportClient::SetupInputContext()
 				// Eject 모드: 에디터 카메라 제어 가능
 				UInputManager::GetInstance().SetCursorVisible(true);
 				UInputManager::GetInstance().ReleaseCursor();
+
+				// GizmoActor의 모든 컴포넌트를 PIE에서 보이도록 설정
+				if (World->GetGizmoActor())
+				{
+					// PIE World의 GizmoActor에 에디터 카메라 설정
+					World->GetGizmoActor()->SetCameraActor(Camera);
+
+					for (USceneComponent* Comp : World->GetGizmoActor()->GetSceneComponents())
+					{
+						if (Comp)
+						{
+							Comp->SetHiddenInGame(false);
+						}
+					}
+				}
+
 				UE_LOG("PIE Ejected - Editor camera control enabled");
 			}
 			else
@@ -323,6 +341,25 @@ void FViewportClient::SetupInputContext()
 				// 다시 게임 모드로: 커서 숨김/잠금
 				UInputManager::GetInstance().SetCursorVisible(false);
 				UInputManager::GetInstance().LockCursor();
+
+				// 선택 해제
+				if (World->GetSelectionManager())
+				{
+					World->GetSelectionManager()->ClearSelection();
+				}
+
+				// GizmoActor의 모든 컴포넌트를 PIE에서 숨김
+				if (World->GetGizmoActor())
+				{
+					for (USceneComponent* Comp : World->GetGizmoActor()->GetSceneComponents())
+					{
+						if (Comp)
+						{
+							Comp->SetHiddenInGame(true);
+						}
+					}
+				}
+
 				UE_LOG("PIE Resumed - Game mode");
 			}
 		}
