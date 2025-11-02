@@ -18,7 +18,7 @@ public:
     DECLARE_CLASS(UInputMappingContext, UObject)
 
     UInputMappingContext() = default;
-    ~UInputMappingContext() override = default;
+    ~UInputMappingContext() override;
 
     // Authoring API
     void MapAction(const FString& ActionName, int KeyCode, bool bCtrl=false, bool bAlt=false, bool bShift=false, bool bConsume=true);

@@ -701,12 +701,19 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
 {
     // ==================== UCameraComponent 등록 ====================
     BEGIN_LUA_TYPE_NO_CTOR(state, UCameraComponent, "CameraComponent")
+        // Camera-specific functions
         ADD_LUA_FUNCTION("SetFOV", &UCameraComponent::SetFOV)
         ADD_LUA_FUNCTION("GetFOV", &UCameraComponent::GetFOV)
         ADD_LUA_FUNCTION("SetNearClipPlane", &UCameraComponent::SetNearClipPlane)
         ADD_LUA_FUNCTION("GetNearClipPlane", &UCameraComponent::GetNearClip)
         ADD_LUA_FUNCTION("SetFarClipPlane", &UCameraComponent::SetFarClipPlane)
         ADD_LUA_FUNCTION("GetFarClipPlane", &UCameraComponent::GetFarClip)
+
+        // SceneComponent functions (inherited but need explicit binding)
+        ADD_LUA_FUNCTION("SetRelativeRotationEuler", &UCameraComponent::SetRelativeRotationEuler)
+        ADD_LUA_FUNCTION("SetRelativeLocation", &UCameraComponent::SetRelativeLocation)
+        ADD_LUA_FUNCTION("GetRelativeLocation", &UCameraComponent::GetRelativeLocation)
+        ADD_LUA_FUNCTION("GetRelativeRotation", &UCameraComponent::GetRelativeRotation)
     END_LUA_TYPE()
 }
 
