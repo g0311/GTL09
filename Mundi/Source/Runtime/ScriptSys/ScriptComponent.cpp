@@ -3,6 +3,7 @@
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "Source/Runtime/Core/Game/CoroutineHelper.h"
+#include "Source/Runtime/Engine/Components/PrimitiveComponent.h"
 
 IMPLEMENT_CLASS(UScriptComponent)
 
@@ -48,11 +49,24 @@ void UScriptComponent::BeginPlay()
         ReloadScript();
     }
     
-    // Lua BeginPlay() 호출
-    if (bScriptLoaded)
-    {
-        CallLuaFunction("BeginPlay");
-    }
+	// Lua BeginPlay() 호출
+	if (bScriptLoaded)
+	{
+		CallLuaFunction("BeginPlay");
+	}
+
+	// Bind overlap delegates on owner's primitive components to forward into Lua
+	if (AActor* Owner = GetOwner())
+	{
+		for (UActorComponent* Comp : Owner->GetOwnedComponents())
+		{
+			if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Comp))
+			{
+				Prim->AddOnBeginOverlapDynamic(this, &UScriptComponent::OnBeginOverlap);
+				Prim->AddOnEndOverlapDynamic(this, &UScriptComponent::OnEndOverlap);
+			}
+		}
+	}
 }
 
 void UScriptComponent::TickComponent(float DeltaTime)
@@ -176,12 +190,21 @@ bool UScriptComponent::ReloadScript()
 }
 
 // ==================== Coroutine ====================
-void UScriptComponent::StartCoroutine(sol::function EntryPoint)
+int UScriptComponent::StartCoroutine(sol::function EntryPoint)
 {
 	EnsureCoroutineHelper();
 	if (CoroutineHelper)
 	{
-		CoroutineHelper->StartCoroutine(std::move(EntryPoint));
+		return CoroutineHelper->StartCoroutine(std::move(EntryPoint));
+	}
+	return -1;
+}
+
+void UScriptComponent::StopCoroutine(int CoroutineID)
+{
+	if (CoroutineHelper)
+	{
+		CoroutineHelper->StopCoroutine(CoroutineID);
 	}
 }
 
@@ -195,7 +218,7 @@ void UScriptComponent::StopAllCoroutines()
 {
 	if (CoroutineHelper)
 	{
-		CoroutineHelper->Stop();
+		CoroutineHelper->StopAllCoroutines();
 	}
 }
 
@@ -247,6 +270,22 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
         return;
     
     CallLuaFunction("OnOverlap", OtherActor);
+}
+
+void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
+{
+	// Forward to Lua handler
+	NotifyOverlap(OtherActor);
+}
+
+void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
+{
+	// Optional: call Lua if function exists
+	if (!bScriptLoaded || !Lua || !OtherActor)
+	{
+		return;
+	}
+	CallLuaFunction("OnEndOverlap", OtherActor);
 }
 
 // ==================== Serialization ====================

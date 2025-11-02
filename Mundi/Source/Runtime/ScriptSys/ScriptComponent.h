@@ -53,7 +53,8 @@ public:
 	bool ReloadScript();
 
 	// ==================== Coroutine ====================
-	void StartCoroutine(sol::function EntryPoint);
+	int StartCoroutine(sol::function EntryPoint);
+	void StopCoroutine(int CoroutineID);
 	FYieldInstruction* WaitForSeconds(float Seconds);
 	void StopAllCoroutines();
 
@@ -64,6 +65,16 @@ public:
 	 * @param OtherActor 충돌한 Actor
 	 */
 	void NotifyOverlap(AActor* OtherActor);
+
+	/**
+	 * @brief UPrimitiveComponent의 BeginOverlap 델리게이트에서 호출되는 핸들러
+	 */
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp);
+
+	/**
+	 * @brief UPrimitiveComponent의 EndOverlap 델리게이트에서 호출되는 핸들러 (옵션)
+	 */
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp);
 
 	// ==================== Serialize ====================
 	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;

@@ -79,8 +79,8 @@ void UProjectileMovementComponent::TickComponent(float DeltaSeconds)
         ComputeHomingAcceleration(DeltaSeconds);
     }
 
-    // 3. 중력 적용
-    Velocity += Gravity * DeltaSeconds;
+    // 3. 중력 적용 (Z축만 적용: Z-Up 좌표계)
+    Velocity.Z += Gravity * DeltaSeconds;
 
     // 4. 가속도 적용
     Velocity += Acceleration * DeltaSeconds;
@@ -92,7 +92,15 @@ void UProjectileMovementComponent::TickComponent(float DeltaSeconds)
     FVector Delta = Velocity * DeltaSeconds;
     if (!Delta.IsZero())
     {
-        UpdatedComponent->AddWorldOffset(Delta);
+        if (UpdatedComponent)
+        {
+            UpdatedComponent->AddWorldOffset(Delta);
+        }
+        else if (AActor* Owner = UpdatedComponent ? UpdatedComponent->GetOwner() : GetOwner())
+        {
+            // Fallback: if no UpdatedComponent, move the actor itself
+            Owner->AddActorWorldLocation(Delta);
+        }
     }
 
     // 7. 회전 업데이트 (속도 방향 추적)

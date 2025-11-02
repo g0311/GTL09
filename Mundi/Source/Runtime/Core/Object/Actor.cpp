@@ -38,11 +38,6 @@ void AActor::BeginPlay()
 
 void AActor::Tick(float DeltaSeconds)
 {
-	if (IsOverlappingAnyActor())
-	{
-		UE_LOG("overlapping!!!");
-	}
-	
 	// 에디터에서 틱 Off면 스킵
 	if (!bTickInEditor && World->bPie == false) return;
 

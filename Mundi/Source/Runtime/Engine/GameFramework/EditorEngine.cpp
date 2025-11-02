@@ -376,9 +376,14 @@ void UEditorEngine::StartPIE()
     ////스폰을 위한 월드셋
     //UI.SetWorld(PIEWorld);
 
-    for (AActor* Actor : GWorld->GetLevel()->GetActors())
+    // BeginPlay 중에 새 액터가 spawn될 수 있으므로 복사본 사용
+    TArray<AActor*> ActorsCopy = GWorld->GetLevel()->GetActors();
+    for (int32 i = 0; i < ActorsCopy.Num(); ++i)
     {
-        Actor->BeginPlay();
+        if (ActorsCopy[i])
+        {
+            ActorsCopy[i]->BeginPlay();
+        }
     }
 
     PIEWorld->GetGameMode()->BeginPlay();

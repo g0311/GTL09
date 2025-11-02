@@ -15,16 +15,22 @@ public:
 	~FCoroutineHelper();
 
 	void RunScheduler(float DeltaTime = 0.f);
-	void StartCoroutine(sol::function EntryPoint);
-	void Stop();
+	int StartCoroutine(sol::function EntryPoint);
+	void StopCoroutine(int CoroutineID);
+	void StopAllCoroutines();
 
 	// Lua에서 C++ FYieldInstruction 객체를 생성하기 위한 팩토리 함수
 	FYieldInstruction* CreateWaitForSeconds(float Seconds);
 
 private:
-	void CleanupInstruction();
+	struct FCoroutineState
+	{
+		int ID;
+		sol::coroutine Coroutine;
+		FYieldInstruction* CurrentInstruction{ nullptr };
+	};
 
 	UScriptComponent* OwnerComponent{ nullptr };
-	sol::coroutine ActiveCoroutine;
-	FYieldInstruction* CurrentInstruction{ nullptr }; // 현재 코루틴이 대기 중인 명령
+	TArray<FCoroutineState> ActiveCoroutines;
+	int NextCoroutineID{ 1 };
 };

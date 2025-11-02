@@ -6,6 +6,7 @@ class USphereComponent : public UShapeComponent
 public:
     DECLARE_CLASS(USphereComponent, UShapeComponent)
     GENERATED_REFLECTION_BODY()
+    DECLARE_DUPLICATE(USphereComponent)
 
     USphereComponent();
     virtual ~USphereComponent() override;

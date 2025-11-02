@@ -214,9 +214,6 @@
     <ClCompile Include="Source\Runtime\Engine\Collision\BoundingSphere.cpp">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Runtime\Engine\Collision\Collision.cpp">
-      <Filter>Source\Runtime\Engine\Collision</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Collision\Frustum.cpp">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClCompile>
@@ -227,9 +224,6 @@
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionManager.cpp">
-      <Filter>Source\Runtime\Engine\Collision</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Runtime\Engine\Collision\ShapeBVH.cpp">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Spatial\BVHierarchy.cpp">
@@ -437,6 +431,18 @@
       <Filter>Source\Editor\Clipboard</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Core\Math\Vector.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\CoroutineHelper.cpp" />
+    <ClCompile Include="Source\Runtime\Core\Game\YieldInstruction.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Collision\Capsule.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\BoxComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\CapsuleComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\ShapeComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SphereComponent.cpp" />
+    <ClCompile Include="Source\Runtime\ScriptSys\ScriptComponent.cpp" />
+    <ClCompile Include="Source\Runtime\ScriptSys\UScriptManager.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Collision\CollisionQueries.cpp" />
   </ItemGroup>
   <!-- ThirdParty/ImGui Files -->
   <!-- Source Files -->
@@ -653,9 +659,6 @@
     <ClInclude Include="Source\Runtime\Engine\Collision\BoundingSphere.h">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Runtime\Engine\Collision\Collision.h">
-      <Filter>Source\Runtime\Engine\Collision</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Collision\Frustum.h">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
@@ -666,9 +669,6 @@
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionManager.h">
-      <Filter>Source\Runtime\Engine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Runtime\Engine\Collision\ShapeBVH.h">
       <Filter>Source\Runtime\Engine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Spatial\BVHierarchy.h">
@@ -911,6 +911,20 @@
     <ClInclude Include="Source\Runtime\InputCore\InputMappingSubsystem.h">
       <Filter>Source\Runtime\InputCore</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
+    <ClInclude Include="Source\Runtime\Core\Game\YieldInstruction.h" />
+    <ClInclude Include="Source\Runtime\Core\Misc\Axis.h" />
+    <ClInclude Include="Source\Runtime\Engine\Collision\Capsule.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\BoxComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\CapsuleComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\ShapeComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SphereComponent.h" />
+    <ClInclude Include="Source\Runtime\ScriptSys\ScriptComponent.h" />
+    <ClInclude Include="Source\Runtime\ScriptSys\ScriptUtils.h" />
+    <ClInclude Include="Source\Runtime\ScriptSys\UScriptManager.h" />
+    <ClInclude Include="Source\Runtime\Engine\Collision\CollisionQueries.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

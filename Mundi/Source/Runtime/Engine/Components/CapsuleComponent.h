@@ -7,6 +7,7 @@ class UCapsuleComponent : public UShapeComponent
 public:
     DECLARE_CLASS(UCapsuleComponent, UShapeComponent)
     GENERATED_REFLECTION_BODY()
+    DECLARE_DUPLICATE(UCapsuleComponent)
 
     UCapsuleComponent();
     virtual ~UCapsuleComponent() override;
