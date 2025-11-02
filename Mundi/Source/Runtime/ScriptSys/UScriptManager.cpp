@@ -27,6 +27,7 @@
 #include "Source/Runtime/Engine/Components/CameraComponent.h"
 #include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
+#include "Source/Runtime/Engine/GameFrameWork/PlayerController.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -450,6 +451,47 @@ void UScriptManager::RegisterWorld(sol::state* state)
         return gameMode;
         });
 
+    // Get PlayerPawn (현재 플레이어가 조종하는 Pawn)
+    state->set_function("GetPlayerPawn", [](sol::this_state L) -> AActor* {
+        sol::state_view lua(L);
+        sol::optional<AActor*> actorOpt = lua["actor"];
+
+        if (!actorOpt)
+        {
+            UE_LOG("[Lua] Error: GetPlayerPawn() - 'actor' global not found");
+            return nullptr;
+        }
+
+        AActor* actor = actorOpt.value();
+        if (!actor)
+        {
+            UE_LOG("[Lua] Error: GetPlayerPawn() - actor is null");
+            return nullptr;
+        }
+
+        UWorld* world = actor->GetWorld();
+        if (!world)
+        {
+            UE_LOG("[Lua] Error: GetPlayerPawn() - actor has no world");
+            return nullptr;
+        }
+
+        APlayerController* pc = world->GetPlayerController();
+        if (!pc)
+        {
+            UE_LOG("[Lua] Error: GetPlayerPawn() - world has no PlayerController");
+            return nullptr;
+        }
+
+        AActor* pawn = pc->GetPawn();
+        if (!pawn)
+        {
+            UE_LOG("[Lua] Warning: GetPlayerPawn() - PlayerController has no possessed pawn");
+            return nullptr;
+        }
+
+        return pawn;
+        });
 
     // Global actor search functions
         state->set_function("FindActorByName", [](sol::this_state L, const FString& name) -> AActor* {
