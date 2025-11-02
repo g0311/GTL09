@@ -399,7 +399,6 @@ void UEditorEngine::StartPIE()
         }
     }
 
-    PIEWorld->GetGameMode()->BeginPlay();
     UE_LOG("START PIE CLICKED");
 }
 
