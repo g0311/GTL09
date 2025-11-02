@@ -18,8 +18,23 @@ UScriptComponent::UScriptComponent()
     SetCanEverTick(true);
     SetTickEnabled(true);
 
-	// Lua state 생성
+	// Lua state 생성 및 표준 라이브러리 로드
 	Lua = new sol::state();
+	UE_LOG("[ScriptComponent] ★★★ Creating Lua state with open_libraries ★★★\n");
+	Lua->open_libraries(
+		sol::lib::base,
+		sol::lib::package,
+		sol::lib::coroutine,
+		sol::lib::string,
+		sol::lib::os,
+		sol::lib::math,
+		sol::lib::table,
+		sol::lib::debug,
+		sol::lib::bit32,
+		sol::lib::io,
+		sol::lib::utf8
+	);
+	UE_LOG("[ScriptComponent] ★★★ open_libraries() completed ★★★\n");
 
 	EnsureCoroutineHelper();
 }
@@ -43,17 +58,40 @@ void UScriptComponent::BeginPlay()
 	UActorComponent::BeginPlay();
 	EnsureCoroutineHelper();
 
+    UE_LOG(("[ScriptComponent] BeginPlay called for: " + GetOwner()->GetName().ToString() + "\n").c_str());
+    UE_LOG(("  ScriptPath: '" + ScriptPath + "'\n").c_str());
+    UE_LOG(("  bScriptLoaded: " + std::string(bScriptLoaded ? "true" : "false") + "\n").c_str());
+
     // 스크립트 로드
     if (!bScriptLoaded && !ScriptPath.empty())
     {
-        ReloadScript();
+        UE_LOG("  Attempting to reload script...\n");
+        bool loadResult = ReloadScript();
+        UE_LOG(("  ReloadScript() result: " + std::string(loadResult ? "SUCCESS" : "FAILED") + "\n").c_str());
+    }
+    else
+    {
+        if (bScriptLoaded)
+        {
+            UE_LOG("  Script already loaded, skipping reload\n");
+        }
+        else if (ScriptPath.empty())
+        {
+            UE_LOG("  ScriptPath is empty, skipping reload\n");
+        }
     }
     
 	// Lua BeginPlay() 호출
 	if (bScriptLoaded)
 	{
+        UE_LOG("  Calling Lua BeginPlay()...\n");
 		CallLuaFunction("BeginPlay");
+        UE_LOG("  Lua BeginPlay() finished\n");
 	}
+    else
+    {
+        UE_LOG("  WARNING: Script not loaded, skipping Lua BeginPlay()\n");
+    }
 
 	// Bind overlap delegates on owner's primitive components to forward into Lua
 	if (AActor* Owner = GetOwner())
@@ -128,15 +166,32 @@ bool UScriptComponent::ReloadScript()
 
     namespace fs = std::filesystem;
 
+    // 현재 작업 디렉토리 출력
+    fs::path currentPath = fs::current_path();
+    UE_LOG(("[ScriptComponent] Current working directory: " + currentPath.string() + "\n").c_str());
+
     fs::path AbsolutePath = UScriptManager::ResolveScriptPath(ScriptPath);
+
+    // 해석된 절대 경로 출력
+    UE_LOG(("[ScriptComponent] Resolved absolute path: " + AbsolutePath.string() + "\n").c_str());
 
     if (!fs::exists(AbsolutePath))
     {
-        UE_LOG("Script file not found\n");
-        UE_LOG(("  ScriptPath: " + ScriptPath + "\n").c_str());
+        UE_LOG("[ScriptComponent] ERROR: Script file not found!\n");
+        UE_LOG(("  Input ScriptPath: '" + ScriptPath + "'\n").c_str());
+        UE_LOG(("  Resolved path: '" + AbsolutePath.string() + "'\n").c_str());
+        UE_LOG(("  File exists: false\n"));
+
+        // LuaScripts 폴더 존재 여부 확인
+        fs::path luaScriptsDir = currentPath / L"LuaScripts";
+        UE_LOG(("  LuaScripts directory: '" + luaScriptsDir.string() + "'\n").c_str());
+        UE_LOG(("  LuaScripts exists: " + std::string(fs::exists(luaScriptsDir) ? "true" : "false") + "\n").c_str());
+
         bScriptLoaded = false;
         return false;
     }
+
+    UE_LOG(("[ScriptComponent] Script file found at: " + AbsolutePath.string() + "\n").c_str());
 
     // Owner Actor를 Lua에 바인딩
     AActor* OwnerActor = GetOwner();
@@ -170,8 +225,8 @@ bool UScriptComponent::ReloadScript()
         std::string scriptContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         file.close();
 
-        // 스크립트 실행
-        Lua->script(scriptContent);
+        // 스크립트 실행 (파일명을 chunk name으로 지정하여 에러 메시지 가독성 향상)
+        Lua->script(scriptContent, ScriptPath);
         bScriptLoaded = true;
 
         // Store timestamp for hot-reload
