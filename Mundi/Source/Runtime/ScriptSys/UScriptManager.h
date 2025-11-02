@@ -89,7 +89,9 @@ private:
     // Collision components
     void RegisterPrimitiveComponent(sol::state* state);
     void RegisterShapeComponent(sol::state* state);
+    void RegisterBoxComponent(sol::state* state);
     void RegisterProjectileMovement(sol::state* state);
+    void RegisterRotatingMovement(sol::state* state);
 
     // Input bindings
     void RegisterInputSubsystem(sol::state* state);

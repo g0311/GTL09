@@ -20,8 +20,8 @@ local Config = {
     BlockCount = 30,
 
     -- 재활용 거리
-    RecycleDistance = 200.0,
-    SpawnAheadDistance = 1500.0,
+    RecycleDistance = 25.0,
+    SpawnAheadDistance = 60.0,
 
     -- 도로 외형
     RoadHeight = 0.0,
@@ -53,7 +53,7 @@ local Config = {
 
     -- 장애물 스케일 범위 (생성 시 랜덤 적용)
     MinObstacleScale = 0.8,
-    MaxObstacleScale = 1.5,
+    MaxObstacleScale = 1.3,
 
     -- 차선 차단 확률
     LaneBlockProbability = 0.4,
@@ -67,11 +67,8 @@ local Config = {
     -- 장애물 풀 크기
     InitialObstaclePoolSize = 50,
 
-    ------------------------------------------------------------------------------------------------------------------
-    -- TODO(정세연): AABB, 충돌, 충돌 이벤트 등이 포함된 하나의 루아스크립트를 연결해야 함 (25.11.02 20:20:00 박영빈)
     -- 장애물 스크립트 경로
-    ObstacleScriptPath = "LuaScripts/blackbox.lua",
-    ------------------------------------------------------------------------------------------------------------------
+    ObstacleScriptPath = "Default_Obstacle.lua",
 
     -- ===== 도로 블록 간 장애물 배치 패턴 (Y축 방향) =====
     -- 패턴: N개 블록에 장애물 배치 -> M개 블록은 비움 -> 반복
@@ -95,20 +92,15 @@ local InitialYPosition = 0.0
 -- =====================================================
 local ObstaclePool = {}
 local ActiveObstacles = {}
-local RoadBlockObstacles = {}
-local ObstaclePatternCounter = 0  -- 블록 패턴 카운터 (Y축 간격용)
+ -- 블록 패턴 카운터 (Y축 간격용)
+local ObstaclePatternCounter = 0 
 
 -- =====================================================
 -- [함수] 장애물 풀 초기화
 -- =====================================================
 local function InitializeObstaclePool()
     local world = OwnerActor:GetWorld()
-    if not world then
-        Log("[ObstacleGen] ERROR: Cannot get world!")
-        return false
-    end
-
-    Log(string.format("[ObstacleGen] Creating obstacle pool (%d objects)...", Config.InitialObstaclePoolSize))
+    if not world then return false end
 
     for i = 1, Config.InitialObstaclePoolSize do
         local modelIndex = math.random(1, #Config.ObstacleModels)
@@ -117,8 +109,10 @@ local function InitializeObstaclePool()
         -- 랜덤 스케일 (생성 시 적용)
         local scale = Config.MinObstacleScale + math.random() * (Config.MaxObstacleScale - Config.MinObstacleScale)
 
+        -- 각 장애물을 서로 다른 위치에 스폰 (겹침 방지)
+        local spawnX = -10000 - (i * 100)
         local transform = Transform(
-            Vector(-10000, -10000, -10000),
+            Vector(spawnX, -10000, -10000),
             Quat(),
             Vector(scale, scale, scale)
         )
@@ -126,28 +120,47 @@ local function InitializeObstaclePool()
         local obstacleActor = world:SpawnActorByClassWithTransform("AStaticMeshActor", transform)
 
         if obstacleActor then
-            -- 메시 설정
+            -- 1. 메시 설정
             local meshComp = obstacleActor:GetStaticMeshComponent()
             if meshComp then
                 meshComp:SetStaticMesh(modelPath)
             end
-            
+
+            -- 2. AABB 충돌 박스 추가 (메시 스케일에 맞춤)
+            -- 기본 박스 크기 (차량 평균 크기 추정)
+            local baseBoxSize = Vector(1.5, 0.8, 0.6)
+            local scaledBoxSize = Vector(
+                baseBoxSize.X * scale,
+                baseBoxSize.Y * scale,
+                baseBoxSize.Z * scale
+            )
+            local boxComp = AddBoxComponent(obstacleActor, scaledBoxSize)
+            if boxComp then
+                -- 박스를 바닥에 맞춤 (Z 오프셋 조정)
+                boxComp:SetRelativeLocation(Vector(0, 0, scaledBoxSize.Z))
+                boxComp:SetCollisionEnabled(true)
+                boxComp:SetGenerateOverlapEvents(true)
+            end
+
+            -- 3. 스크립트 컴포넌트 추가 (BeginPlay는 나중에 호출)
             local scriptComp = obstacleActor:AddScriptComponent()
             if scriptComp then
                 scriptComp:SetScriptPath(Config.ObstacleScriptPath)
+                -- BeginPlay는 장애물이 실제로 배치될 때 호출
             end
 
             table.insert(ObstaclePool, {
                 Actor = obstacleActor,
+                ScriptComponent = scriptComp,
                 ModelIndex = modelIndex,
                 IsActive = false,
                 Scale = scale,
-                BlockIndex = nil
+                ScriptComp = scriptComp,
+                IsScriptInitialized = false,
             })
         end
     end
 
-    Log(string.format("[ObstacleGen] Successfully created %d obstacles", #ObstaclePool))
     return #ObstaclePool > 0
 end
 
@@ -159,6 +172,13 @@ local function GetObstacleFromPool()
         if not obstacle.IsActive then
             obstacle.IsActive = true
             table.insert(ActiveObstacles, obstacle)
+
+            -- 처음 활성화될 때만 스크립트 초기화
+            if not obstacle.IsScriptInitialized and obstacle.ScriptComp then
+                obstacle.ScriptComp:BeginPlay()
+                obstacle.IsScriptInitialized = true
+            end
+
             return obstacle
         end
     end
@@ -171,11 +191,16 @@ end
 local function ReturnObstacleToPool(obstacle)
     if not obstacle then return end
 
+    if obstacle.ScriptComponent then
+        obstacle.ScriptComponent:CallLuaFunction("ResetState")
+    end
+
     obstacle.IsActive = false
-    obstacle.BlockIndex = nil
 
     -- 화면 밖으로 이동
-    obstacle.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
+    if obstacle.Actor then
+        obstacle.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
+    end
 
     for i, activeObs in ipairs(ActiveObstacles) do
         if activeObs == obstacle then
@@ -201,55 +226,43 @@ end
 -- =====================================================
 -- [함수] 도로 블록에 장애물 배치
 -- =====================================================
-local function SpawnObstaclesOnRoadBlock(blockXPosition, laneYPositions, blockIndex)
-    -- 기존 장애물 제거
-    if RoadBlockObstacles[blockIndex] then
-        for _, obstacle in ipairs(RoadBlockObstacles[blockIndex]) do
+local function SpawnObstaclesOnRoadBlock(block, blockXPosition, laneYPositions)
+    -- 1) 예전에 이 블록에 달려있던 장애물 있으면 반환
+    if block.Obstacles then
+        for _, obstacle in ipairs(block.Obstacles) do
             ReturnObstacleToPool(obstacle)
         end
-        RoadBlockObstacles[blockIndex] = nil
+        block.Obstacles = nil
     end
 
-    -- 패턴에 따라 이 블록에 장애물을 배치할지 결정
+    -- 2) 패턴에 따라 이번엔 안 찍는 경우
     if not ShouldSpawnObstaclesOnBlock() then
-        -- Log(string.format("[ObstacleGen] Block %d (X=%.2f) - skipped by pattern", blockIndex, blockXPosition))
         return
     end
 
-    local placedObstacles = {}
+    local placed = {}
     local laneCount = #laneYPositions
-    local blockedLanes = {}
+    local blocked = {}
     local maxBlockedLanes = math.max(0, laneCount - Config.MinEmptyLanes)
 
     for laneIndex, laneY in ipairs(laneYPositions) do
-        if #blockedLanes >= maxBlockedLanes then
-            break
-        end
+        if #blocked >= maxBlockedLanes then break end
 
         if math.random() < Config.LaneBlockProbability then
             local obstacle = GetObstacleFromPool()
-
-            if obstacle then
-                -- X축 랜덤 오프셋
+            if obstacle and obstacle.Actor then
                 local xOffset = (math.random() - 0.5) * 2.0
                 local finalX = blockXPosition + xOffset
+                obstacle.Actor:SetActorLocation(Vector(finalX, laneY, Config.ObstacleHeight))
 
-                local position = Vector(finalX, laneY, Config.ObstacleHeight)
-
-                -- 위치 설정
-                obstacle.Actor:SetActorLocation(position)
-                obstacle.BlockIndex = blockIndex
-
-                table.insert(placedObstacles, obstacle)
-                table.insert(blockedLanes, laneIndex)
+                table.insert(placed, obstacle)
+                table.insert(blocked, laneIndex)
             end
         end
     end
 
-    if #placedObstacles > 0 then
-        RoadBlockObstacles[blockIndex] = placedObstacles
-        Log(string.format("[ObstacleGen] Placed %d obstacles on block %d (X=%.2f)",
-            #placedObstacles, blockIndex, blockXPosition))
+    if #placed > 0 then
+        block.Obstacles = placed
     end
 end
 
@@ -258,10 +271,7 @@ end
 -- =====================================================
 local function CreateRoadBlock(xPosition, modelIndex)
     local world = OwnerActor:GetWorld()
-    if not world then
-        Log("[RoadGenerator] ERROR: Cannot get world!")
-        return nil
-    end
+    if not world then return nil end
 
     local laneActors = {}
 
@@ -276,21 +286,16 @@ local function CreateRoadBlock(xPosition, modelIndex)
         )
 
         local roadActor = world:SpawnActorByClassWithTransform("AStaticMeshActor", transform)
-
         if roadActor then
             local meshComp = roadActor:GetStaticMeshComponent()
             if meshComp then
                 meshComp:SetStaticMesh(Config.RoadModels[modelIndex])
             end
-
             table.insert(laneActors, roadActor)
-        else
-            Log("[RoadGenerator] WARNING: Failed to spawn lane " .. i .. " at X=" .. xPosition)
         end
     end
 
     if #laneActors == 0 then
-        Log("[RoadGenerator] ERROR: Failed to spawn any lanes at X=" .. tostring(xPosition))
         return nil
     end
 
@@ -298,18 +303,15 @@ local function CreateRoadBlock(xPosition, modelIndex)
         Actors = laneActors,
         XPosition = xPosition,
         ModelType = modelIndex,
-        IsActive = true
+        Obstacles = nil 
     }
 end
 
 -- =====================================================
 -- [함수] 블록 재배치
 -- =====================================================
-local function RepositionBlock(block, newX, blockIndex)
-    if not block or not block.Actors then
-        Log("[RoadGenerator] WARNING: Invalid block for repositioning")
-        return
-    end
+local function RepositionBlock(block, newX)
+    if not block or not block.Actors then return end
 
     local laneYPositions = {}
     for i, laneActor in ipairs(block.Actors) do
@@ -321,82 +323,52 @@ local function RepositionBlock(block, newX, blockIndex)
 
     block.XPosition = newX
 
-    -- 장애물 업데이트
-    SpawnObstaclesOnRoadBlock(newX, laneYPositions, blockIndex)
+    -- 재배치 후 다시 장애물 찍기
+    SpawnObstaclesOnRoadBlock(block, newX, laneYPositions)
 end
 
 -- =====================================================
 -- [라이프사이클] BeginPlay
 -- =====================================================
 function BeginPlay()
-    Log("=======================================================")
-    Log("[RoadGenerator] Road Generator with Obstacles Started")
-    Log("=======================================================")
-
     math.randomseed(os.time())
 
     OwnerActor = actor
-    Log("[RoadGenerator] Owner Actor: " .. OwnerActor:GetName())
-
     local ownerPos = OwnerActor:GetActorLocation()
     InitialYPosition = ownerPos.Y
-    Log(string.format("[RoadGenerator] Initial Y Position (Road Center): %.2f", InitialYPosition))
 
-    -- 장애물 풀 초기화
     InitializeObstaclePool()
 
-    -- 도로 블록 생성
-    Log(string.format("[RoadGenerator] Creating %d initial road blocks...", Config.BlockCount))
-
-    local successCount = 0
     CurrentGroupModelType = math.random(1, #Config.RoadModels)
     GroupCounter = 0
 
     for i = 1, Config.BlockCount do
         local x = (i - 1) * Config.BlockLength
-
         if GroupCounter >= Config.RoadGroupSize then
             CurrentGroupModelType = math.random(1, #Config.RoadModels)
             GroupCounter = 0
         end
-
         local block = CreateRoadBlock(x, CurrentGroupModelType)
         if block then
             table.insert(RoadBlocks, block)
-            successCount = successCount + 1
             GroupCounter = GroupCounter + 1
-        else
-            Log(string.format("[RoadGenerator] WARNING: Failed to create block %d at X=%.2f", i, x))
         end
     end
 
-    Log(string.format("[RoadGenerator] Successfully created %d/%d blocks", successCount, Config.BlockCount))
+    -- 오름차순 정렬
+    table.sort(RoadBlocks, function(a, b) return a.XPosition < b.XPosition end)
 
-    IsInitialized = (successCount > 0)
-
-    if IsInitialized then
-        Log("[RoadGenerator] ===== Initialization Complete =====")
-        Log(string.format("[RoadGenerator] Total blocks: %d", #RoadBlocks))
-
-        -- 초기 장애물 배치
-        Log("[RoadGenerator] Spawning initial obstacles on road blocks...")
-        Log(string.format("[ObstacleGen] Y-axis Pattern: %d blocks WITH obstacles -> %d blocks EMPTY (repeating)",
-            Config.ObstacleBlocksWithObstacles, Config.ObstacleBlocksEmpty))
-        for i, block in ipairs(RoadBlocks) do
-            local laneYPositions = {}
-            for j = 1, Config.LanesPerBlock do
-                local yOffset = (j - (Config.LanesPerBlock + 1) / 2) * Config.LaneSpacing
-                local finalY = InitialYPosition + yOffset
-                table.insert(laneYPositions, finalY)
-            end
-            SpawnObstaclesOnRoadBlock(block.XPosition, laneYPositions, i)
+    for _, block in ipairs(RoadBlocks) do
+        -- 각 블록의 차선 Y를 다시 계산
+        local laneYPositions = {}
+        for lane = 1, Config.LanesPerBlock do
+            local yOffset = (lane - (Config.LanesPerBlock + 1) / 2) * Config.LaneSpacing
+            table.insert(laneYPositions, InitialYPosition + yOffset)
         end
-        Log("[RoadGenerator] Initial obstacles spawned")
-    else
-        Log("[RoadGenerator] ERROR: Initialization FAILED - No blocks created!")
+        SpawnObstaclesOnRoadBlock(block, block.XPosition, laneYPositions)
     end
 
-    Log("=======================================================")
+    IsInitialized = #RoadBlocks > 0
 end
 
 -- =====================================================
@@ -405,47 +377,35 @@ end
 function Tick(dt)
     if not IsInitialized then return end
 
-    -- 도로 블록 재활용 체크
     CheckTimer = CheckTimer + dt
     if CheckTimer < Config.CheckInterval then
         return
     end
     CheckTimer = 0.0
 
-    local ownerPos = OwnerActor:GetActorLocation()
-    local ownerX = ownerPos.X
+    local ownerX = OwnerActor:GetActorLocation().X
+    local firstBlock = RoadBlocks[1]
+    local lastBlock = RoadBlocks[#RoadBlocks]
 
-    local farthestX = -999999
-    local behindBlocks = {}
+    -- 플레이어가 맨 앞 블록을 일정 거리 이상 지나면 재활용
+    if (ownerX - firstBlock.XPosition) > Config.RecycleDistance then
+        local newX = lastBlock.XPosition + Config.BlockLength
+        RepositionBlock(firstBlock, newX)
 
-    for i, block in ipairs(RoadBlocks) do
-        if block.XPosition > farthestX then
-            farthestX = block.XPosition
-        end
-
-        local distanceBehind = ownerX - block.XPosition
-        if distanceBehind > Config.RecycleDistance then
-            table.insert(behindBlocks, block)
-        end
+        -- 큐 회전
+        table.remove(RoadBlocks, 1)
+        table.insert(RoadBlocks, firstBlock)
     end
 
-    if #behindBlocks > 0 then
-        table.sort(behindBlocks, function(a, b)
-            return a.XPosition < b.XPosition
-        end)
-
-        local blockToRecycle = behindBlocks[1]
-        local newX = farthestX + Config.BlockLength
-
-        local blockIndex = 0
-        for i, block in ipairs(RoadBlocks) do
-            if block == blockToRecycle then
-                blockIndex = i
-                break
+    -- 장애물 자동 반환
+    for i = #ActiveObstacles, 1, -1 do
+        local obs = ActiveObstacles[i]
+        if obs and obs.Actor then
+            local obsPos = obs.Actor:GetActorLocation()
+            if (ownerX - obsPos.X) > (Config.RecycleDistance * 2) then
+                ReturnObstacleToPool(obs)
             end
         end
-
-        RepositionBlock(blockToRecycle, newX, blockIndex)
     end
 end
 
@@ -453,22 +413,18 @@ end
 -- [라이프사이클] EndPlay
 -- =====================================================
 function EndPlay()
-    Log("[RoadGenerator] System Stopped")
-
     if OwnerActor then
         local world = OwnerActor:GetWorld()
         if world then
-            -- 도로 블록 제거
-            for i, block in ipairs(RoadBlocks) do
+            for _, block in ipairs(RoadBlocks) do
                 if block.Actors then
-                    for j, laneActor in ipairs(block.Actors) do
+                    for _, laneActor in ipairs(block.Actors) do
                         world:DestroyActor(laneActor)
                     end
                 end
             end
 
-            -- 장애물 제거
-            for i, obstacle in ipairs(ObstaclePool) do
+            for _, obstacle in ipairs(ObstaclePool) do
                 if obstacle.Actor then
                     world:DestroyActor(obstacle.Actor)
                 end
@@ -479,10 +435,7 @@ function EndPlay()
     RoadBlocks = {}
     ObstaclePool = {}
     ActiveObstacles = {}
-    RoadBlockObstacles = {}
     ObstaclePatternCounter = 0
     IsInitialized = false
     OwnerActor = nil
-
-    Log("[RoadGenerator] Cleanup complete")
 end
