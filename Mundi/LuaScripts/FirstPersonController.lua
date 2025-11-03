@@ -16,7 +16,7 @@
 
 -- ==================== 설정 ====================
 -- 이동 설정
-MoveSpeed = 15.0        -- 기본 이동 최고 속도 (유닛/초)
+MoveSpeed = 25.0        -- 기본 이동 최고 속도 (유닛/초)
 local SprintMultiplier = 2.0   -- Shift 누를 때 최고 속도 배율
 
 -- 가속/감속 설정 (유닛/초^2)
@@ -28,6 +28,13 @@ local StrafeDeceleration    = 80.0
 -- 현재 속도 상태 (유닛/초)
 local CurrentForwardSpeed = 0.0   -- actor:GetActorForward() 축 속도
 local CurrentRightSpeed   = 0.0   -- actor:GetActorRight()   축 속도
+
+-- 동적 최고 속도 증가 설정 (전진 전용)
+local CurrentMaxSpeed       = MoveSpeed       -- 현재 전진 최고 속도
+local MaxSpeedCap           = 45.0            -- 최고 속도 상한
+local MaxSpeedGrowthPerSec  = 2.0             -- 초당 증가량
+local MinMaxSpeed           = 10.0             -- 최소 상한 (패널티 하한)
+local OverlapMaxSpeedPenalty = 6.0            -- 겹침 시 최고 속도 감소량
 
 local function approach(current, target, rate, dt)
     if current < target then
@@ -106,6 +113,9 @@ function Tick(dt)
         return
     end
     
+    -- 시간 경과에 따라 전진 최고 속도를 서서히 증가
+    CurrentMaxSpeed = math.min(CurrentMaxSpeed + MaxSpeedGrowthPerSec * dt, MaxSpeedCap)
+
     -- ==================== 이동 처리 ====================
     UpdateMovement(dt, input)
 
@@ -120,12 +130,14 @@ function UpdateMovement(dt, input)
     local moveForward = input:GetAxisValue("MoveForward")   -- -1..+1 (forward/back)
     local moveRight   = input:GetAxisValue("MoveRight")     -- -1..+1 (right/left)
 
-    -- 목표 속도 (스프린트 시 상한 증가). 기존 로직 유지: 두 축 모두 스프린트 배율 적용
-    local speedCap = MoveSpeed * (input:IsActionDown("Sprint") and SprintMultiplier or 1.0)
-    -- Disallow backward motion: treat negative forward input as zero (brake)
+    -- 전진 최고 속도는 시간 경과로 증가, 스프린트 시 배율 적용
+    local forwardCap = CurrentMaxSpeed * (input:IsActionDown("Sprint") and SprintMultiplier or 1.0)
+    -- 후진 금지: 음수 입력은 브레이크로 처리
     local forwardInput = (moveForward > 0.01) and moveForward or 0.0
-    local targetForward = forwardInput * speedCap
-    local targetRight   = math.abs(moveRight)   > 0.01 and (moveRight   * speedCap) or 0.0
+    local targetForward = forwardInput * forwardCap
+    -- 좌/우(차선 변경)는 기본 MoveSpeed 유지 (원하면 forwardCap 적용 가능)
+    local rightCap = MoveSpeed
+    local targetRight   = math.abs(moveRight) > 0.01 and (moveRight * rightCap) or 0.0
 
     -- 가속/감속 적용
     if math.abs(targetForward) > math.abs(CurrentForwardSpeed) then
@@ -213,4 +225,9 @@ end
 function OnOverlap(other)
     ShakeTime = ShakeDuration
     ShakeSeed = math.random() * 1000
+    -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
+    CurrentMaxSpeed = math.max(MinMaxSpeed, CurrentMaxSpeed - OverlapMaxSpeedPenalty)
+    if CurrentForwardSpeed > CurrentMaxSpeed then
+        CurrentForwardSpeed = CurrentMaxSpeed
+    end
 end 
