@@ -40,19 +40,20 @@ USceneComponent::~USceneComponent()
     {
         if (Child && !Child->IsPendingDestroy())
         {
+            // 자식을 파괴하기 전에 부모 관계 끊기 (댕글링 포인터 방지)
+            Child->AttachParent = nullptr;
             // DestroyComponent를 통한 적절한 정리
             Child->DestroyComponent();
         }
     }
 
-    // 부모에서 자신 제거
-    // CRITICAL: 부모가 이미 소멸 중이면 댕글링 포인터 접근 방지
-    if (AttachParent && !AttachParent->IsPendingDestroy())
-    {
-        TArray<USceneComponent*>& ParentChildren = AttachParent->AttachChildren;
-        ParentChildren.Remove(this);
-        AttachParent = nullptr;
-    }
+    // CRITICAL: 부모에서 자신 제거 시도하지 않음!
+    // 이유:
+    // 1. AttachParent가 댕글링 포인터일 수 있음 (부모가 먼저 소멸된 경우)
+    // 2. IsPendingDestroy() 호출 자체가 댕글링 포인터 역참조
+    // 3. 부모가 살아있다면 부모가 자식 목록을 관리 중
+    // 대신 DetachFromParent()를 소멸 전에 명시적으로 호출해야 함
+    AttachParent = nullptr;
 }
 
 // ──────────────────────────────

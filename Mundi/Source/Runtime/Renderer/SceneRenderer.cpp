@@ -1193,6 +1193,9 @@ void FSceneRenderer::RenderSceneDepthPostProcess()
 	// 모든 작업이 성공적으로 끝났으므로 Commit 호출
 	// 이제 소멸자는 버퍼 스왑을 되돌리지 않고, SRV 해제 작업만 수행함
 	SwapGuard.Commit();
+
+	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
 }
 
 void FSceneRenderer::RenderTileCullingDebug()
@@ -1248,6 +1251,9 @@ void FSceneRenderer::RenderTileCullingDebug()
 
 	// 모든 작업이 성공적으로 끝났으므로 Commit 호출
 	SwapGuard.Commit();
+
+	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
 }
 
 // 빌보드, 에디터 화살표 그리기 (상호 작용, 피킹 O)
