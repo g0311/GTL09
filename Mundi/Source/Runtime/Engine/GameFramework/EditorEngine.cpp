@@ -6,6 +6,8 @@
 #include "InputMappingSubsystem.h"
 #include "InputMappingContext.h"
 #include "GameModeBase.h"
+#include "PlayerController.h"
+#include "PrimitiveComponent.h"
 
 // Delegate Test Actors - Force static initialization
 
@@ -357,6 +359,61 @@ void UEditorEngine::Shutdown()
 {
     // Release ImGui first (it may hold D3D11 resources)
     UUIManager::GetInstance().Release();
+
+    for (auto& WorldContext : WorldContexts)
+    {
+        if (WorldContext.World)
+        {
+            TArray<AActor*> Actors = WorldContext.World->GetLevel()->GetActors();
+            for (AActor* Actor : Actors)
+            {
+                if (Actor)
+                {
+                    UPrimitiveComponent* PrimComp = Actor->GetComponent<UPrimitiveComponent>();
+                    if (PrimComp)
+                    {
+                        PrimComp->OnBeginOverlapDelegate.Clear();
+                        PrimComp->OnEndOverlapDelegate.Clear();
+                    }
+                }
+            }
+
+            // 1. GameMode 정리
+            AGameModeBase* GameMode = WorldContext.World->GetGameMode();
+            if (GameMode)
+            {
+                UE_LOG("[Shutdown] Deleting GameMode early to prevent Lua delegate crash\n");
+
+                // 동적 이벤트 정리 (sol::function 참조 해제)
+                GameMode->ClearAllDynamicEvents();
+
+                // GameMode 삭제 (이 시점에는 lua_State가 아직 유효함)
+                ObjectFactory::DeleteObject(GameMode);
+
+                // World의 GameMode 포인터 제거
+                WorldContext.World->SetGameMode(nullptr);
+            }
+
+            // 2. PlayerController의 InputContext 정리
+            APlayerController* PC = WorldContext.World->GetPlayerController();
+            if (PC)
+            {
+                UInputMappingContext* InputCtx = PC->GetInputContext();
+                if (InputCtx)
+                {
+                    UE_LOG("[Shutdown] Clearing PlayerController InputContext delegates\n");
+
+                    // 입력 델리게이트 정리 (sol::function 참조 해제)
+                    InputCtx->ClearAllDelegates();
+
+                    // InputContext 삭제
+                    ObjectFactory::DeleteObject(InputCtx);
+
+                    // PlayerController의 InputContext 포인터는 DeleteAll에서 처리됨
+                }
+            }
+        }
+    }
 
     // Delete all UObjects (Components, Actors, Resources)
     // Resource destructors will properly release D3D resources

@@ -135,6 +135,9 @@ public:
         OnEndOverlapDelegate.Broadcast(this, OtherActor, OtherComp);
     }
 
+    FOnOverlapSignature OnBeginOverlapDelegate;
+    FOnOverlapSignature OnEndOverlapDelegate;
+
 protected:
     bool bIsCulled = false;
 
@@ -144,7 +147,4 @@ protected:
 
     uint32 CollisionLayer = 0u;
     TArray<FOverlapInfo> OverlapInfos;
-
-    FOnOverlapSignature OnBeginOverlapDelegate;
-    FOnOverlapSignature OnEndOverlapDelegate;
 };
