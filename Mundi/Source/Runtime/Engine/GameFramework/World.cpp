@@ -43,14 +43,27 @@ UWorld::UWorld()
 
 UWorld::~UWorld()
 {
-	// GameMode 정리 (PIE World에서만 존재)
+	// CRITICAL: GameMode와 PlayerController는 Level의 Actors에 포함되어 있음!
+	// 여기서 삭제하면 이중 삭제 발생 → dangling pointer crash
+	// 대신 Lua delegate/리소스만 정리하고 삭제는 Level에 맡김
+
+	// GameMode의 Lua delegate 정리 (소멸 전 필수!)
 	if (GameMode && !GameMode->IsPendingDestroy())
 	{
-		//GameMode->EndPlay(EEndPlayReason::Destroyed);
-		//ObjectFactory::DeleteObject(GameMode);
+		// Lua delegate 정리 (lua_state 무효화 전에 필요)
+		GameMode->ClearAllDynamicEvents();
+		// 삭제는 Level의 Actors 삭제 시 처리됨
 		GameMode = nullptr;
 	}
 
+	// PlayerController는 소멸자에서 InputContext 정리하므로 여기서는 nullptr만 설정
+	if (PlayerController && !PlayerController->IsPendingDestroy())
+	{
+		// 삭제는 Level의 Actors 삭제 시 처리됨
+		PlayerController = nullptr;
+	}
+
+	// Level의 모든 Actors 삭제 (GameMode, PlayerController 포함)
 	if (Level)
 	{
 		// DeleteObject 중에 배열이 수정될 수 있으므로 복사본 사용

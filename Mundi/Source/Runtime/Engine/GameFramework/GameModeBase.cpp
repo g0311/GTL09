@@ -25,8 +25,8 @@ AGameModeBase::AGameModeBase()
     Name = "GameModeBase";
     bTickInEditor = false; // 게임 중에만 틱
 
-    // ScriptComponent 초기화
-    GameModeScript = nullptr;
+    // ScriptComponent 생성 및 부착
+    //GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
 
     // ScriptPath를 빈 문자열로 초기화 (Scene에 저장된 기본값 무시)
     ScriptPath = "";
@@ -125,6 +125,15 @@ void AGameModeBase::BeginPlay()
         }
     }
 
+    // 게임 리셋 이벤트 등록 (스크립트들이 구독할 수 있도록)
+    RegisterEvent("OnGameReset");
+
+    // 플레이어 동결 이벤트 등록 (Player 스크립트가 구독하여 이동 멈춤)
+    RegisterEvent("FreezePlayer");
+
+    // 플레이어 동결 해제 이벤트 등록 (ResetGame 시 사용)
+    RegisterEvent("UnfreezePlayer");
+
     // 컴포넌트들의 BeginPlay 호출
     AActor::BeginPlay();
 
@@ -215,6 +224,31 @@ void AGameModeBase::EndGame(bool bVictory)
     OnGameEndDelegate.Broadcast(bVictory);
 }
 
+void AGameModeBase::ResetGame()
+{
+    UE_LOG("[GameModeBase] ========================================\n");
+    UE_LOG("[GameModeBase] ResetGame() called - Firing reset events\n");
+    UE_LOG("[GameModeBase] ========================================\n");
+
+    // 1. 게임 상태 변수 초기화
+    Score = 0;
+    GameTime = 0.0f;
+    bIsGameOver = false;
+    bIsVictory = false;
+    UE_LOG("[GameModeBase] Game state reset (Score=0, Time=0, GameOver=false)\n");
+
+    // 2. OnGameReset 이벤트 발행 (각 스크립트가 자신의 상태를 초기화)
+    UE_LOG("[GameModeBase] Firing 'OnGameReset' event - scripts will reset themselves\n");
+    FireEvent("OnGameReset", sol::nil);
+
+    // 3. UnfreezePlayer 이벤트 발행 (Player가 다시 움직일 수 있도록)
+    UE_LOG("[GameModeBase] Firing 'UnfreezePlayer' event\n");
+    FireEvent("UnfreezePlayer", sol::nil);
+
+    UE_LOG("[GameModeBase] ResetGame() complete!\n");
+    UE_LOG("[GameModeBase] ========================================\n");
+}
+
 // ==================== Actor 스폰 ====================
 AActor* AGameModeBase::SpawnActorFromLua(const FString& ClassName, const FVector& Location)
 {
@@ -292,19 +326,30 @@ void AGameModeBase::RegisterEvent(const FString& EventName)
 
 void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
 {
+    UE_LOG(("[GameModeBase] FireEvent called: '" + EventName + "'\n").c_str());
+    UE_LOG(("  Total registered events: " + std::to_string(DynamicEventMap.Num()) + "\n").c_str());
+
     if (!DynamicEventMap.Contains(EventName))
     {
-        // 이벤트가 등록되지 않았으면 무시 (경고 없이)
+        // 이벤트가 등록되지 않았으면 경고 출력
+        UE_LOG(("[GameModeBase] WARNING: Event '" + EventName + "' is not registered!\n").c_str());
+        UE_LOG("[GameModeBase] Available events:\n");
+        for (const auto& [name, callbacks] : DynamicEventMap)
+        {
+            UE_LOG(("  - " + name + " (" + std::to_string(callbacks.Num()) + " listeners)\n").c_str());
+        }
         return;
     }
 
     auto& Callbacks = DynamicEventMap[EventName];
+    UE_LOG(("  Event found with " + std::to_string(Callbacks.Num()) + " listeners\n").c_str());
 
     // 모든 구독자에게 이벤트 발행
     for (auto& [Handle, Callback] : Callbacks)
     {
         if (Callback.valid())
         {
+            UE_LOG(("  Calling listener with handle: " + std::to_string(Handle) + "\n").c_str());
             try
             {
                 // EventData가 유효하고 nil이 아니면 파라미터로 전달
@@ -328,11 +373,16 @@ void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
                     // 파라미터 없이 호출
                     Callback();
                 }
+                UE_LOG("  Listener executed successfully\n");
             }
             catch (const sol::error& e)
             {
                 UE_LOG(("[GameModeBase] Event callback error (" + EventName + "): " + FString(e.what()) + "\n").c_str());
             }
+        }
+        else
+        {
+            UE_LOG(("  WARNING: Listener with handle " + std::to_string(Handle) + " is invalid!\n").c_str());
         }
     }
 

@@ -455,6 +455,28 @@ void UScriptManager::RegisterWorld(sol::state* state)
         return gameMode;
         });
 
+    // Reset game state (PIE를 재시작하지 않고 게임 상태만 초기화)
+    state->set_function("ResetGame", []() {
+        UE_LOG("[Lua] ResetGame() called - resetting game state...\n");
+
+        UWorld* World = GEngine.GetDefaultWorld();
+        if (!World)
+        {
+            UE_LOG("[Lua] Error: ResetGame() - No World\n");
+            return;
+        }
+
+        AGameModeBase* GameMode = World->GetGameMode();
+        if (!GameMode)
+        {
+            UE_LOG("[Lua] Error: ResetGame() - No GameMode\n");
+            return;
+        }
+
+        GameMode->ResetGame();
+        UE_LOG("[Lua] ResetGame() completed successfully\n");
+        });
+
     // Get PlayerPawn (현재 플레이어가 조종하는 Pawn)
     state->set_function("GetPlayerPawn", [](sol::this_state L) -> AActor* {
         sol::state_view lua(L);

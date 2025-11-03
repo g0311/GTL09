@@ -27,6 +27,13 @@ local ShakeFrequency = 25.0     -- faster shake frequency
 local ShakeSeed = 0.0
 -- Use additive offset so camera keeps following player input while shaking
 local ShakeOffset = Vector(0.0, 0.0, 0.0)
+-- 상태 플래그
+local bIsFrozen = false        -- 플레이어가 얼어있는지 (움직일 수 없음)
+
+-- 게임 리셋을 위한 초기 위치 저장
+local InitialPosition = nil
+local InitialRotation = nil
+
 
 ---
 --- 게임 시작 시 초기화
@@ -34,8 +41,13 @@ local ShakeOffset = Vector(0.0, 0.0, 0.0)
 function BeginPlay()
     local name = actor:GetName()
     local pos = actor:GetActorLocation()
+
+    -- 초기 위치 및 회전 저장 (게임 리셋용)
+    InitialPosition = Vector(pos.X, pos.Y, pos.Z)
+    InitialRotation = actor:GetActorRotation()
+
     Log("[FirstPersonController] Initializing for " .. name)
-    Log("[FirstPersonController] Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+    Log("[FirstPersonController] Initial Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
 
     -- ==================== 입력 시스템 설정 ====================
     -- PlayerController에서 InputContext를 가져옴
@@ -59,7 +71,70 @@ function BeginPlay()
     -- MoveRight: D(+1.0), A(-1.0)
     InputContext:MapAxisKey("MoveRight", Keys.D,  1.0)
     InputContext:MapAxisKey("MoveRight", Keys.A, -1.0)
-    
+
+    -- ==================== 게임 이벤트 구독 ====================
+    local gm = GetGameMode()
+    if gm then
+        Log("[FirstPersonController] Subscribing to game events...")
+
+        -- FreezePlayer 이벤트 구독 (플레이어 얼리기)
+        local success1, handle1 = pcall(function()
+            return gm:SubscribeEvent("FreezePlayer", function()
+                Log("[FirstPersonController] *** FreezePlayer event received! ***")
+                bIsFrozen = true
+                Log("[FirstPersonController] Player FROZEN - movement disabled")
+            end)
+        end)
+
+        if success1 then
+            Log("[FirstPersonController] Subscribed to 'FreezePlayer' with handle: " .. tostring(handle1))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'FreezePlayer': " .. tostring(handle1))
+        end
+
+        -- UnfreezePlayer 이벤트 구독 (플레이어 얼림 해제)
+        local success2, handle2 = pcall(function()
+            return gm:SubscribeEvent("UnfreezePlayer", function()
+                Log("[FirstPersonController] *** UnfreezePlayer event received! ***")
+                bIsFrozen = false
+                Log("[FirstPersonController] Player UNFROZEN - movement enabled")
+            end)
+        end)
+
+        if success2 then
+            Log("[FirstPersonController] Subscribed to 'UnfreezePlayer' with handle: " .. tostring(handle2))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'UnfreezePlayer': " .. tostring(handle2))
+        end
+
+        -- OnGameReset 이벤트 구독 (위치 복원)
+        local success3, handle3 = pcall(function()
+            return gm:SubscribeEvent("OnGameReset", function()
+                Log("[FirstPersonController] *** OnGameReset event received! ***")
+
+                -- 초기 위치로 복원
+                if InitialPosition and InitialRotation then
+                    actor:SetActorLocation(InitialPosition)
+                    actor:SetActorRotation(InitialRotation)
+                    Log("[FirstPersonController] Position restored to (" ..
+                        string.format("%.2f", InitialPosition.X) .. ", " ..
+                        string.format("%.2f", InitialPosition.Y) .. ", " ..
+                        string.format("%.2f", InitialPosition.Z) .. ")")
+                else
+                    Log("[FirstPersonController] WARNING: InitialPosition not set!")
+                end
+            end)
+        end)
+
+        if success3 then
+            Log("[FirstPersonController] Subscribed to 'OnGameReset' with handle: " .. tostring(handle3))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'OnGameReset': " .. tostring(handle3))
+        end
+    else
+        Log("[FirstPersonController] WARNING: No GameMode found for event subscription")
+    end
+
     Log("[FirstPersonController] Initialized!")
     Log("[FirstPersonController] Controls:")
     Log("  WASD - Move")
@@ -94,6 +169,11 @@ end
 --- 이동 업데이트
 ---
 function UpdateMovement(dt, input)
+    -- 플레이어가 얼어있으면 이동 불가
+    if bIsFrozen then
+        return
+    end
+
     local moveForward = input:GetAxisValue("MoveForward")
     local moveRight = input:GetAxisValue("MoveRight")
 

@@ -383,23 +383,19 @@ void UEditorEngine::Shutdown()
                 }
             }
 
-            // 1. GameMode 정리
+            // 1. GameMode의 Lua delegate 정리
             AGameModeBase* GameMode = WorldContext.World->GetGameMode();
             if (GameMode)
             {
-                UE_LOG("[Shutdown] Deleting GameMode early to prevent Lua delegate crash\n");
+                UE_LOG("[Shutdown] Clearing GameMode delegates early to prevent Lua delegate crash\n");
 
                 // 동적 이벤트 정리 (sol::function 참조 해제)
+                // CRITICAL: 삭제는 하지 않음! World 소멸 시 Level의 Actors와 함께 삭제됨
+                // 여기서 삭제하면 이중 삭제 발생 → dangling pointer crash
                 GameMode->ClearAllDynamicEvents();
-
-                // GameMode 삭제 (이 시점에는 lua_State가 아직 유효함)
-                ObjectFactory::DeleteObject(GameMode);
-
-                // World의 GameMode 포인터 제거
-                WorldContext.World->SetGameMode(nullptr);
             }
 
-            // 2. PlayerController의 InputContext 정리
+            // 2. PlayerController의 InputContext delegate 정리
             APlayerController* PC = WorldContext.World->GetPlayerController();
             if (PC)
             {
@@ -411,10 +407,8 @@ void UEditorEngine::Shutdown()
                     // 입력 델리게이트 정리 (sol::function 참조 해제)
                     InputCtx->ClearAllDelegates();
 
-                    // InputContext 삭제
-                    ObjectFactory::DeleteObject(InputCtx);
-
-                    // PlayerController의 InputContext 포인터는 DeleteAll에서 처리됨
+                    // CRITICAL: 삭제는 하지 않음! PlayerController 소멸자에서 처리됨
+                    // 여기서 삭제하면 PlayerController 소멸 시 이중 삭제 발생
                 }
             }
         }
