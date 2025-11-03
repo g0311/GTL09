@@ -76,7 +76,11 @@ FOBB UBoxComponent::GetWorldOBB() const
 
 bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
 {
-    if (!Other) return false;
+    // Respect collision/overlap flags on both shapes
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+        return false;
+    if (!Other || !Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents())
+        return false;
     const FOBB This = GetWorldOBB();
     switch (Other->GetCollisionShapeType())
     {
@@ -100,6 +104,12 @@ bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
 
 FAABB UBoxComponent::GetBroadphaseAABB() const
 {
+    // If disabled or not generating overlaps, return a degenerate AABB
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+    {
+        const FVector P = GetWorldLocation();
+        return FAABB(P, P);
+    }
     const FOBB This = GetWorldOBB();
     const TArray<FVector> Corners = This.GetCorners();
     if (Corners.IsEmpty())

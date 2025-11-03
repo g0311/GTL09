@@ -151,7 +151,11 @@ void UCapsuleComponent::DebugDraw() const
 
 bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
 {
-    if (!Other) return false;
+    // Respect collision/overlap flags on both shapes
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+        return false;
+    if (!Other || !Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents())
+        return false;
     const FCapsule This = GetWorldCapsule();
     switch (Other->GetCollisionShapeType())
     {
@@ -175,6 +179,12 @@ bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
 
 FAABB UCapsuleComponent::GetBroadphaseAABB() const
 {
+    // If disabled or not generating overlaps, return a degenerate AABB
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+    {
+        const FVector P = GetWorldLocation();
+        return FAABB(P, P);
+    }
     const FCapsule Cap = GetWorldCapsule();
     FVector MinV = Cap.Center1.ComponentMin(Cap.Center2);
     FVector MaxV = Cap.Center1.ComponentMax(Cap.Center2);
