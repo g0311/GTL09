@@ -19,9 +19,25 @@ AActor::AActor()
 
 AActor::~AActor()
 {
-	// UE처럼 역순/안전 소멸: 모든 컴포넌트 DestroyComponent
+	// CRITICAL: DestroyComponent가 DeleteObject를 호출하면 즉시 소멸자가 실행되고
+	// SceneComponent 소멸자는 자식들도 파괴하므로, 순회 중에 컨테이너가 수정됨
+	// 반드시 복사본을 만들어서 순회해야 함
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
 	for (UActorComponent* Comp : OwnedComponents)
-		if (Comp) Comp->DestroyComponent();  // 안에서 Unregister/Detach 처리한다고 가정
+	{
+		ComponentsCopy.push_back(Comp);
+	}
+
+	// 복사본으로 안전하게 파괴
+	for (UActorComponent* Comp : ComponentsCopy)
+	{
+		if (Comp && !Comp->IsPendingDestroy())
+		{
+			Comp->DestroyComponent();
+		}
+	}
+
 	OwnedComponents.clear();
 	SceneComponents.Empty();
 	RootComponent = nullptr;

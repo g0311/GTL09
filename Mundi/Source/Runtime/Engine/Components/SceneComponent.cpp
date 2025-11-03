@@ -46,7 +46,8 @@ USceneComponent::~USceneComponent()
     }
 
     // 부모에서 자신 제거
-    if (AttachParent)
+    // CRITICAL: 부모가 이미 소멸 중이면 댕글링 포인터 접근 방지
+    if (AttachParent && !AttachParent->IsPendingDestroy())
     {
         TArray<USceneComponent*>& ParentChildren = AttachParent->AttachChildren;
         ParentChildren.Remove(this);
