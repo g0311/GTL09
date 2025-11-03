@@ -5,7 +5,7 @@
 
 -- Points baseline per second when moving at base speed
 local PointsPerSecond = 100
-local PointsPerHit = -200
+local PointsPerHit = 200
 local GameOverScore = 10000
 
 local Player
@@ -14,10 +14,15 @@ local BaseMoveSpeed = 15.0
 
 local handle_PlayerHit = nil
 local PLAYER_HIT = "PlayerHit"
+-- Frenzy event handles
+local handle_EnterFrenzy = nil
+local handle_ExitFrenzy = nil
 -- Accumulate fractional score so we only add whole points
 local scoreCarry = 0.0
 -- Track last position to compute velocity magnitude
 local lastPos = nil
+
+local bIsInFrenzyMode = false
 
 function BeginPlay()
     local gm = GetGameMode()
@@ -30,13 +35,30 @@ function BeginPlay()
     -- Ensure the event exists and subscribe directly via GameMode
     gm:RegisterEvent(PLAYER_HIT)
     handle_PlayerHit = gm:SubscribeEvent(PLAYER_HIT, function(payload)
-        gm:AddScore(PointsPerHit)
-        Log("[GameScore] Collision: +" .. PointsPerHit)
+        
+        if (bIsInFrenzyMode) then
+            gm:AddScore(PointsPerHit)
+        else
+            gm:AddScore(-PointsPerHit)
+        end
+            
         if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
             gm:EndGame(true)
         end
     end)
     Log("[GameScore] Subscribed to PlayerHit")
+
+    if GameEvents and GameEvents.OnEnterFrenzyMode then
+        handle_EnterFrenzy = GameEvents.OnEnterFrenzyMode(function(payload)
+            if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
+        end)
+    end
+
+    if GameEvents and GameEvents.OnExitFrenzyMode then
+        handle_ExitFrenzy = GameEvents.OnExitFrenzyMode(function(payload)
+            if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
+        end)
+    end
     
     Player = GetPlayerPawn()
     if Player then
@@ -64,11 +86,15 @@ function Tick(dt)
             scoreCarry = scoreCarry + deltaScore
             local whole = math.floor(scoreCarry)
             if whole >= 1 then
-                gm:AddScore(whole)
+                if (bIsInFrenzyMode) then
+                    gm:AddScore(whole * 2)
+                else
+                    gm:AddScore(whole)
+                end
+                
                 scoreCarry = scoreCarry - whole
                 if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
                     gm:EndGame(true)
-                    -- keep lastPos updated even if game ends
                 end
             end
         end
@@ -82,10 +108,26 @@ function EndPlay()
         gm:UnsubscribeEvent(PLAYER_HIT, handle_PlayerHit)
         handle_PlayerHit = nil
     end
+    if GameEvents and handle_EnterFrenzy then
+        GameEvents.Unsubscribe(GameEvents.Events.EnterFrenzyMode, handle_EnterFrenzy)
+        handle_EnterFrenzy = nil
+    end
+    if GameEvents and handle_ExitFrenzy then
+        GameEvents.Unsubscribe(GameEvents.Events.ExitFrenzyMode, handle_ExitFrenzy)
+        handle_ExitFrenzy = nil
+    end
 end
 
 -- Convenience accessor for future UI scripts in this state
 function GetScore()
     local gm = GetGameMode()
     return gm and gm:GetScore() or 0
+end
+
+function OnEnterFrenzyMode(payload)
+    bIsInFrenzyMode = true
+end 
+
+function OnExitFrenzyMode(payload)
+    bIsInFrenzyMode = false
 end
