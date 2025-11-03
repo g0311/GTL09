@@ -75,6 +75,16 @@ public:
     float GetGameTime() const { return GameTime; }
 
     /**
+     * @brief Chaser와 플레이어 간의 거리 가져오기
+     */
+    float GetChaserDistance() const { return ChaserDistance; }
+
+    /**
+     * @brief Chaser 거리 설정 (Lua에서 호출)
+     */
+    void SetChaserDistance(float Distance) { ChaserDistance = Distance; }
+
+    /**
      * @brief 게임 오버 상태 확인
      */
     bool IsGameOver() const { return bIsGameOver; }
@@ -227,6 +237,7 @@ protected:
     /** 게임 상태 변수 */
     int32 Score{ 0 };
     float GameTime{ 0.0f };
+    float ChaserDistance{ 999.0f };  // Chaser와 플레이어 간 거리
     bool bIsGameOver{ false };
     bool bIsVictory{ false };
 
