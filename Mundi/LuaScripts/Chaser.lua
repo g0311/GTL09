@@ -6,7 +6,7 @@
 
 -- ==================== 설정 ====================
 local MoveSpeed = 20.0           -- X축 이동 속도 (단위/초)
-local CatchDistance = 10.0      -- 추격 성공 거리 (유닛)
+local CatchDistance = 0.0       -- 추격 성공 거리 (유닛) - 0이면 정확히 닿았을 때
 local PlayerOffsetDistance = 50.0 -- 플레이어로부터 뒤쪽 오프셋 거리 (유닛)
 local bPlayerCaught = false     -- 플레이어를 잡았는지 여부
 local bIsStopped = true         -- Chaser가 멈췄는지 여부 (처음엔 멈춤 상태로 시작)

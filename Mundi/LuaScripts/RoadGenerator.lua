@@ -76,7 +76,7 @@ local Config = {
     ObstacleBlocksEmpty = 1,           -- 장애물 없이 비울 연속 블록 수
 
     -- ===== 가드레일 설정 (그룹 기반 최적화) =====
-    GuardrailModel = "Data/Model/Cube/Cube-cartoon.obj",
+    GuardrailModel = "Data/Model/Cube.obj",
 
     -- 가드레일 높이 및 Y축 오프셋
     GuardrailHeight = 0.6,
@@ -342,7 +342,7 @@ local function InitializeGuardrailPool()
 
     -- 그룹 길이로 스케일 계산
     local groupLength = Config.BlockLength * Config.RoadGroupSize
-    local guardrailScale = Vector(groupLength, 0.3, 0.5)
+    local guardrailScale = Vector(groupLength, 0.3, 2.5)
 
     for i = 1, Config.InitialGuardrailPoolSize do
         local transform = Transform(

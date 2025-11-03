@@ -670,6 +670,12 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 	}
 }
 
+void AActor::OnSerialized()
+{
+	Super::OnSerialized();
+
+}
+
 //AActor* AActor::Duplicate()
 //{
 //	AActor* NewActor = ObjectFactory::DuplicateObject<AActor>(this); // 모든 멤버 얕은 복사

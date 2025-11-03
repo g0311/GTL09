@@ -158,8 +158,8 @@ public:
     DECLARE_DUPLICATE(AActor)
 
     // Serialize
-    void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
-
+    virtual void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+    virtual void OnSerialized() override;
 
     // ───── Collision System ────────────────────────────
     bool IsOverlappingActor(const AActor* Other) const;

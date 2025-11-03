@@ -8,7 +8,7 @@ UGameHUDWindow::UGameHUDWindow()
     FUIWindowConfig cfg;
     cfg.WindowTitle = "HUD";
     cfg.DefaultSize = ImVec2(320, 110);
-    cfg.DefaultPosition = ImVec2(20, 200);
+    cfg.DefaultPosition = ImVec2(20, 120);
     cfg.bMovable = false;
     cfg.bResizable = false;
     cfg.bCollapsible = false;
