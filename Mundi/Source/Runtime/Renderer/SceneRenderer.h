@@ -30,6 +30,7 @@ struct FVisibleRenderProxySet
 {
 	// --- Type 1: Main Scene (PP O, Depth-Test O) ---
 	TArray<UMeshComponent*> Meshes;
+	TArray<UMeshComponent*> SkyDomeMeshes; // 스카이돔 전용 (Sky Pass에서만 렌더링)
 	TArray<UBillboardComponent*> Billboards; // 인게임 빌보드 (파티클, 잔디 등)
 	TArray<UDecalComponent*> Decals;
 	TArray<UTextRenderComponent*> Texts;
@@ -94,10 +95,13 @@ private:
 	/** @brief 타일 기반 라이트 컬링을 수행하고 Structured Buffer를 업데이트합니다. */
 	void PerformTileLightCulling();
 
+	/** @brief 스카이돔을 렌더링하는 패스입니다. */
+	void RenderSkyPass();
+
 	/** @brief 불투명(Opaque) 객체들을 렌더링하는 패스입니다. */
 	void RenderOpaquePass(EViewModeIndex InRenderViewMode);
 
-	void DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, bool bClearListAfterDraw);
+	void DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, bool bClearListAfterDraw, bool bSetDefaultState = true);
 
 	/** @brief 데칼(Decal)을 렌더링하는 패스입니다. */
 	void RenderDecalPass();
