@@ -67,6 +67,12 @@ local InitialRotation = nil
 local ChaserDistance = 999.0   -- 초기값: 매우 먼 거리
 
 
+-- Event subscription handles
+local handleFrenzyEnter = nil
+local handleFrenzyExit = nil
+local bIsInFrenzyMode = false
+local OverlapMaxSpeedReward = 2.0
+
 ---
 --- 게임 시작 시 초기화
 ---
@@ -183,6 +189,17 @@ function BeginPlay()
         else
             Log("[FirstPersonController] ERROR subscribing to 'OnChaserDistanceUpdate': " .. tostring(handle4))
         end
+
+        -- Frenzy mode subscriptions
+        gm:RegisterEvent("EnterFrenzyMode")
+        handleFrenzyEnter = gm:SubscribeEvent("EnterFrenzyMode", function(payload)
+            if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
+        end)
+
+        gm:RegisterEvent("ExitFrenzyMode")
+        handleFrenzyExit = gm:SubscribeEvent("ExitFrenzyMode", function(payload)
+            if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
+        end)
     else
         Log("[FirstPersonController] WARNING: No GameMode found for event subscription")
     end
@@ -199,6 +216,15 @@ end
 function EndPlay()
     local name = actor:GetName()
     Log("[FirstPersonController] Cleaning up for " .. name)
+    local gm = GetGameMode()
+    if handleFrenzyEnter and gm then
+        gm:UnsubscribeEvent("EnterFrenzyMode", handleFrenzyEnter)
+        handleFrenzyEnter = nil
+    end
+    if handleFrenzyExit and gm then
+        gm:UnsubscribeEvent("ExitFrenzyMode", handleFrenzyExit)
+        handleFrenzyExit = nil
+    end
 end
 
 ---
@@ -325,11 +351,26 @@ function UpdateCameraShake(dt)
     end
 end
 
+function OnEnterFrenzyMode(payload)
+    bIsInFrenzyMode = true
+    CurrentForwardSpeed = CurrentForwardSpeed + 10.0
+end
+
+function OnExitFrenzyMode(payload)
+    bIsInFrenzyMode = false
+end
+
 function OnOverlap(other)
     ShakeTime = ShakeDuration
     ShakeSeed = math.random() * 1000
+    
     -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
-    CurrentMaxSpeed = math.max(MinMaxSpeed, CurrentMaxSpeed - OverlapMaxSpeedPenalty)
+    if not (bIsInFrenzyMode) then
+        CurrentMaxSpeed = math.max(MinMaxSpeed, CurrentMaxSpeed - OverlapMaxSpeedPenalty)
+    else
+        CurrentMaxSpeed = math.min(MaxSpeedCap, CurrentMaxSpeed + OverlapMaxSpeedReward)
+    end
+    
     if CurrentForwardSpeed > CurrentMaxSpeed then
         CurrentForwardSpeed = CurrentMaxSpeed
     end
