@@ -236,9 +236,10 @@ void AGameModeBase::ResetGame()
     // 1. 게임 상태 변수 초기화
     Score = 0;
     GameTime = 0.0f;
+    ChaserDistance = 999.0f;
     bIsGameOver = false;
     bIsVictory = false;
-    UE_LOG("[GameModeBase] Game state reset (Score=0, Time=0, GameOver=false)\n");
+    UE_LOG("[GameModeBase] Game state reset (Score=0, Time=0, ChaserDistance=999.0, GameOver=false)\n");
 
     // 2. OnGameReset 이벤트 발행 (각 스크립트가 자신의 상태를 초기화)
     UE_LOG("[GameModeBase] Firing 'OnGameReset' event - scripts will reset themselves\n");
