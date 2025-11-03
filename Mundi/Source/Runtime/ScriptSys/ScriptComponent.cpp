@@ -343,6 +343,116 @@ void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AAc
 	CallLuaFunction("OnEndOverlap", OtherActor);
 }
 
+// ==================== HUD Bridge ====================
+bool UScriptComponent::GetHUDEntries(TArray<FHUDRow>& OutRows)
+{
+    OutRows.Empty();
+    if (!bScriptLoaded || !Lua)
+    {
+        return false;
+    }
+    try
+    {
+        sol::protected_function func = (*Lua)["HUD_GetEntries"];
+        if (!func.valid())
+        {
+            return false;
+        }
+        sol::protected_function_result result = func();
+        if (!result.valid())
+        {
+            sol::error err = result;
+            UE_LOG((FString("[Lua Error] HUD_GetEntries: ") + err.what() + "\n").c_str());
+            return false;
+        }
+        sol::object obj = result;
+        if (!obj.is<sol::table>())
+        {
+            return false;
+        }
+        sol::table rows = obj.as<sol::table>();
+        int n = static_cast<int>(rows.size());
+        for (int i = 1; i <= n; ++i)
+        {
+            sol::object rowObj = rows[i];
+            if (!rowObj.is<sol::table>()) continue;
+            sol::table row = rowObj.as<sol::table>();
+            FHUDRow r;
+            sol::optional<std::string> lbl = row["label"];
+            sol::optional<std::string> val = row["value"];
+            if (lbl) r.Label = *lbl; else r.Label = "";
+            if (val) r.Value = *val; else r.Value = "";
+            sol::object col = row["color"];
+            if (col.valid() && col.is<sol::table>())
+            {
+                sol::table t = col.as<sol::table>();
+                r.bHasColor = true;
+                r.R = t.get_or(1, 1.0f);
+                r.G = t.get_or(2, 1.0f);
+                r.B = t.get_or(3, 1.0f);
+                r.A = t.get_or(4, 1.0f);
+            }
+            OutRows.Add(r);
+        }
+        return !OutRows.IsEmpty();
+    }
+    catch (const sol::error& e)
+    {
+        UE_LOG((FString("[Lua Error] HUD_GetEntries: ") + e.what() + "\n").c_str());
+        return false;
+    }
+}
+
+bool UScriptComponent::GetHUDGameOver(FString& OutTitle, TArray<FString>& OutLines)
+{
+    OutLines.Empty();
+    OutTitle = "";
+    if (!bScriptLoaded || !Lua)
+    {
+        return false;
+    }
+    try
+    {
+        sol::protected_function func = (*Lua)["HUD_GameOver"];
+        if (!func.valid())
+        {
+            return false;
+        }
+        sol::protected_function_result result = func();
+        if (!result.valid())
+        {
+            sol::error err = result;
+            UE_LOG((FString("[Lua Error] HUD_GameOver: ") + err.what() + "\n").c_str());
+            return false;
+        }
+        sol::object obj = result;
+        if (!obj.is<sol::table>())
+        {
+            return false;
+        }
+        sol::table t = obj.as<sol::table>();
+        sol::optional<std::string> title = t["title"];
+        if (title) OutTitle = *title; else OutTitle = "Game Over";
+        sol::object lines = t["lines"];
+        if (lines.valid() && lines.is<sol::table>())
+        {
+            sol::table arr = lines.as<sol::table>();
+            int n = static_cast<int>(arr.size());
+            for (int i = 1; i <= n; ++i)
+            {
+                sol::optional<std::string> s = arr[i];
+                if (s) OutLines.Add(*s);
+            }
+        }
+        return true;
+    }
+    catch (const sol::error& e)
+    {
+        UE_LOG((FString("[Lua Error] HUD_GameOver: ") + e.what() + "\n").c_str());
+        return false;
+    }
+}
+
 // ==================== Serialization ====================
 void UScriptComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {

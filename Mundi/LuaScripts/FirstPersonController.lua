@@ -79,9 +79,12 @@ end
 ---
 function Tick(dt)
     local input = GetInput()
-
+    
     -- ==================== 이동 처리 ====================
-    UpdateMovement(dt, input)
+    local gm = GetGameMode()
+    if not (gm and gm:IsGameOver()) then
+        UpdateMovement(dt, input)
+    end
 
     -- ==================== 카메라 처리 ====================
     UpdateCameraShake(dt)

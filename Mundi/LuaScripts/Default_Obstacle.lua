@@ -142,4 +142,10 @@ function OnOverlap(other)
     local rotationalSpeed = Randf(RotSpeedMin, RotSpeedMax)
     local rate = axis * rotationalSpeed
     rotatingMovement:SetRotationRate(rate)
+
+    -- Fire gameplay event for scoring/UI directly via GameMode (independent of Lua module state)
+    local gm = GetGameMode and GetGameMode() or nil
+    if gm and gm.FireEvent then
+        gm:FireEvent("PlayerHit", { obstacle = actor, player = other })
+    end
 end

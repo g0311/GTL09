@@ -378,6 +378,8 @@
     <ClCompile Include="Source\Slate\Windows\SViewportWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\SWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
+    <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
+    <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
@@ -650,6 +652,8 @@
     <Content Include="LuaScripts\Default_Obstacle.lua" />
     <Content Include="LuaScripts\Default_TempCar.lua" />
     <Content Include="LuaScripts\FirstPersonController.lua" />
+    <Content Include="LuaScripts\GameEvents.lua" />
+    <Content Include="LuaScripts\GameScore.lua" />
     <Content Include="LuaScripts\MultiCoroutineTest.lua" />
     <Content Include="LuaScripts\RoadGenerator.lua" />
     <Content Include="LuaScripts\teasd1.lua" />

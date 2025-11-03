@@ -93,6 +93,22 @@ public:
     template<typename ...Args>
     void CallLuaFunction(const FString& InFunctionName, Args&&... InArgs);
 
+    // -------- HUD bridge (Lua-driven UI) --------
+    struct FHUDRow
+    {
+        FString Label;
+        FString Value;
+        bool bHasColor = false;
+        float R = 1.0f, G = 1.0f, B = 1.0f, A = 1.0f;
+    };
+
+    // Calls Lua function HUD_GetEntries() on this component's state.
+    // Expects a table array of rows: { {label=..., value=..., color={r,g,b,a}?}, ... }
+    bool GetHUDEntries(TArray<FHUDRow>& OutRows);
+
+    // Calls Lua function HUD_GameOver() expecting a table { title=string, lines={...} }
+    bool GetHUDGameOver(FString& OutTitle, TArray<FString>& OutLines);
+
 private:
 	void EnsureCoroutineHelper();
 
