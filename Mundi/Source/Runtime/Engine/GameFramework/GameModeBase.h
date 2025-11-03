@@ -233,4 +233,7 @@ protected:
 
     /** 지연 삭제 시스템 (Lua 콜백 중 삭제 방지) */
     TArray<AActor*> PendingDestroyActors;
+
+    /** 직렬화 임시 변수 (OnSerialized에서 DefaultPawnActor 복원) */
+    FString DefaultPawnActorNameToRestore;
 };

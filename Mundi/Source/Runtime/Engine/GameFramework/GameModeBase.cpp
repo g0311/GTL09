@@ -400,14 +400,17 @@ void AGameModeBase::ClearAllDynamicEvents()
 // ==================== Serialization ====================
 void AGameModeBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
-    AActor::Serialize(bInIsLoading, InOutHandle);
-
+    Super::Serialize(bInIsLoading, InOutHandle);
+    //@TODO UUID를 통해 디폴트 액터 셋하게 변경
     if (bInIsLoading)
     {
         FJsonSerializer::ReadString(InOutHandle, "ScriptPath", ScriptPath);
         FJsonSerializer::ReadInt32(InOutHandle, "Score", Score);
         FJsonSerializer::ReadFloat(InOutHandle, "GameTime", GameTime);
         FJsonSerializer::ReadBool(InOutHandle, "bIsGameOver", bIsGameOver);
+
+        // DefaultPawnActor 이름 로드
+        FJsonSerializer::ReadString(InOutHandle, "DefaultPawnActorName", DefaultPawnActorNameToRestore);
     }
     else
     {
@@ -415,6 +418,13 @@ void AGameModeBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         InOutHandle["Score"] = Score;
         InOutHandle["GameTime"] = GameTime;
         InOutHandle["bIsGameOver"] = bIsGameOver;
+
+        // DefaultPawnActor 이름 저장
+        if (DefaultPawnActor)
+        {
+            FString PawnName = DefaultPawnActor->GetName().ToString();
+            InOutHandle["DefaultPawnActorName"] = PawnName.c_str();
+        }
     }
 }
 
@@ -427,6 +437,26 @@ void AGameModeBase::OnSerialized()
     {
         ScriptPath = "";
         UE_LOG("[GameModeBase] Ignored legacy test script path from Scene file\n");
+    }
+
+    // DefaultPawnActor 복원
+    if (!DefaultPawnActorNameToRestore.empty())
+    {
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            // World에서 이름으로 Actor 찾기
+            for (AActor* Actor : World->GetActors())
+            {
+                if (Actor && Actor->GetName().ToString() == DefaultPawnActorNameToRestore)
+                {
+                    DefaultPawnActor = Actor;
+                    UE_LOG("[GameModeBase] Restored DefaultPawnActor: %s\n", DefaultPawnActorNameToRestore.c_str());
+                    break;
+                }
+            }
+        }
+        DefaultPawnActorNameToRestore.clear();
     }
 
     // 스크립트 재로드
