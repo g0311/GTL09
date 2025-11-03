@@ -19,6 +19,9 @@
 local MoveSpeed = 15.0        -- 기본 이동 속도 (유닛/초)
 local SprintMultiplier = 2.0   -- Shift 누를 때 속도 배율
 
+local MinHorizontalPosition = -5.5 -- temporarily hard-code the limits in
+local MaxHorizontalPosition = 5.5
+
 -- 카메라 설정
 local ShakeTime = 0.0
 local ShakeDuration = 0.20
@@ -79,12 +82,13 @@ end
 ---
 function Tick(dt)
     local input = GetInput()
+    local gm = GetGameMode()
+    if (gm and gm:IsGameOver()) then
+        return
+    end
     
     -- ==================== 이동 처리 ====================
-    local gm = GetGameMode()
-    if not (gm and gm:IsGameOver()) then
-        UpdateMovement(dt, input)
-    end
+    UpdateMovement(dt, input)
 
     -- ==================== 카메라 처리 ====================
     UpdateCameraShake(dt)
@@ -106,17 +110,33 @@ function UpdateMovement(dt, input)
         end
 
         -- 전진/후진 이동
-        if math.abs(moveForward) > 0.01 then
-            local forward = actor:GetActorForward()
-            local movement = forward * (moveForward * currentSpeed * dt)
-            actor:AddActorWorldLocation(movement)
-        end
-
-        -- 좌우 이동
         if math.abs(moveRight) > 0.01 then
             local right = actor:GetActorRight()
             local movement = right * (moveRight * currentSpeed * dt)
             actor:AddActorWorldLocation(movement)
+        end
+
+        -- 좌우 이동
+        if math.abs(moveForward) > 0.01 then
+            -- Prevent moving further once beyond horizontal limits
+            local pos = actor:GetActorLocation()
+            local atMax = pos.Y >= MaxHorizontalPosition and moveForward > 0
+            local atMin = pos.Y <= MinHorizontalPosition and moveForward < 0
+            if not (atMax or atMin) then
+                local forward = actor:GetActorForward()
+                local movement = forward * (moveForward * currentSpeed * dt)
+                actor:AddActorWorldLocation(movement)
+            end
+        end
+
+        -- Hard clamp Y within [MinHorizontalPosition, MaxHorizontalPosition]
+        local newPos = actor:GetActorLocation()
+        if newPos.Y < MinHorizontalPosition then
+            newPos.Y = MinHorizontalPosition
+            actor:SetActorLocation(newPos)
+        elseif newPos.Y > MaxHorizontalPosition then
+            newPos.Y = MaxHorizontalPosition
+            actor:SetActorLocation(newPos)
         end
     end
 end
