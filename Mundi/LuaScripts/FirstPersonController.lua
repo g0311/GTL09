@@ -144,19 +144,13 @@ function BeginPlay()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
 
-                -- 초기 위치로 복원 (X는 0으로 고정, Y/Z는 초기값 사용)
-                if InitialPosition and InitialRotation then
-                    -- X=0으로 고정 (시작 지점), Y는 초기 차선 위치 유지
-                    local resetPosition = Vector(0, InitialPosition.Y, InitialPosition.Z)
-                    actor:SetActorLocation(resetPosition)
+                -- 초기 위치로 복원 (0, 0, 0으로 강제 고정)
+                local resetPosition = Vector(0, 0, 0)
+                actor:SetActorLocation(resetPosition)
+                if InitialRotation then
                     actor:SetActorRotation(InitialRotation)
-                    Log("[FirstPersonController] Position restored to (" ..
-                        string.format("%.2f", resetPosition.X) .. ", " ..
-                        string.format("%.2f", resetPosition.Y) .. ", " ..
-                        string.format("%.2f", resetPosition.Z) .. ")")
-                else
-                    Log("[FirstPersonController] WARNING: InitialPosition not set!")
                 end
+                Log("[FirstPersonController] Position FORCED to (0.00, 0.00, 0.00)")
 
                 -- 속도 변수 초기화 (감속 상태 해제)
                 CurrentForwardSpeed = 0.0

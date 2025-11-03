@@ -47,34 +47,13 @@ function BeginPlay()
                 bPlayerCaught = false
                 bIsStopped = false
 
-                -- 플레이어 위치 기준으로 오프셋 적용하여 복원
-                if InitialPosition and InitialRotation then
-                    local pawn = GetPlayerPawn()
-                    if pawn then
-                        local playerPos = pawn:GetActorLocation()
-                        -- 플레이어로부터 PlayerOffsetDistance만큼 뒤쪽(음의 X 방향)에 배치
-                        -- Y, Z는 InitialPosition 값 유지 (차선 위치)
-                        local chaserPos = Vector(
-                            playerPos.X - PlayerOffsetDistance,
-                            InitialPosition.Y,
-                            InitialPosition.Z
-                        )
-                        actor:SetActorLocation(chaserPos)
-                        actor:SetActorRotation(InitialRotation)
-                        Log("[Chaser] Position set relative to player:")
-                        Log("  Player X: " .. string.format("%.2f", playerPos.X))
-                        Log("  Chaser X: " .. string.format("%.2f", chaserPos.X) .. " (offset: -" .. PlayerOffsetDistance .. ")")
-                        Log("  Chaser Y: " .. string.format("%.2f", chaserPos.Y) .. " (from InitialPosition)")
-                        Log("  Chaser Z: " .. string.format("%.2f", chaserPos.Z) .. " (from InitialPosition)")
-                    else
-                        -- PlayerPawn을 찾을 수 없으면 InitialPosition 사용 (fallback)
-                        Log("[Chaser] WARNING: PlayerPawn not found, using InitialPosition as fallback")
-                        actor:SetActorLocation(InitialPosition)
-                        actor:SetActorRotation(InitialRotation)
-                    end
-                else
-                    Log("[Chaser] WARNING: InitialPosition not set!")
+                -- 위치 강제 복원 (-50, 0, 0으로 고정)
+                local chaserPos = Vector(-50, 0, 0)
+                actor:SetActorLocation(chaserPos)
+                if InitialRotation then
+                    actor:SetActorRotation(InitialRotation)
                 end
+                Log("[Chaser] Position FORCED to (-50.00, 0.00, 0.00)")
             end)
         end)
 
