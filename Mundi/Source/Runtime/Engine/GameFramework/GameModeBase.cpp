@@ -6,6 +6,8 @@
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
 #include "Actor.h"
 #include "ObjectFactory.h"
+#include "Source/Slate/UIManager.h"
+#include "Source/Slate/Windows/GameHUDWindow.h"
 
 IMPLEMENT_CLASS(AGameModeBase)
 
@@ -128,6 +130,18 @@ void AGameModeBase::BeginPlay()
 
     // 게임 시작 이벤트 발행
     OnGameStartDelegate.Broadcast();
+
+    // Register HUD window (simple ImGui-based overlay)
+    {
+        UUIManager& UIManager = UUIManager::GetInstance();
+        // Register once per PIE world
+        static bool bHUDRegistered = false;
+        if (!bHUDRegistered)
+        {
+            UIManager.RegisterUIWindow(new UGameHUDWindow());
+            bHUDRegistered = true;
+        }
+    }
 
     UE_LOG("[GameModeBase] Game Started\n");
 }

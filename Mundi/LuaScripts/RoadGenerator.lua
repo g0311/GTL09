@@ -42,7 +42,7 @@ local Config = {
     RoadGroupSize = 5,
 
     -- 성능 최적화
-    CheckInterval = 0.5,
+    CheckInterval = 0.1,
 
     -- ===== 장애물 설정 =====
     ObstacleModels = {

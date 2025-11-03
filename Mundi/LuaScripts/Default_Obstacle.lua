@@ -7,8 +7,9 @@ local rotatingMovement = nil
 local initialRotation = nil
 
 -- Tunables
-local UpSpeed = 10.0           -- upward impulse on hit (units/s)
-local GravityZ = -9.8         -- Z-up world; tune to your scale
+local UpSpeed = 15.0            -- upward impulse on hit (units/s)
+local GravityZ = -9.8           -- Z-up world; tune to your scale
+local KnockbackSpeed = 15.0      -- horizontal knockback speed magnitude
 
 -- Random rotational speed range
 local RotSpeedMin = 90.0
@@ -44,6 +45,18 @@ function BeginPlay()
 
     -- Cache initial rotation to restore on reset
     initialRotation = actor:GetActorRotation()
+end
+
+-- Identify the player pawn to avoid obstacle-obstacle reactions
+local function IsPlayerActor(a)
+    if a == nil then return false end
+    if GetPlayerPawn ~= nil then
+        local pawn = GetPlayerPawn()
+        if pawn ~= nil then
+            return a == pawn
+        end
+    end
+    return false
 end
 
 function Tick(dt)
@@ -89,11 +102,26 @@ end
 function OnOverlap(other)
     if not other then return end
     
-    local v = Vector(5.0, 5.0, 0.0)
-    -- TODO: 플레이어 속도랑 연결해주기
+    -- Only react to the player; ignore other obstacles to prevent chain reactions
+    if not IsPlayerActor(other) then
+        return
+    end
     
-    v = v * 1.5
-    v = v + Vector(0, 0, UpSpeed)
+    -- Knockback direction: from other to self on XY plane
+    local selfPos = actor:GetActorLocation()
+    local otherPos = other:GetActorLocation()
+    local diff = selfPos - otherPos
+    local dx, dy = diff.X, diff.Y
+    local len = math.sqrt(dx*dx + dy*dy)
+    local dir
+    if len > 1e-3 then
+        dir = Vector(dx/len, dy/len, 0.0)
+    else
+        dir = actor:GetActorForward()
+        dir = Vector(dir.X, dir.Y, 0.0)
+    end
+
+    local v = dir * KnockbackSpeed + Vector(0.0, 0.0, UpSpeed)
 
     if projectileMovement == nil then
         projectileMovement = AddProjectileMovement()
@@ -111,7 +139,13 @@ function OnOverlap(other)
     end
 
     local axis = RandomUnitVector()
-    local speed = Randf(RotSpeedMin, RotSpeedMax)
-    local rate = axis * speed
+    local rotationalSpeed = Randf(RotSpeedMin, RotSpeedMax)
+    local rate = axis * rotationalSpeed
     rotatingMovement:SetRotationRate(rate)
+
+    -- Fire gameplay event for scoring/UI directly via GameMode (independent of Lua module state)
+    local gm = GetGameMode and GetGameMode() or nil
+    if gm and gm.FireEvent then
+        gm:FireEvent("PlayerHit", { obstacle = actor, player = other })
+    end
 end

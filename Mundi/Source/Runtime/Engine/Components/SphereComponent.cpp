@@ -86,7 +86,11 @@ FBoundingSphere USphereComponent::GetWorldSphere() const
 
 bool USphereComponent::Overlaps(const UShapeComponent* Other) const
 {
-    if (!Other) return false;
+    // Respect collision/overlap flags on both shapes
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+        return false;
+    if (!Other || !Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents())
+        return false;
     const FBoundingSphere This = GetWorldSphere();
     switch (Other->GetCollisionShapeType())
     {
@@ -110,6 +114,12 @@ bool USphereComponent::Overlaps(const UShapeComponent* Other) const
 
 FAABB USphereComponent::GetBroadphaseAABB() const
 {
+    // If disabled or not generating overlaps, return a degenerate AABB
+    if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
+    {
+        const FVector P = GetWorldLocation();
+        return FAABB(P, P);
+    }
     const FBoundingSphere S = GetWorldSphere();
     const FVector r(S.Radius, S.Radius, S.Radius);
     return FAABB(S.Center - r, S.Center + r);
