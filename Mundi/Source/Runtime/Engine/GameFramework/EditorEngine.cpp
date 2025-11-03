@@ -364,16 +364,21 @@ void UEditorEngine::Shutdown()
     {
         if (WorldContext.World)
         {
+            // 3. 紐⑤뱺 PrimitiveComponent??Overlap ?몃━寃뚯씠???뺣━
             TArray<AActor*> Actors = WorldContext.World->GetLevel()->GetActors();
             for (AActor* Actor : Actors)
             {
                 if (Actor)
                 {
-                    UPrimitiveComponent* PrimComp = Actor->GetComponent<UPrimitiveComponent>();
-                    if (PrimComp)
+                    TSet<UActorComponent*> Components = Actor->GetOwnedComponents();
+                    for (UActorComponent* Comp : Components)
                     {
-                        PrimComp->OnBeginOverlapDelegate.Clear();
-                        PrimComp->OnEndOverlapDelegate.Clear();
+                        UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Comp);
+                        if (PrimComp)
+                        {
+                            PrimComp->OnBeginOverlapDelegate.Clear();
+                            PrimComp->OnEndOverlapDelegate.Clear();
+                        }
                     }
                 }
             }
@@ -415,7 +420,20 @@ void UEditorEngine::Shutdown()
         }
     }
 
-    // Delete all UObjects (Components, Actors, Resources)
+    // Delete all World objects first (before DeleteAll)
+    for (auto& WorldContext : WorldContexts)
+    {
+        if (WorldContext.World)
+        {
+            UE_LOG("[Shutdown] Deleting World\n");
+            ObjectFactory::DeleteObject(WorldContext.World);
+        }
+    }
+
+    // Clear WorldContexts after deleting World objects
+    WorldContexts.clear();
+
+    // Delete all remaining UObjects (Components, Actors, Resources)
     // Resource destructors will properly release D3D resources
     ObjectFactory::DeleteAll(true);
 

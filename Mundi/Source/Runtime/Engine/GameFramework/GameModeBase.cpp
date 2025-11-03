@@ -23,8 +23,8 @@ AGameModeBase::AGameModeBase()
     Name = "GameModeBase";
     bTickInEditor = false; // 게임 중에만 틱
 
-    // ScriptComponent 생성 및 부착
-    //GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
+    // ScriptComponent 초기화
+    GameModeScript = nullptr;
 
     // ScriptPath를 빈 문자열로 초기화 (Scene에 저장된 기본값 무시)
     ScriptPath = "";
@@ -381,6 +381,12 @@ void AGameModeBase::ClearAllDynamicEvents()
     // sol::function 참조를 해제하기 위해 동적 이벤트 맵을 명시적으로 비웁니다
     // 이렇게 하면 Lua state가 무효화되기 전에 sol::function 소멸자가 호출됩니다
     DynamicEventMap.Empty();
+
+    OnGameStartDelegate.Clear();
+    OnGameEndDelegate.Clear();
+    OnActorSpawnedDelegate.Clear();
+    OnActorDestroyedDelegate.Clear();
+    OnScoreChangedDelegate.Clear();
 }
 
 // ==================== Serialization ====================
