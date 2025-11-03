@@ -1135,6 +1135,10 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	// 모든 작업이 성공적으로 끝났으므로 Commit 호출
 	// 이제 소멸자는 버퍼 스왑을 되돌리지 않고, SRV 해제 작업만 수행함
 	SwapGuard.Commit();
+
+	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
+	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
 }
 
 void FSceneRenderer::RenderSceneDepthPostProcess()

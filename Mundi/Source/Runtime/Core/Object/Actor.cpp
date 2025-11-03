@@ -232,7 +232,7 @@ void AActor::DestroyAllComponents()
 
 	for (UActorComponent* C : Temp)
 	{
-		if (!C) continue;
+		if (!C || C->IsPendingDestroy()) continue;
 		C->DestroyComponent(); // 내부에서 Owner=nullptr 등도 처리
 	}
 	OwnedComponents.clear();
