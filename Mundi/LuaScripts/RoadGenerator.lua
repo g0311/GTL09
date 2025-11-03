@@ -56,7 +56,7 @@ local Config = {
     MaxObstacleScale = 1.3,
 
     -- 차선 차단 확률
-    LaneBlockProbability = 0.4,
+    LaneBlockProbability = 0.3,
 
     -- 최소 빈 차선 수 (진입로 보장)
     MinEmptyLanes = 3,
@@ -75,6 +75,16 @@ local Config = {
     ObstacleBlocksWithObstacles = 3,   -- 장애물을 배치할 연속 블록 수
     ObstacleBlocksEmpty = 1,           -- 장애물 없이 비울 연속 블록 수
 
+    -- ===== 가드레일 설정 (그룹 기반 최적화) =====
+    GuardrailModel = "Data/Model/Cube/Cube-cartoon.obj",
+
+    -- 가드레일 높이 및 Y축 오프셋
+    GuardrailHeight = 0.6,
+    GuardrailOffsetFromEdge = 1.4,
+
+    -- 풀 크기 (그룹 수 기반: 30블록/5그룹 = 6그룹 × 2(좌우) + 여유)
+    InitialGuardrailPoolSize = 16,
+    
     -- ===== 프렌지 아이템 설정 =====
     FrenzyScriptPath = "FrenzyItem.lua",
     FrenzyModel = "Data/Model/coin/coin.obj",                 -- 선택: 프렌지 아이템 메시 경로 (없어도 동작)
@@ -102,13 +112,20 @@ local InitialYPosition = 0.0
 local ObstaclePool = {}
 local ActiveObstacles = {}
  -- 블록 패턴 카운터 (Y축 간격용)
-local ObstaclePatternCounter = 0 
+local ObstaclePatternCounter = 0
 
 -- =====================================================
 -- [내부 변수 - 프렌지 아이템]
 -- =====================================================
 local FrenzyPool = {}
 local ActiveFrenzy = {}
+
+-- =====================================================
+-- [내부 변수 - 가드레일]
+-- =====================================================
+local GuardrailPool = {}
+local ActiveGuardrails = {}
+local GuardrailGroups = {}  -- {groupIndex -> {Left = guardrail, Right = guardrail}} 
 
 -- =====================================================
 -- [함수] 장애물 풀 초기화
@@ -143,7 +160,7 @@ local function InitializeObstaclePool()
 
             -- 2. AABB 충돌 박스 추가 (메시 스케일에 맞춤)
             -- 기본 박스 크기 (차량 평균 크기 추정)
-            local baseBoxSize = Vector(1.5, 0.8, 0.6)
+            local baseBoxSize = Vector(1.3, 0.6, 0.6)
             local scaledBoxSize = Vector(
                 baseBoxSize.X * scale,
                 baseBoxSize.Y * scale,
@@ -317,6 +334,166 @@ local function ReturnFrenzyToPool(item)
 end
 
 -- =====================================================
+-- [함수] 가드레일 풀 초기화
+-- =====================================================
+local function InitializeGuardrailPool()
+    local world = OwnerActor:GetWorld()
+    if not world then return false end
+
+    -- 그룹 길이로 스케일 계산
+    local groupLength = Config.BlockLength * Config.RoadGroupSize
+    local guardrailScale = Vector(groupLength, 0.3, 0.5)
+
+    for i = 1, Config.InitialGuardrailPoolSize do
+        local transform = Transform(
+            Vector(-10000 - (i * 100), -10000, -10000),
+            Quat(),
+            guardrailScale
+        )
+
+        local guardrailActor = world:SpawnActorByClassWithTransform(
+            "AStaticMeshActor",
+            transform
+        )
+
+        if guardrailActor then
+            local meshComp = guardrailActor:GetStaticMeshComponent()
+            if meshComp then
+                meshComp:SetStaticMesh(Config.GuardrailModel)
+                meshComp:SetCollisionEnabled(false)
+            end
+
+            table.insert(GuardrailPool, {
+                Actor = guardrailActor,
+                IsActive = false
+            })
+        end
+    end
+
+    return #GuardrailPool > 0
+end
+
+-- =====================================================
+-- [함수] 풀에서 가드레일 가져오기
+-- =====================================================
+local function GetGuardrailFromPool()
+    for i, guardrail in ipairs(GuardrailPool) do
+        if not guardrail.IsActive then
+            guardrail.IsActive = true
+            table.insert(ActiveGuardrails, guardrail)
+            return guardrail
+        end
+    end
+    return nil
+end
+
+-- =====================================================
+-- [함수] 가드레일을 풀에 반환
+-- =====================================================
+local function ReturnGuardrailToPool(guardrail)
+    if not guardrail then return end
+
+    guardrail.IsActive = false
+
+    if guardrail.Actor then
+        guardrail.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
+    end
+
+    for i, activeGuard in ipairs(ActiveGuardrails) do
+        if activeGuard == guardrail then
+            table.remove(ActiveGuardrails, i)
+            break
+        end
+    end
+end
+
+-- =====================================================
+-- [함수] 그룹의 가드레일 가져오기 또는 생성
+-- =====================================================
+local function GetOrCreateGuardrailGroup(groupIndex, groupStartX)
+    -- 이미 존재하는 그룹이면 위치만 업데이트
+    if GuardrailGroups[groupIndex] then
+        local group = GuardrailGroups[groupIndex]
+
+        -- 그룹 중앙 X 위치 계산
+        local groupCenterX = groupStartX + (Config.BlockLength * Config.RoadGroupSize) / 2
+
+        -- Y 위치 계산
+        local leftmostY = InitialYPosition - ((Config.LanesPerBlock - 1) / 2) * Config.LaneSpacing
+        local rightmostY = InitialYPosition + ((Config.LanesPerBlock - 1) / 2) * Config.LaneSpacing
+        local leftGuardrailY = leftmostY - Config.GuardrailOffsetFromEdge
+        local rightGuardrailY = rightmostY + Config.GuardrailOffsetFromEdge
+
+        -- 위치 업데이트
+        if group.Left and group.Left.Actor then
+            group.Left.Actor:SetActorLocation(
+                Vector(groupCenterX, leftGuardrailY, Config.GuardrailHeight)
+            )
+        end
+
+        if group.Right and group.Right.Actor then
+            group.Right.Actor:SetActorLocation(
+                Vector(groupCenterX, rightGuardrailY, Config.GuardrailHeight)
+            )
+        end
+
+        return group
+    end
+
+    -- 새로운 그룹 생성
+    local groupCenterX = groupStartX + (Config.BlockLength * Config.RoadGroupSize) / 2
+
+    local leftmostY = InitialYPosition - ((Config.LanesPerBlock - 1) / 2) * Config.LaneSpacing
+    local rightmostY = InitialYPosition + ((Config.LanesPerBlock - 1) / 2) * Config.LaneSpacing
+    local leftGuardrailY = leftmostY - Config.GuardrailOffsetFromEdge
+    local rightGuardrailY = rightmostY + Config.GuardrailOffsetFromEdge
+
+    -- 좌측 가드레일
+    local leftGuardrail = GetGuardrailFromPool()
+    if leftGuardrail and leftGuardrail.Actor then
+        leftGuardrail.Actor:SetActorLocation(
+            Vector(groupCenterX, leftGuardrailY, Config.GuardrailHeight)
+        )
+    end
+
+    -- 우측 가드레일
+    local rightGuardrail = GetGuardrailFromPool()
+    if rightGuardrail and rightGuardrail.Actor then
+        rightGuardrail.Actor:SetActorLocation(
+            Vector(groupCenterX, rightGuardrailY, Config.GuardrailHeight)
+        )
+    end
+
+    -- 그룹 저장
+    local group = {
+        Left = leftGuardrail,
+        Right = rightGuardrail,
+        StartX = groupStartX
+    }
+    GuardrailGroups[groupIndex] = group
+
+    return group
+end
+
+-- =====================================================
+-- [함수] 가드레일 그룹을 풀에 반환
+-- =====================================================
+local function ReturnGuardrailGroup(groupIndex)
+    local group = GuardrailGroups[groupIndex]
+    if not group then return end
+
+    if group.Left then
+        ReturnGuardrailToPool(group.Left)
+    end
+
+    if group.Right then
+        ReturnGuardrailToPool(group.Right)
+    end
+
+    GuardrailGroups[groupIndex] = nil
+end
+
+-- =====================================================
 -- [함수] 이 블록에 장애물을 배치할지 패턴에 따라 결정
 -- =====================================================
 local function ShouldSpawnObstaclesOnBlock()
@@ -452,11 +629,15 @@ local function CreateRoadBlock(xPosition, modelIndex)
         return nil
     end
 
+    -- 블록이 속한 그룹 인덱스 계산
+    local blockGroupIndex = math.floor(xPosition / (Config.BlockLength * Config.RoadGroupSize))
+
     return {
         Actors = laneActors,
         XPosition = xPosition,
         ModelType = modelIndex,
-        Obstacles = nil 
+        Obstacles = nil,
+        GroupIndex = blockGroupIndex
     }
 end
 
@@ -474,7 +655,34 @@ local function RepositionBlock(block, newX)
         table.insert(laneYPositions, finalY)
     end
 
+    -- 이전 그룹 인덱스 저장
+    local oldGroupIndex = block.GroupIndex
+
     block.XPosition = newX
+
+    -- 새로운 그룹 인덱스 계산
+    local newGroupIndex = math.floor(newX / (Config.BlockLength * Config.RoadGroupSize))
+    block.GroupIndex = newGroupIndex
+
+    -- 그룹이 바뀌면 가드레일 업데이트
+    if oldGroupIndex ~= newGroupIndex then
+        -- 이전 그룹이 비었는지 확인하고 반환
+        local oldGroupHasBlocks = false
+        for _, b in ipairs(RoadBlocks) do
+            if b.GroupIndex == oldGroupIndex and b ~= block then
+                oldGroupHasBlocks = true
+                break
+            end
+        end
+
+        if not oldGroupHasBlocks then
+            ReturnGuardrailGroup(oldGroupIndex)
+        end
+
+        -- 새 그룹의 시작 X 계산
+        local groupStartX = newGroupIndex * Config.BlockLength * Config.RoadGroupSize
+        GetOrCreateGuardrailGroup(newGroupIndex, groupStartX)
+    end
 
     -- 재배치 후 다시 장애물 찍기
     SpawnObstaclesOnRoadBlock(block, newX, laneYPositions)
@@ -493,6 +701,7 @@ function BeginPlay()
 
     InitializeObstaclePool()
     InitializeFrenzyPool()
+    InitializeGuardrailPool()
 
     CurrentGroupModelType = math.random(1, #Config.RoadModels)
     GroupCounter = 0
@@ -522,6 +731,17 @@ function BeginPlay()
         end
         SpawnObstaclesOnRoadBlock(block, block.XPosition, laneYPositions)
         SpawnFrenzyOnRoadBlock(block, block.XPosition, laneYPositions)
+    end
+
+    -- 가드레일 그룹 배치 (그룹 단위로)
+    local processedGroups = {}
+    for _, block in ipairs(RoadBlocks) do
+        local groupIndex = block.GroupIndex
+        if not processedGroups[groupIndex] then
+            local groupStartX = groupIndex * Config.BlockLength * Config.RoadGroupSize
+            GetOrCreateGuardrailGroup(groupIndex, groupStartX)
+            processedGroups[groupIndex] = true
+        end
     end
 
     IsInitialized = #RoadBlocks > 0
@@ -624,6 +844,23 @@ function ResetRoadGenerator()
     Log("[RoadGenerator] Forced " .. inactiveCount .. " obstacles to inactive state")
     Log("[RoadGenerator] ActiveObstacles cleared: " .. #ActiveObstacles)
 
+    -- 1-1. 가드레일 그룹 초기화
+    local guardrailInactiveCount = 0
+    for groupIndex, group in pairs(GuardrailGroups) do
+        ReturnGuardrailGroup(groupIndex)
+    end
+    GuardrailGroups = {}
+    for _, guardrail in ipairs(GuardrailPool) do
+        guardrail.IsActive = false
+        if guardrail.Actor then
+            guardrail.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
+        end
+        guardrailInactiveCount = guardrailInactiveCount + 1
+    end
+    ActiveGuardrails = {}
+    Log("[RoadGenerator] Forced " .. guardrailInactiveCount .. " guardrails to inactive state")
+    Log("[RoadGenerator] GuardrailGroups cleared: " .. tostring(next(GuardrailGroups) == nil))
+
     -- 2. 카운터를 먼저 초기화 (RepositionBlock 전에 중요!)
     ObstaclePatternCounter = 0
     GroupCounter = 0
@@ -644,9 +881,23 @@ function ResetRoadGenerator()
     for i, block in ipairs(RoadBlocks) do
         block.Obstacles = nil  -- 기존 장애물 참조 제거 (중요!)
         local newX = (i - 1) * Config.BlockLength
+        local newGroupIndex = math.floor(newX / (Config.BlockLength * Config.RoadGroupSize))
+        block.GroupIndex = newGroupIndex
         RepositionBlock(block, newX)
     end
     Log("[RoadGenerator] Repositioned " .. #RoadBlocks .. " road blocks with fresh obstacles")
+
+    -- 4-1. 가드레일 그룹 재생성
+    local processedGroups = {}
+    for _, block in ipairs(RoadBlocks) do
+        local groupIndex = block.GroupIndex
+        if not processedGroups[groupIndex] then
+            local groupStartX = groupIndex * Config.BlockLength * Config.RoadGroupSize
+            GetOrCreateGuardrailGroup(groupIndex, groupStartX)
+            processedGroups[groupIndex] = true
+        end
+    end
+    Log("[RoadGenerator] Recreated guardrail groups for all blocks")
 
     -- 5. 랜덤 시드 재설정 (새로운 패턴 생성)
     math.randomseed(os.time() + math.random(1, 1000))
@@ -687,9 +938,16 @@ function EndPlay()
                     world:DestroyActor(obstacle.Actor)
                 end
             end
+            
             for _, item in ipairs(FrenzyPool) do
                 if item.Actor then
                     world:DestroyActor(item.Actor)
+                end
+            end
+
+            for _, guardrail in ipairs(GuardrailPool) do
+                if guardrail.Actor then
+                    world:DestroyActor(guardrail.Actor)
                 end
             end
         end
@@ -701,6 +959,9 @@ function EndPlay()
     FrenzyPool = {}
     ActiveFrenzy = {}
     ObstaclePatternCounter = 0
+    GuardrailPool = {}
+    ActiveGuardrails = {}
+    GuardrailGroups = {}
     IsInitialized = false
     OwnerActor = nil
 end

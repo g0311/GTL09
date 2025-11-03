@@ -179,6 +179,8 @@ function BeginPlay()
         local success4, handle4 = pcall(function()
             return gm:SubscribeEvent("OnChaserDistanceUpdate", function(distance)
                 ChaserDistance = distance
+                -- GameMode에도 거리 저장 (HUD에서 표시하기 위해)
+                gm:SetChaserDistance(distance)
             end)
         end)
 
@@ -351,6 +353,7 @@ end
 
 function OnEnterFrenzyMode(payload)
     bIsInFrenzyMode = true
+    CurrentForwardSpeed = CurrentForwardSpeed + 10.0
 end
 
 function OnExitFrenzyMode(payload)

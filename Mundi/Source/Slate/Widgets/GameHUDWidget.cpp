@@ -10,11 +10,13 @@ void UGameHUDWidget::RenderWidget()
 
     int score = 0;
     float time = 0.0f;
+    float chaserDistance = 999.0f;
     bool bGameOver = false;
     if (GameMode)
     {
         score = GameMode->GetScore();
         time = GameMode->GetGameTime();
+        chaserDistance = GameMode->GetChaserDistance();
         bGameOver = GameMode->IsGameOver();
     }
 
@@ -45,7 +47,7 @@ void UGameHUDWidget::RenderWidget()
     {
         // Fallback HUD content inside parent window
         ImGui::Text("Score: %d", score);
-        ImGui::Text("Distance to Enemy: %.1f", 0.0f);
+        ImGui::Text("Distance to Enemy: %.1f", chaserDistance);
         ImGui::Text("Time: %.1f s", time);
     }
 

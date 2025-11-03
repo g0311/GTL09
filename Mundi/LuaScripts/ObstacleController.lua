@@ -9,7 +9,7 @@ local initialRotation = nil
 -- Tunables
 local UpSpeed = 15.0            -- upward impulse on hit (units/s)
 local GravityZ = -9.8           -- Z-up world; tune to your scale
-local KnockbackSpeed = 30.0      -- horizontal knockback speed magnitude
+local KnockbackSpeed = 45.0      -- horizontal knockback speed magnitude
 
 -- Random rotational speed range
 local RotSpeedMin = 90.0
