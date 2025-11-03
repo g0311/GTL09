@@ -134,6 +134,9 @@ void AGameModeBase::BeginPlay()
     // 플레이어 동결 해제 이벤트 등록 (ResetGame 시 사용)
     RegisterEvent("UnfreezePlayer");
 
+    // Chaser 거리 업데이트 이벤트 등록 (Chaser가 거리 브로드캐스트, Player가 수신)
+    RegisterEvent("OnChaserDistanceUpdate");
+
     // 컴포넌트들의 BeginPlay 호출
     AActor::BeginPlay();
 

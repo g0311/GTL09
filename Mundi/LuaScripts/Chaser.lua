@@ -7,6 +7,7 @@
 -- ==================== 설정 ====================
 local MoveSpeed = 20.0           -- X축 이동 속도 (단위/초)
 local CatchDistance = 10.0      -- 추격 성공 거리 (유닛)
+local PlayerOffsetDistance = 50.0 -- 플레이어로부터 뒤쪽 오프셋 거리 (유닛)
 local bPlayerCaught = false     -- 플레이어를 잡았는지 여부
 local bIsStopped = false        -- Chaser가 멈췄는지 여부
 local DebugLogInterval = 2.0    -- 디버그 로그 출력 간격 (초)
@@ -31,6 +32,7 @@ function BeginPlay()
     Log("[Chaser] Initial Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
     Log("[Chaser] Move speed: " .. MoveSpeed)
     Log("[Chaser] Catch distance: " .. CatchDistance)
+    Log("[Chaser] Player offset distance: " .. PlayerOffsetDistance .. " (distance behind player on reset)")
 
     -- 게임 리셋 이벤트 구독 (게임이 리셋될 때 상태 초기화)
     local gm = GetGameMode()
@@ -45,14 +47,31 @@ function BeginPlay()
                 bPlayerCaught = false
                 bIsStopped = false
 
-                -- 초기 위치로 복원
+                -- 플레이어 위치 기준으로 오프셋 적용하여 복원
                 if InitialPosition and InitialRotation then
-                    actor:SetActorLocation(InitialPosition)
-                    actor:SetActorRotation(InitialRotation)
-                    Log("[Chaser] Position restored to (" ..
-                        string.format("%.2f", InitialPosition.X) .. ", " ..
-                        string.format("%.2f", InitialPosition.Y) .. ", " ..
-                        string.format("%.2f", InitialPosition.Z) .. ")")
+                    local pawn = GetPlayerPawn()
+                    if pawn then
+                        local playerPos = pawn:GetActorLocation()
+                        -- 플레이어로부터 PlayerOffsetDistance만큼 뒤쪽(음의 X 방향)에 배치
+                        -- Y, Z는 InitialPosition 값 유지 (차선 위치)
+                        local chaserPos = Vector(
+                            playerPos.X - PlayerOffsetDistance,
+                            InitialPosition.Y,
+                            InitialPosition.Z
+                        )
+                        actor:SetActorLocation(chaserPos)
+                        actor:SetActorRotation(InitialRotation)
+                        Log("[Chaser] Position set relative to player:")
+                        Log("  Player X: " .. string.format("%.2f", playerPos.X))
+                        Log("  Chaser X: " .. string.format("%.2f", chaserPos.X) .. " (offset: -" .. PlayerOffsetDistance .. ")")
+                        Log("  Chaser Y: " .. string.format("%.2f", chaserPos.Y) .. " (from InitialPosition)")
+                        Log("  Chaser Z: " .. string.format("%.2f", chaserPos.Z) .. " (from InitialPosition)")
+                    else
+                        -- PlayerPawn을 찾을 수 없으면 InitialPosition 사용 (fallback)
+                        Log("[Chaser] WARNING: PlayerPawn not found, using InitialPosition as fallback")
+                        actor:SetActorLocation(InitialPosition)
+                        actor:SetActorRotation(InitialRotation)
+                    end
                 else
                     Log("[Chaser] WARNING: InitialPosition not set!")
                 end
@@ -102,6 +121,12 @@ function Tick(dt)
 
     local dx = playerPos.X - myPos.X
     local distanceX = math.abs(dx)  -- X 방향 거리만 사용
+
+    -- 거리 정보를 GameMode 이벤트로 브로드캐스트 (플레이어가 사용 가능)
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("OnChaserDistanceUpdate", distanceX)
+    end
 
     -- 주기적으로 거리 정보 출력 (디버그용)
     if TimeSinceLastLog >= DebugLogInterval then

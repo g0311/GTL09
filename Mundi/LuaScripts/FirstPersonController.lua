@@ -63,6 +63,9 @@ local bIsFrozen = false        -- 플레이어가 얼어있는지 (움직일 수
 local InitialPosition = nil
 local InitialRotation = nil
 
+-- Chaser와의 거리 (카메라 셰이크 팩터 계산용)
+local ChaserDistance = 999.0   -- 초기값: 매우 먼 거리
+
 
 ---
 --- 게임 시작 시 초기화
@@ -141,14 +144,16 @@ function BeginPlay()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
 
-                -- 초기 위치로 복원
+                -- 초기 위치로 복원 (X는 0으로 고정, Y/Z는 초기값 사용)
                 if InitialPosition and InitialRotation then
-                    actor:SetActorLocation(InitialPosition)
+                    -- X=0으로 고정 (시작 지점), Y는 초기 차선 위치 유지
+                    local resetPosition = Vector(0, InitialPosition.Y, InitialPosition.Z)
+                    actor:SetActorLocation(resetPosition)
                     actor:SetActorRotation(InitialRotation)
                     Log("[FirstPersonController] Position restored to (" ..
-                        string.format("%.2f", InitialPosition.X) .. ", " ..
-                        string.format("%.2f", InitialPosition.Y) .. ", " ..
-                        string.format("%.2f", InitialPosition.Z) .. ")")
+                        string.format("%.2f", resetPosition.X) .. ", " ..
+                        string.format("%.2f", resetPosition.Y) .. ", " ..
+                        string.format("%.2f", resetPosition.Z) .. ")")
                 else
                     Log("[FirstPersonController] WARNING: InitialPosition not set!")
                 end
@@ -157,8 +162,10 @@ function BeginPlay()
                 CurrentForwardSpeed = 0.0
                 CurrentRightSpeed = 0.0
                 CurrentMaxSpeed = MoveSpeed  -- 최고 속도를 기본값으로 복원
+                ChaserDistance = 999.0       -- Chaser 거리 초기화
                 Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
                     string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
+                Log("[FirstPersonController] ChaserDistance reset to 999.0")
             end)
         end)
 
@@ -166,6 +173,19 @@ function BeginPlay()
             Log("[FirstPersonController] Subscribed to 'OnGameReset' with handle: " .. tostring(handle3))
         else
             Log("[FirstPersonController] ERROR subscribing to 'OnGameReset': " .. tostring(handle3))
+        end
+
+        -- OnChaserDistanceUpdate 이벤트 구독 (Chaser와의 거리 업데이트)
+        local success4, handle4 = pcall(function()
+            return gm:SubscribeEvent("OnChaserDistanceUpdate", function(distance)
+                ChaserDistance = distance
+            end)
+        end)
+
+        if success4 then
+            Log("[FirstPersonController] Subscribed to 'OnChaserDistanceUpdate' with handle: " .. tostring(handle4))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'OnChaserDistanceUpdate': " .. tostring(handle4))
         end
     else
         Log("[FirstPersonController] WARNING: No GameMode found for event subscription")
