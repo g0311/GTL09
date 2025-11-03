@@ -259,6 +259,28 @@ end
 
 -- ==================== 유틸리티 함수 ====================
 
+-- HUD: Lua-driven entries for C++ ImGui bridge
+function HUD_GetEntries()
+    local gm = GetGameMode()
+    local rows = {
+        { label = "Score", value = tostring(gm and gm:GetScore() or 0) },
+        { label = "Distance", value = string.format("%.1f", 0.0) },
+        { label = "Time", value = string.format("%.1f s", gm and gm:GetGameTime() or 0.0) }
+    }
+    return rows
+end
+
+function HUD_GameOver()
+    local gm = GetGameMode()
+    local title = "Game Over"
+    local lines = {
+        "Final Score: " .. tostring(gm and gm:GetScore() or 0),
+        string.format("Time: %.1f s", gm and gm:GetGameTime() or 0.0),
+        "Press R to Restart"
+    }
+    return { title = title, lines = lines }
+end
+
 ---
 --- 특정 클래스의 Actor 개수 세기
 ---

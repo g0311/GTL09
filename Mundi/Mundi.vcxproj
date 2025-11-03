@@ -378,6 +378,8 @@
     <ClCompile Include="Source\Slate\Windows\SViewportWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\SWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
+    <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
+    <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
