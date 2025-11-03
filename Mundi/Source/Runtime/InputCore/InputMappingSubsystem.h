@@ -20,6 +20,7 @@ public:
 
     void AddMappingContext(UInputMappingContext* Context, int32 Priority);
     void RemoveMappingContext(UInputMappingContext* Context);
+    void RemoveMappingContextImmediate(UInputMappingContext* Context); // 소멸자 전용
     void ClearContexts();
 
     void Tick(float DeltaSeconds);
@@ -38,6 +39,15 @@ private:
     };
 
     TArray<FActiveContext> ActiveContexts;
+
+    // Pending operations
+    struct FPendingOp
+    {
+        UInputMappingContext* Context = nullptr;
+        int32 Priority = 0;
+        bool bAdd = true; // true=Add, false=Remove
+    };
+    TArray<FPendingOp> PendingOps;
 
     // Frame state for polling
     TMap<FString, bool> ActionPressed;

@@ -6,8 +6,9 @@ IMPLEMENT_CLASS(UInputMappingContext)
 
 UInputMappingContext::~UInputMappingContext()
 {
-    // 소멸 시 InputMappingSubsystem에서 자동으로 제거 (dangling pointer 방지)
-    UInputMappingSubsystem::Get().RemoveMappingContext(this);
+    // 소멸 시 InputMappingSubsystem에서 즉시 제거 (dangling pointer 방지)
+    // 소멸자이므로 Pending이 아닌 즉시 제거 사용
+    UInputMappingSubsystem::Get().RemoveMappingContextImmediate(this);
 }
 
 void UInputMappingContext::MapAction(const FString& ActionName, int KeyCode, bool bCtrl, bool bAlt, bool bShift, bool bConsume)

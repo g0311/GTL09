@@ -448,6 +448,16 @@ void FViewportClient::EnterPIEEjectMode()
 	UInputManager::GetInstance().SetCursorVisible(true);
 	UInputManager::GetInstance().ReleaseCursor();
 
+	// PlayerController 입력 비활성화 (에디터 카메라만 활성)
+	if (World && World->GetPlayerController())
+	{
+		APlayerController* PC = World->GetPlayerController();
+		if (PC->GetInputContext())
+		{
+			UInputMappingSubsystem::Get().RemoveMappingContext(PC->GetInputContext());
+		}
+	}
+
 	// GizmoActor 설정
 	if (World && World->GetGizmoActor())
 	{
@@ -474,6 +484,16 @@ void FViewportClient::ExitPIEEjectMode()
 	// 커서 숨김 및 잠금
 	UInputManager::GetInstance().SetCursorVisible(false);
 	UInputManager::GetInstance().LockCursor();
+
+	// PlayerController 입력 재활성화 (플레이어 컨트롤 복원)
+	if (World && World->GetPlayerController())
+	{
+		APlayerController* PC = World->GetPlayerController();
+		if (PC->GetInputContext())
+		{
+			UInputMappingSubsystem::Get().AddMappingContext(PC->GetInputContext(), 0);
+		}
+	}
 
 	// 선택 해제
 	if (World && World->GetSelectionManager())

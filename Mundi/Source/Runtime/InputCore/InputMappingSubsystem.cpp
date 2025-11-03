@@ -26,19 +26,37 @@ UInputMappingSubsystem& UInputMappingSubsystem::Get()
 void UInputMappingSubsystem::AddMappingContext(UInputMappingContext* Context, int32 Priority)
 {
     if (!Context) return;
-    ActiveContexts.Add({ Context, Priority });
-    // Keep highest priority first
-    ActiveContexts.Sort([](const FActiveContext& A, const FActiveContext& B) { return A.Priority > B.Priority; });
+    // Pending에 추가 (Tick 끝나고 처리)
+    PendingOps.Add({ Context, Priority, true });
 }
 
 void UInputMappingSubsystem::RemoveMappingContext(UInputMappingContext* Context)
 {
+    if (!Context) return;
+    // Pending에 추가 (Tick 끝나고 처리)
+    PendingOps.Add({ Context, 0, false });
+}
+
+void UInputMappingSubsystem::RemoveMappingContextImmediate(UInputMappingContext* Context)
+{
+    if (!Context) return;
+
+    // 즉시 제거 (소멸자 전용 - Tick 외부에서만 호출!)
     for (int32 i = 0; i < ActiveContexts.Num(); ++i)
     {
         if (ActiveContexts[i].Context == Context)
         {
             ActiveContexts.RemoveAt(i);
             break;
+        }
+    }
+
+    // Pending에서도 제거 (혹시 대기 중이었다면)
+    for (int32 i = PendingOps.Num() - 1; i >= 0; --i)
+    {
+        if (PendingOps[i].Context == Context)
+        {
+            PendingOps.RemoveAt(i);
         }
     }
 }
@@ -163,6 +181,48 @@ void UInputMappingSubsystem::Tick(float /*DeltaSeconds*/)
         {
             Ctx.Context->GetAxisDelegate(Name).Broadcast(Value);
         }
+    }
+
+    // 4) Pending 처리 (Tick 끝 - 안전하게 Add/Remove)
+    for (const FPendingOp& Op : PendingOps)
+    {
+        if (Op.bAdd)
+        {
+            // 중복 체크
+            bool bExists = false;
+            for (const FActiveContext& Ctx : ActiveContexts)
+            {
+                if (Ctx.Context == Op.Context)
+                {
+                    bExists = true;
+                    break;
+                }
+            }
+
+            if (!bExists)
+            {
+                ActiveContexts.Add({ Op.Context, Op.Priority });
+            }
+        }
+        else
+        {
+            // Remove
+            for (int32 i = 0; i < ActiveContexts.Num(); ++i)
+            {
+                if (ActiveContexts[i].Context == Op.Context)
+                {
+                    ActiveContexts.RemoveAt(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Pending 처리 후 정렬 및 클리어
+    if (PendingOps.Num() > 0)
+    {
+        ActiveContexts.Sort([](const FActiveContext& A, const FActiveContext& B) { return A.Priority > B.Priority; });
+        PendingOps.Empty();
     }
 }
 

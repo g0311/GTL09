@@ -25,10 +25,10 @@ APlayerController::APlayerController()
 
 APlayerController::~APlayerController()
 {
-    // EndPlay에서 정리되지만, 안전을 위해 여기서도 확인
+    // 소멸자에서는 즉시 제거 (Dangling pointer 방지)
     if (InputContext)
     {
-        UInputMappingSubsystem::Get().RemoveMappingContext(InputContext);
+        UInputMappingSubsystem::Get().RemoveMappingContextImmediate(InputContext);
     }
 }
 
