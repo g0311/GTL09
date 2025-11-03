@@ -56,6 +56,16 @@ local ShakeFrequency = 25.0     -- faster shake frequency
 local ShakeSeed = 0.0
 -- Use additive offset so camera keeps following player input while shaking
 local ShakeOffset = Vector(0.0, 0.0, 0.0)
+-- 상태 플래그
+local bIsFrozen = false        -- 플레이어가 얼어있는지 (움직일 수 없음)
+
+-- 게임 리셋을 위한 초기 위치 저장
+local InitialPosition = nil
+local InitialRotation = nil
+
+-- Chaser와의 거리 (카메라 셰이크 팩터 계산용)
+local ChaserDistance = 999.0   -- 초기값: 매우 먼 거리
+
 
 -- Event subscription handles
 local handleFrenzyEnter = nil
@@ -69,8 +79,13 @@ local OverlapMaxSpeedReward = 2.0
 function BeginPlay()
     local name = actor:GetName()
     local pos = actor:GetActorLocation()
+
+    -- 초기 위치 및 회전 저장 (게임 리셋용)
+    InitialPosition = Vector(pos.X, pos.Y, pos.Z)
+    InitialRotation = actor:GetActorRotation()
+
     Log("[FirstPersonController] Initializing for " .. name)
-    Log("[FirstPersonController] Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+    Log("[FirstPersonController] Initial Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
 
     -- ==================== 입력 시스템 설정 ====================
     -- PlayerController에서 InputContext를 가져옴
@@ -94,19 +109,97 @@ function BeginPlay()
     -- MoveRight: D(+1.0), A(-1.0)
     InputContext:MapAxisKey("MoveRight", Keys.D,  1.0)
     InputContext:MapAxisKey("MoveRight", Keys.A, -1.0)
-    
 
+    -- ==================== 게임 이벤트 구독 ====================
     local gm = GetGameMode()
     if gm then
+        Log("[FirstPersonController] Subscribing to game events...")
+
+        -- FreezePlayer 이벤트 구독 (플레이어 얼리기)
+        local success1, handle1 = pcall(function()
+            return gm:SubscribeEvent("FreezePlayer", function()
+                Log("[FirstPersonController] *** FreezePlayer event received! ***")
+                bIsFrozen = true
+                Log("[FirstPersonController] Player FROZEN - movement disabled")
+            end)
+        end)
+
+        if success1 then
+            Log("[FirstPersonController] Subscribed to 'FreezePlayer' with handle: " .. tostring(handle1))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'FreezePlayer': " .. tostring(handle1))
+        end
+
+        -- UnfreezePlayer 이벤트 구독 (플레이어 얼림 해제)
+        local success2, handle2 = pcall(function()
+            return gm:SubscribeEvent("UnfreezePlayer", function()
+                Log("[FirstPersonController] *** UnfreezePlayer event received! ***")
+                bIsFrozen = false
+                Log("[FirstPersonController] Player UNFROZEN - movement enabled")
+            end)
+        end)
+
+        if success2 then
+            Log("[FirstPersonController] Subscribed to 'UnfreezePlayer' with handle: " .. tostring(handle2))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'UnfreezePlayer': " .. tostring(handle2))
+        end
+
+        -- OnGameReset 이벤트 구독 (위치 및 속도 복원)
+        local success3, handle3 = pcall(function()
+            return gm:SubscribeEvent("OnGameReset", function()
+                Log("[FirstPersonController] *** OnGameReset event received! ***")
+
+                -- 초기 위치로 복원 (0, 0, 0으로 강제 고정)
+                local resetPosition = Vector(0, 0, 0)
+                actor:SetActorLocation(resetPosition)
+                if InitialRotation then
+                    actor:SetActorRotation(InitialRotation)
+                end
+                Log("[FirstPersonController] Position FORCED to (0.00, 0.00, 0.00)")
+
+                -- 속도 변수 초기화 (감속 상태 해제)
+                CurrentForwardSpeed = 0.0
+                CurrentRightSpeed = 0.0
+                CurrentMaxSpeed = MoveSpeed  -- 최고 속도를 기본값으로 복원
+                ChaserDistance = 999.0       -- Chaser 거리 초기화
+                Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
+                    string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
+                Log("[FirstPersonController] ChaserDistance reset to 999.0")
+            end)
+        end)
+
+        if success3 then
+            Log("[FirstPersonController] Subscribed to 'OnGameReset' with handle: " .. tostring(handle3))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'OnGameReset': " .. tostring(handle3))
+        end
+
+        -- OnChaserDistanceUpdate 이벤트 구독 (Chaser와의 거리 업데이트)
+        local success4, handle4 = pcall(function()
+            return gm:SubscribeEvent("OnChaserDistanceUpdate", function(distance)
+                ChaserDistance = distance
+            end)
+        end)
+
+        if success4 then
+            Log("[FirstPersonController] Subscribed to 'OnChaserDistanceUpdate' with handle: " .. tostring(handle4))
+        else
+            Log("[FirstPersonController] ERROR subscribing to 'OnChaserDistanceUpdate': " .. tostring(handle4))
+        end
+
+        -- Frenzy mode subscriptions
         gm:RegisterEvent("EnterFrenzyMode")
         handleFrenzyEnter = gm:SubscribeEvent("EnterFrenzyMode", function(payload)
             if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
         end)
-        
+
         gm:RegisterEvent("ExitFrenzyMode")
         handleFrenzyExit = gm:SubscribeEvent("ExitFrenzyMode", function(payload)
             if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
         end)
+    else
+        Log("[FirstPersonController] WARNING: No GameMode found for event subscription")
     end
 
     Log("[FirstPersonController] Initialized!")
@@ -156,6 +249,11 @@ end
 --- 이동 업데이트
 ---
 function UpdateMovement(dt, input)
+    -- 플레이어가 얼어있으면 이동 불가
+    if bIsFrozen then
+        return
+    end
+
     local moveForward = input:GetAxisValue("MoveForward")   -- -1..+1 (forward/back)
     local moveRight   = input:GetAxisValue("MoveRight")     -- -1..+1 (right/left)
 

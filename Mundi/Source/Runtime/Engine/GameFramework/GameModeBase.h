@@ -85,6 +85,13 @@ public:
      */
     void EndGame(bool bVictory);
 
+    /**
+     * @brief 게임 상태를 초기 상태로 리셋 (PIE를 재시작하지 않음)
+     * - 점수, 시간, 게임오버 플래그 초기화
+     * - 모든 액터를 초기 위치로 복원
+     */
+    void ResetGame();
+
     // ==================== Actor 스폰 ====================
 
     /**
@@ -233,4 +240,7 @@ protected:
 
     /** 지연 삭제 시스템 (Lua 콜백 중 삭제 방지) */
     TArray<AActor*> PendingDestroyActors;
+
+    /** 직렬화 임시 변수 (OnSerialized에서 DefaultPawnActor 복원) */
+    FString DefaultPawnActorNameToRestore;
 };

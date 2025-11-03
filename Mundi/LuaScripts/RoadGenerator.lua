@@ -525,6 +525,28 @@ function BeginPlay()
     end
 
     IsInitialized = #RoadBlocks > 0
+
+    -- OnGameReset 이벤트 구독
+    local gm = GetGameMode()
+    if gm then
+        Log("[RoadGenerator] Subscribing to 'OnGameReset' event...")
+        local success, handle = pcall(function()
+            return gm:SubscribeEvent("OnGameReset", function()
+                Log("[RoadGenerator] *** OnGameReset event received! ***")
+                ResetRoadGenerator()
+            end)
+        end)
+
+        if success then
+            Log("[RoadGenerator] Subscribed to 'OnGameReset' with handle: " .. tostring(handle))
+        else
+            Log("[RoadGenerator] ERROR subscribing to 'OnGameReset': " .. tostring(handle))
+        end
+    else
+        Log("[RoadGenerator] WARNING: No GameMode found for event subscription")
+    end
+
+    Log("[RoadGenerator] Initialization complete - " .. #RoadBlocks .. " blocks created")
 end
 
 -- =====================================================
@@ -574,6 +596,75 @@ function Tick(dt)
             end
         end
     end
+end
+
+-- =====================================================
+-- [함수] 도로 생성기 리셋 (액터 재사용)
+-- =====================================================
+function ResetRoadGenerator()
+    if not IsInitialized then
+        Log("[RoadGenerator] WARNING: Cannot reset - not initialized")
+        return
+    end
+
+    Log("[RoadGenerator] ========================================")
+    Log("[RoadGenerator] Full reset - forcing clean state")
+    Log("[RoadGenerator] ========================================")
+
+    -- 1. 장애물 풀 강제 초기화 (모든 장애물을 사용 가능 상태로)
+    local inactiveCount = 0
+    for _, obstacle in ipairs(ObstaclePool) do
+        obstacle.IsActive = false  -- 강제로 false
+        if obstacle.Actor then
+            obstacle.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
+        end
+        inactiveCount = inactiveCount + 1
+    end
+    ActiveObstacles = {}  -- 배열 완전 비우기
+    Log("[RoadGenerator] Forced " .. inactiveCount .. " obstacles to inactive state")
+    Log("[RoadGenerator] ActiveObstacles cleared: " .. #ActiveObstacles)
+
+    -- 2. 카운터를 먼저 초기화 (RepositionBlock 전에 중요!)
+    ObstaclePatternCounter = 0
+    GroupCounter = 0
+    CurrentGroupModelType = math.random(1, #Config.RoadModels)
+    CheckTimer = 0.0
+    Log("[RoadGenerator] All counters reset (PatternCounter=0, GroupCounter=0)")
+
+    -- 3. InitialYPosition 재계산
+    if OwnerActor then
+        local ownerPos = OwnerActor:GetActorLocation()
+        InitialYPosition = ownerPos.Y
+        Log("[RoadGenerator] InitialYPosition reset to: " .. string.format("%.2f", InitialYPosition))
+    end
+
+    -- 4. 도로 블록 재배치 (기존 장애물 참조 완전 제거)
+    table.sort(RoadBlocks, function(a, b) return a.XPosition < b.XPosition end)
+
+    for i, block in ipairs(RoadBlocks) do
+        block.Obstacles = nil  -- 기존 장애물 참조 제거 (중요!)
+        local newX = (i - 1) * Config.BlockLength
+        RepositionBlock(block, newX)
+    end
+    Log("[RoadGenerator] Repositioned " .. #RoadBlocks .. " road blocks with fresh obstacles")
+
+    -- 5. 랜덤 시드 재설정 (새로운 패턴 생성)
+    math.randomseed(os.time() + math.random(1, 1000))
+    Log("[RoadGenerator] Random seed reset for new pattern")
+
+    -- 6. 최종 상태 확인
+    local availableObstacles = 0
+    for _, obstacle in ipairs(ObstaclePool) do
+        if not obstacle.IsActive then
+            availableObstacles = availableObstacles + 1
+        end
+    end
+    Log("[RoadGenerator] Final check - Available obstacles: " .. availableObstacles .. "/" .. #ObstaclePool)
+    Log("[RoadGenerator] Final check - Active obstacles: " .. #ActiveObstacles)
+
+    Log("[RoadGenerator] ========================================")
+    Log("[RoadGenerator] Reset complete! Ready for new game")
+    Log("[RoadGenerator] ========================================")
 end
 
 -- =====================================================

@@ -43,14 +43,27 @@ UWorld::UWorld()
 
 UWorld::~UWorld()
 {
-	// GameMode 정리 (PIE World에서만 존재)
+	// CRITICAL: GameMode와 PlayerController는 Level의 Actors에 포함되어 있음!
+	// 여기서 삭제하면 이중 삭제 발생 → dangling pointer crash
+	// 대신 Lua delegate/리소스만 정리하고 삭제는 Level에 맡김
+
+	// GameMode의 Lua delegate 정리 (소멸 전 필수!)
 	if (GameMode && !GameMode->IsPendingDestroy())
 	{
-		//GameMode->EndPlay(EEndPlayReason::Destroyed);
-		//ObjectFactory::DeleteObject(GameMode);
+		// Lua delegate 정리 (lua_state 무효화 전에 필요)
+		GameMode->ClearAllDynamicEvents();
+		// 삭제는 Level의 Actors 삭제 시 처리됨
 		GameMode = nullptr;
 	}
 
+	// PlayerController는 소멸자에서 InputContext 정리하므로 여기서는 nullptr만 설정
+	if (PlayerController && !PlayerController->IsPendingDestroy())
+	{
+		// 삭제는 Level의 Actors 삭제 시 처리됨
+		PlayerController = nullptr;
+	}
+
+	// Level의 모든 Actors 삭제 (GameMode, PlayerController 포함)
 	if (Level)
 	{
 		// DeleteObject 중에 배열이 수정될 수 있으므로 복사본 사용
@@ -147,7 +160,10 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	//ULevel* NewLevel = ULevelService::CreateNewLevel();
 	UWorld* PIEWorld = NewObject<UWorld>(); // 레벨도 새로 생성됨
 	PIEWorld->bPie = true;
-	PIEWorld->Initialize();
+	// CRITICAL: Initialize()를 호출하면 CreateLevel()이 호출되어 기본 라이트가 스폰됨
+	// PIE는 에디터 레벨을 복사해야 하므로 Grid/Gizmo만 초기화
+	PIEWorld->InitializeGrid();
+	PIEWorld->InitializeGizmo();
 
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
@@ -351,6 +367,14 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
         {
             if (!A) continue;
             A->SetWorld(this);
+        }
+
+        // CRITICAL: OnSerialized는 모든 액터에 World가 설정된 후에 호출해야 함
+        // (GameMode가 OnSerialized에서 다른 액터를 찾을 수 있도록)
+        for (AActor* A : Level->GetActors())
+        {
+            if (!A) continue;
+            A->OnSerialized();
         }
     }
 
