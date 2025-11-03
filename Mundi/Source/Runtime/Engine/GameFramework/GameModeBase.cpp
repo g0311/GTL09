@@ -221,6 +221,9 @@ void AGameModeBase::EndGame(bool bVictory)
     bIsGameOver = true;
     bIsVictory = bVictory;
 
+    // 게임 오버 시 HUD의 거리를 0으로 표시
+    ChaserDistance = 0.0f;
+
     UE_LOG(("[GameModeBase] Game Over - " + std::string(bVictory ? "Victory" : "Defeat") + "\n").c_str());
 
     // 게임 종료 이벤트 발행

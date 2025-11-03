@@ -133,8 +133,8 @@ function Tick(dt)
     local myPos = actor:GetActorLocation()
     local playerPos = pawn:GetActorLocation()
 
-    local dx = playerPos.X - myPos.X
-    local distanceX = math.abs(dx)  -- X 방향 거리만 사용
+    local dx = playerPos.X - myPos.X  -- 양수: 플레이어가 앞, 음수: Chaser가 플레이어를 지나침
+    local distanceX = math.abs(dx)  -- X 방향 거리만 사용 (HUD 표시용)
 
     -- 거리 정보를 GameMode 이벤트로 브로드캐스트 (플레이어가 사용 가능)
     local gm = GetGameMode()
@@ -151,12 +151,14 @@ function Tick(dt)
     --    TimeSinceLastLog = 0.0
     --end
 
-    -- 거리 체크 및 이벤트 발생 (X축 거리만, 한 번만 발생)
-    if distanceX <= CatchDistance then
+    -- 거리 체크 및 이벤트 발생
+    -- CRITICAL: dx <= CatchDistance로 체크 (음수/양수 구분)
+    -- Chaser가 플레이어를 지나치거나 도달하면 게임 오버
+    if dx <= CatchDistance then
         -- 플레이어를 잡음 (한 번만 발생)
         if not bPlayerCaught then
             bPlayerCaught = true
-            --Log("[Chaser] *** PLAYER IS NOW WITHIN CATCH DISTANCE! ***")
+            --Log("[Chaser] *** PLAYER CAUGHT! (dx = " .. string.format("%.2f", dx) .. ") ***")
             OnPlayerCaught(pawn, distanceX)
         end
     end
