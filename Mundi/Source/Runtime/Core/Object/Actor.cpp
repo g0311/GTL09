@@ -674,7 +674,24 @@ void AActor::OnSerialized()
 {
 	Super::OnSerialized();
 
+	// 모든 컴포넌트의 OnSerialized 호출
+	// CRITICAL: 복사본으로 순회 (OnSerialized에서 컴포넌트가 추가될 수 있음)
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
+	for (UActorComponent* Comp : OwnedComponents)
+	{
+		ComponentsCopy.push_back(Comp);
+	}
+
+	for (UActorComponent* Component : ComponentsCopy)
+	{
+		if (Component)
+		{
+			Component->OnSerialized();
+		}
+	}
 }
+
 
 //AActor* AActor::Duplicate()
 //{
