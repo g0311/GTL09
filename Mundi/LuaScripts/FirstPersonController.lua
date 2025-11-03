@@ -19,6 +19,14 @@
 local MoveSpeed = 15.0        -- 기본 이동 속도 (유닛/초)
 local SprintMultiplier = 2.0   -- Shift 누를 때 속도 배율
 
+-- 카메라 설정
+local ShakeTime = 0.0
+local ShakeDuration = 0.20
+local ShakeMagnitude = 0.3     -- MUCH smaller scale (in meters / engine units)
+local ShakeFrequency = 25.0     -- faster shake frequency
+local ShakeSeed = 0.0
+-- Use additive offset so camera keeps following player input while shaking
+local ShakeOffset = Vector(0.0, 0.0, 0.0)
 
 ---
 --- 게임 시작 시 초기화
@@ -74,6 +82,9 @@ function Tick(dt)
 
     -- ==================== 이동 처리 ====================
     UpdateMovement(dt, input)
+
+    -- ==================== 카메라 처리 ====================
+    UpdateCameraShake(dt)
 end
 
 ---
@@ -106,3 +117,45 @@ function UpdateMovement(dt, input)
         end
     end
 end
+
+---
+--- 카메라 업데이트
+---
+function UpdateCameraShake(dt)
+    if ShakeTime > 0 then
+        ShakeTime = ShakeTime - dt
+
+        -- end shake: remove any residual offset
+        if ShakeTime <= 0 then
+            if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
+                actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
+                ShakeOffset = Vector(0.0, 0.0, 0.0)
+            end
+            return
+        end
+
+        -- time progress 0~1
+        local t = 1.0 - (ShakeTime / ShakeDuration)
+
+        -- fade-out curve (ease out)
+        local fade = (1.0 - t) * (1.0 - t)
+
+        -- sine-based directional shake (smooth, not teleport)
+        local x = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency) * ShakeMagnitude * fade
+        local y = math.cos((ShakeTime + ShakeSeed) * ShakeFrequency * 0.9) * ShakeMagnitude * fade
+        local z = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency * 1.3) * ShakeMagnitude * fade * 0.5
+
+        -- Compute new target offset and apply only the delta so base motion persists
+        local target = Vector(x, y, z)
+        local delta = target - ShakeOffset
+        if (delta.X ~= 0.0 or delta.Y ~= 0.0 or delta.Z ~= 0.0) then
+            actor:AddActorWorldLocation(delta)
+            ShakeOffset = target
+        end
+    end
+end
+
+function OnOverlap(other)
+    ShakeTime = ShakeDuration
+    ShakeSeed = math.random() * 1000
+end 
