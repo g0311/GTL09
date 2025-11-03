@@ -147,7 +147,10 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	//ULevel* NewLevel = ULevelService::CreateNewLevel();
 	UWorld* PIEWorld = NewObject<UWorld>(); // 레벨도 새로 생성됨
 	PIEWorld->bPie = true;
-	PIEWorld->Initialize();
+	// CRITICAL: Initialize()를 호출하면 CreateLevel()이 호출되어 기본 라이트가 스폰됨
+	// PIE는 에디터 레벨을 복사해야 하므로 Grid/Gizmo만 초기화
+	PIEWorld->InitializeGrid();
+	PIEWorld->InitializeGizmo();
 
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
