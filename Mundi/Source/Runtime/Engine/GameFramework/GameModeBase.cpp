@@ -24,7 +24,7 @@ AGameModeBase::AGameModeBase()
     bTickInEditor = false; // 게임 중에만 틱
 
     // ScriptComponent 생성 및 부착
-    GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
+    //GameModeScript = CreateDefaultSubobject<UScriptComponent>("GameModeScript");
 
     // ScriptPath를 빈 문자열로 초기화 (Scene에 저장된 기본값 무시)
     ScriptPath = "";
