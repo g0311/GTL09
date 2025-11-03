@@ -164,11 +164,21 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 
 void AActor::RegisterAllComponents(UWorld* InWorld)
 {
+	// CRITICAL: OnRegister()에서 CREATE_EDITOR_COMPONENT로 AddOwnedComponent()를 호출하면
+	// 순회 중에 OwnedComponents가 수정되어 이터레이터가 무효화됨 (댕글링 포인터)
+	// 반드시 복사본을 만들어서 순회해야 함
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
+	for (UActorComponent* Comp : OwnedComponents)
+	{
+		ComponentsCopy.push_back(Comp);
+	}
 
-	for (UActorComponent* Component : OwnedComponents)
+	for (UActorComponent* Component : ComponentsCopy)
 	{
 		Component->RegisterComponent(InWorld);
 	}
+
 	if (!RootComponent)
 	{
 		RootComponent = CreateDefaultSubobject<USceneComponent>("DefaultSceneComponent");
@@ -459,6 +469,16 @@ void AActor::DuplicateSubObjects()
 	// ========================================================================
 	// 2단계: 매핑 테이블을 이용해 씬 계층 구조 재구성
 	// ========================================================================
+
+	// CRITICAL: Duplicate()가 얕은 복사를 하므로, AttachParent와 AttachChildren이
+	// 원본 Actor의 컴포넌트들을 가리키고 있음. 먼저 모두 클리어해야 함!
+	for (auto const& [OriginalComp, NewComp] : OldToNewComponentMap)
+	{
+		if (USceneComponent* NewSceneComp = Cast<USceneComponent>(NewComp))
+		{
+			NewSceneComp->ClearAttachmentReferences();
+		}
+	}
 
 	// 2-1. 새로운 루트 컴포넌트 설정
 	UActorComponent** FoundNewRootPtr = OldToNewComponentMap.Find(RootComponent);
