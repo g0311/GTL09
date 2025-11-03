@@ -11,12 +11,13 @@ class UInputMappingSubsystem : public UObject
 public:
     DECLARE_CLASS(UInputMappingSubsystem, UObject)
 
-    UInputMappingSubsystem() = default;
+    UInputMappingSubsystem();
 protected:
-    ~UInputMappingSubsystem() override = default;
+    ~UInputMappingSubsystem() override;
 
 public:
     static UInputMappingSubsystem& Get();
+    static bool IsValid(); // 싱글톤 인스턴스가 유효한지 확인
 
     void AddMappingContext(UInputMappingContext* Context, int32 Priority);
     void RemoveMappingContext(UInputMappingContext* Context);

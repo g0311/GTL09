@@ -114,7 +114,7 @@ void ACameraActor::SyncRotationCache()
 
 ACameraActor::~ACameraActor()
 {
-    if (CameraComponent)
+    if (CameraComponent && !CameraComponent->IsPendingDestroy())
     {
         ObjectFactory::DeleteObject(CameraComponent);
     }

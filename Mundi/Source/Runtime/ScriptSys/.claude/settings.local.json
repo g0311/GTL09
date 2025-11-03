@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe /c \"\"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\amd64\\MSBuild.exe\"\" C:\\Users\\Jungle\\Documents\\GitHub\\GTL09\\Mundi\\Mundi.vcxproj /p:Configuration=Debug /p:Platform=x64 /m\")",
+      "Bash(cmd /c \"cd \"\"C:\\Users\\Jungle\\Documents\\GitHub\\GTL09\\Mundi\"\" && build.bat\")",
+      "Bash(\"C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe\" \"C:/Users/Jungle/Documents/GitHub/GTL09/Mundi/Mundi.vcxproj\" /p:Configuration=Debug /p:Platform=x64 /m)",
+      "Bash(\"C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe\" \"C:/Users/Jungle/Documents/GitHub/GTL09/Mundi/Mundi.vcxproj\" -p:Configuration=Debug -p:Platform=x64 -m)",
+      "Bash(python:*)",
+      "Bash(awk:*)",
+      "Bash(Source/Runtime/ScriptSys/UScriptManager.cpp.tmp)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

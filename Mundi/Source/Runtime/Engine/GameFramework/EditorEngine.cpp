@@ -4,6 +4,7 @@
 #include "SelectionManager.h"
 #include <ObjManager.h>
 #include "InputMappingSubsystem.h"
+#include "InputMappingContext.h"
 #include "GameModeBase.h"
 
 // Delegate Test Actors - Force static initialization

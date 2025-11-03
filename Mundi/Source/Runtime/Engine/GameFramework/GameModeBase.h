@@ -29,7 +29,7 @@ public:
     GENERATED_REFLECTION_BODY()
 
     AGameModeBase();
-    ~AGameModeBase() override = default;
+    ~AGameModeBase() override ;
 
     // ==================== Lifecycle ====================
 
@@ -195,6 +195,11 @@ public:
      * @brief 등록된 모든 이벤트 이름 출력 (디버깅용)
      */
     void PrintRegisteredEvents() const;
+
+    /**
+     * @brief 엔진 종료 시 모든 동적 이벤트 델리게이트 정리 (sol::function 참조 해제)
+     */
+    void ClearAllDynamicEvents();
 
     // ==================== Serialization ====================
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
