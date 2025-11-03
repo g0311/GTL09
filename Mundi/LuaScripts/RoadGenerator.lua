@@ -73,7 +73,16 @@ local Config = {
     -- ===== 도로 블록 간 장애물 배치 패턴 (Y축 방향) =====
     -- 패턴: N개 블록에 장애물 배치 -> M개 블록은 비움 -> 반복
     ObstacleBlocksWithObstacles = 3,   -- 장애물을 배치할 연속 블록 수
-    ObstacleBlocksEmpty = 1            -- 장애물 없이 비울 연속 블록 수
+    ObstacleBlocksEmpty = 1,           -- 장애물 없이 비울 연속 블록 수
+
+    -- ===== 프렌지 아이템 설정 =====
+    FrenzyScriptPath = "FrenzyItem.lua",
+    FrenzyModel = "Data/Model/smokegrenade.obj",                 -- 선택: 프렌지 아이템 메시 경로 (없어도 동작)
+    FrenzyMinScale = 0.3,
+    FrenzyMaxScale = 0.4,
+    FrenzyHeight = 0.2,                -- 바닥에서 살짝 띄우기
+    InitialFrenzyPoolSize = 3,
+    FrenzySpawnBlockProbability = 0.05 -- 각 블록마다 하나 스폰할 확률
 }
 
 -- =====================================================
@@ -94,6 +103,12 @@ local ObstaclePool = {}
 local ActiveObstacles = {}
  -- 블록 패턴 카운터 (Y축 간격용)
 local ObstaclePatternCounter = 0 
+
+-- =====================================================
+-- [내부 변수 - 프렌지 아이템]
+-- =====================================================
+local FrenzyPool = {}
+local ActiveFrenzy = {}
 
 -- =====================================================
 -- [함수] 장애물 풀 초기화
@@ -159,9 +174,61 @@ local function InitializeObstaclePool()
                 IsScriptInitialized = false,
             })
         end
-    end
+end
 
     return #ObstaclePool > 0
+end
+
+-- =====================================================
+-- [함수] 프렌지 아이템 풀 초기화
+-- =====================================================
+local function InitializeFrenzyPool()
+    local world = OwnerActor:GetWorld()
+    if not world then return false end
+
+    for i = 1, Config.InitialFrenzyPoolSize do
+        local scale = Config.FrenzyMinScale + math.random() * (Config.FrenzyMaxScale - Config.FrenzyMinScale)
+        local spawnX = -15000 - (i * 110)
+        local transform = Transform(
+            Vector(spawnX, -15000, -15000),
+            Quat(),
+            Vector(scale, scale, scale)
+        )
+
+        local itemActor = world:SpawnActorByClassWithTransform("AStaticMeshActor", transform)
+        if itemActor then
+            local meshComp = itemActor:GetStaticMeshComponent()
+            if meshComp and Config.FrenzyModel then
+                meshComp:SetStaticMesh(Config.FrenzyModel)
+            end
+
+            -- 충돌 박스 (작은 박스)
+            local baseBox = Vector(0.4, 0.4, 0.4)
+            local boxSize = Vector(baseBox.X * scale, baseBox.Y * scale, baseBox.Z * scale)
+            local boxComp = AddBoxComponent(itemActor, boxSize)
+            if boxComp then
+                boxComp:SetRelativeLocation(Vector(0, 0, boxSize.Z))
+                boxComp:SetCollisionEnabled(true)
+                boxComp:SetGenerateOverlapEvents(true)
+            end
+
+            -- 스크립트
+            local scriptComp = itemActor:AddScriptComponent()
+            if scriptComp then
+                scriptComp:SetScriptPath(Config.FrenzyScriptPath)
+            end
+
+            table.insert(FrenzyPool, {
+                Actor = itemActor,
+                ScriptComponent = scriptComp,
+                IsActive = false,
+                Scale = scale,
+                IsScriptInitialized = false,
+            })
+        end
+    end
+
+    return #FrenzyPool > 0
 end
 
 -- =====================================================
@@ -205,6 +272,45 @@ local function ReturnObstacleToPool(obstacle)
     for i, activeObs in ipairs(ActiveObstacles) do
         if activeObs == obstacle then
             table.remove(ActiveObstacles, i)
+            break
+        end
+    end
+end
+
+-- =====================================================
+-- [함수] 풀에서 프렌지 아이템 가져오기
+-- =====================================================
+local function GetFrenzyFromPool()
+    Log("getting a frenzy item!!")
+    for i, item in ipairs(FrenzyPool) do
+        if not item.IsActive then
+            item.IsActive = true
+            table.insert(ActiveFrenzy, item)
+            if not item.IsScriptInitialized and item.ScriptComponent then
+                item.ScriptComponent:BeginPlay()
+                item.IsScriptInitialized = true
+            end
+            return item
+        end
+    end
+    return nil
+end
+
+-- =====================================================
+-- [함수] 프렌지 아이템 반환
+-- =====================================================
+local function ReturnFrenzyToPool(item)
+    if not item then return end
+    if item.ScriptComponent then
+        item.ScriptComponent:CallLuaFunction("ResetState")
+    end
+    item.IsActive = false
+    if item.Actor then
+        item.Actor:SetActorLocation(Vector(-15000, -15000, -15000))
+    end
+    for i, active in ipairs(ActiveFrenzy) do
+        if active == item then
+            table.remove(ActiveFrenzy, i)
             break
         end
     end
@@ -263,6 +369,53 @@ local function SpawnObstaclesOnRoadBlock(block, blockXPosition, laneYPositions)
 
     if #placed > 0 then
         block.Obstacles = placed
+    else
+        block.Obstacles = nil
+    end
+    -- Remember blocked lanes for this block (used by pickups)
+    block.BlockedLaneIndices = blocked
+    block.BlockedLanes = {}
+    for _, idx in ipairs(blocked) do
+        block.BlockedLanes[idx] = true
+    end
+end
+
+-- =====================================================
+-- [함수] 도로 블록에 프렌지 아이템 배치
+-- =====================================================
+local function SpawnFrenzyOnRoadBlock(block, blockXPosition, laneYPositions)
+    -- Return previously attached frenzy items on this block
+    if block.FrenzyItems then
+        for _, item in ipairs(block.FrenzyItems) do
+            ReturnFrenzyToPool(item)
+        end
+        block.FrenzyItems = nil
+    end
+
+    -- Chance-based spawn per block
+    if math.random() >= Config.FrenzySpawnBlockProbability then
+        return
+    end
+
+    if #laneYPositions == 0 then return end
+
+    -- Build candidate lanes that are not blocked by obstacles
+    local candidates = {}
+    local blocked = (block and block.BlockedLanes) or {}
+    for i = 1, #laneYPositions do
+        if not blocked[i] then table.insert(candidates, i) end
+    end
+    if #candidates == 0 then return end
+
+    local laneIndex = candidates[math.random(1, #candidates)]
+    local laneY = laneYPositions[laneIndex]
+
+    local item = GetFrenzyFromPool()
+    if item and item.Actor then
+        local xOffset = (math.random() - 0.5) * 1.0
+        local finalX = blockXPosition + xOffset
+        item.Actor:SetActorLocation(Vector(finalX, laneY, Config.FrenzyHeight))
+        block.FrenzyItems = { item }
     end
 end
 
@@ -325,6 +478,7 @@ local function RepositionBlock(block, newX)
 
     -- 재배치 후 다시 장애물 찍기
     SpawnObstaclesOnRoadBlock(block, newX, laneYPositions)
+    SpawnFrenzyOnRoadBlock(block, newX, laneYPositions)
 end
 
 -- =====================================================
@@ -338,6 +492,7 @@ function BeginPlay()
     InitialYPosition = ownerPos.Y
 
     InitializeObstaclePool()
+    InitializeFrenzyPool()
 
     CurrentGroupModelType = math.random(1, #Config.RoadModels)
     GroupCounter = 0
@@ -366,6 +521,7 @@ function BeginPlay()
             table.insert(laneYPositions, InitialYPosition + yOffset)
         end
         SpawnObstaclesOnRoadBlock(block, block.XPosition, laneYPositions)
+        SpawnFrenzyOnRoadBlock(block, block.XPosition, laneYPositions)
     end
 
     IsInitialized = #RoadBlocks > 0
@@ -407,6 +563,17 @@ function Tick(dt)
             end
         end
     end
+
+    -- 프렌지 아이템 자동 반환 (플레이어가 충분히 지나친 경우)
+    for i = #ActiveFrenzy, 1, -1 do
+        local item = ActiveFrenzy[i]
+        if item and item.Actor then
+            local pos = item.Actor:GetActorLocation()
+            if (ownerX - pos.X) > (Config.RecycleDistance * 2) then
+                ReturnFrenzyToPool(item)
+            end
+        end
+    end
 end
 
 -- =====================================================
@@ -429,12 +596,19 @@ function EndPlay()
                     world:DestroyActor(obstacle.Actor)
                 end
             end
+            for _, item in ipairs(FrenzyPool) do
+                if item.Actor then
+                    world:DestroyActor(item.Actor)
+                end
+            end
         end
     end
 
     RoadBlocks = {}
     ObstaclePool = {}
     ActiveObstacles = {}
+    FrenzyPool = {}
+    ActiveFrenzy = {}
     ObstaclePatternCounter = 0
     IsInitialized = false
     OwnerActor = nil

@@ -95,13 +95,16 @@ function BeginPlay()
     InputContext:MapAxisKey("MoveRight", Keys.D,  1.0)
     InputContext:MapAxisKey("MoveRight", Keys.A, -1.0)
     
-    if GameEvents and GameEvents.OnEnterFrenzyMode then
-        handleFrenzyEnter = GameEvents.OnEnterFrenzyMode(function(payload)
+
+    local gm = GetGameMode()
+    if gm then
+        gm:RegisterEvent("EnterFrenzyMode")
+        handleFrenzyEnter = gm:SubscribeEvent("EnterFrenzyMode", function(payload)
             if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
         end)
-    end
-    if GameEvents and GameEvents.OnExitFrenzyMode then
-        handleFrenzyExit = GameEvents.OnExitFrenzyMode(function(payload)
+        
+        gm:RegisterEvent("ExitFrenzyMode")
+        handleFrenzyExit = gm:SubscribeEvent("ExitFrenzyMode", function(payload)
             if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
         end)
     end
@@ -118,12 +121,13 @@ end
 function EndPlay()
     local name = actor:GetName()
     Log("[FirstPersonController] Cleaning up for " .. name)
-    if GameEvents and handleFrenzyEnter then
-        GameEvents.Unsubscribe(GameEvents.Events.EnterFrenzyMode, handleFrenzyEnter)
+    local gm = GetGameMode()
+    if handleFrenzyEnter and gm then
+        gm:UnsubscribeEvent("EnterFrenzyMode", handleFrenzyEnter)
         handleFrenzyEnter = nil
     end
-    if GameEvents and handleFrenzyExit then
-        GameEvents.Unsubscribe(GameEvents.Events.ExitFrenzyMode, handleFrenzyExit)
+    if handleFrenzyExit and gm then
+        gm:UnsubscribeEvent("ExitFrenzyMode", handleFrenzyExit)
         handleFrenzyExit = nil
     end
 end

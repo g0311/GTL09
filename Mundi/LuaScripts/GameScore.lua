@@ -48,17 +48,15 @@ function BeginPlay()
     end)
     Log("[GameScore] Subscribed to PlayerHit")
 
-    if GameEvents and GameEvents.OnEnterFrenzyMode then
-        handle_EnterFrenzy = GameEvents.OnEnterFrenzyMode(function(payload)
-            if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
-        end)
-    end
-
-    if GameEvents and GameEvents.OnExitFrenzyMode then
-        handle_ExitFrenzy = GameEvents.OnExitFrenzyMode(function(payload)
-            if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
-        end)
-    end
+    gm:RegisterEvent("EnterFrenzyMode")
+    handle_EnterFrenzy = gm:SubscribeEvent("EnterFrenzyMode", function(payload)
+        if OnEnterFrenzyMode then OnEnterFrenzyMode(payload) end
+    end)
+    
+    gm:RegisterEvent("ExitFrenzyMode")
+    handle_ExitFrenzy = gm:SubscribeEvent("ExitFrenzyMode", function(payload)
+        if OnExitFrenzyMode then OnExitFrenzyMode(payload) end
+    end)
     
     Player = GetPlayerPawn()
     if Player then
@@ -108,12 +106,12 @@ function EndPlay()
         gm:UnsubscribeEvent(PLAYER_HIT, handle_PlayerHit)
         handle_PlayerHit = nil
     end
-    if GameEvents and handle_EnterFrenzy then
-        GameEvents.Unsubscribe(GameEvents.Events.EnterFrenzyMode, handle_EnterFrenzy)
+    if handle_EnterFrenzy and gm then
+        gm:UnsubscribeEvent("EnterFrenzyMode", handle_EnterFrenzy)
         handle_EnterFrenzy = nil
     end
-    if GameEvents and handle_ExitFrenzy then
-        GameEvents.Unsubscribe(GameEvents.Events.ExitFrenzyMode, handle_ExitFrenzy)
+    if handle_ExitFrenzy and gm then
+        gm:UnsubscribeEvent("ExitFrenzyMode", handle_ExitFrenzy)
         handle_ExitFrenzy = nil
     end
 end

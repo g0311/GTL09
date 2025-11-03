@@ -1,9 +1,27 @@
-﻿-- ==================== Frenzy Item ====================
+-- ==================== Frenzy Item ====================
 
-local handleFrenzyMode = nil
 local bIsInFrenzyMode = false
 local FrenzyModeElapsedTime = 0.0
 local MaxFrenzyModeTime = 8.0
+
+local ENTER_FRENZY_EVT = "EnterFrenzyMode"
+local EXIT_FRENZY_EVT  = "ExitFrenzyMode"
+
+local function FireEnterFrenzy()
+    local gm = GetGameMode and GetGameMode() or nil
+    if gm then
+        gm:RegisterEvent(ENTER_FRENZY_EVT)
+        gm:FireEvent(ENTER_FRENZY_EVT)
+    end
+end
+
+local function FireExitFrenzy()
+    local gm = GetGameMode and GetGameMode() or nil
+    if gm then
+        gm:RegisterEvent(EXIT_FRENZY_EVT)
+        gm:FireEvent(EXIT_FRENZY_EVT)
+    end
+end
 
 local function IsPlayerActor(a)
     if a == nil then return false end
@@ -29,17 +47,28 @@ function OnOverlap(other)
         return
     end
 
-    GameEvents.FireEnterFrenzyMode()
+    Log("frenzy item overlapped!!!")
+    
+    FireEnterFrenzy()
     bIsInFrenzyMode = true
     FrenzyModeElapsedTime = 0.0
+
+    -- Move off-screen so the generator can reclaim it from the pool
+    if actor then
+        actor:SetActorLocation(Vector(-15000, -15000, -15000))
+    end
 end
 
 function UpdateFrenzyMode(dt)
     if (FrenzyModeElapsedTime >= MaxFrenzyModeTime) then
         bIsInFrenzyMode = false
-        GameEvents.FireExitFrenzyMode()
+        FireExitFrenzy()
         return
     end
-
+    Log("FRENZY MODE!!!!")
     FrenzyModeElapsedTime = FrenzyModeElapsedTime + dt
+end
+
+-- Called by the generator when this pooled item is returned
+function ResetState()
 end
