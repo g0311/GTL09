@@ -1153,11 +1153,20 @@ void UScriptManager::RegisterBoxComponent(sol::state* state)
             Comp->BoxExtent = extent;
             Owner->AddOwnedComponent(Comp);
 
+            if (USceneComponent* Root = Owner->GetRootComponent())
+            {
+                Comp->SetupAttachment(Root, EAttachmentRule::KeepRelative);
+            }
+
             if (UWorld* World = Owner->GetWorld())
             {
                 Comp->RegisterComponent(World);
                 Comp->InitializeComponent();
             }
+
+            Comp->SetCollisionEnabled(true);
+            Comp->SetGenerateOverlapEvents(true);
+
             return Comp;
         }
     );
