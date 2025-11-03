@@ -51,7 +51,7 @@ local MaxHorizontalPosition = 5.5
 -- 카메라 설정
 local ShakeTime = 0.0
 local ShakeDuration = 0.20
-local ShakeMagnitude = 0.3     -- MUCH smaller scale (in meters / engine units)
+local ShakeMagnitude = 0.7     -- MUCH smaller scale (in meters / engine units)
 local ShakeFrequency = 25.0     -- faster shake frequency
 local ShakeSeed = 0.0
 -- Use additive offset so camera keeps following player input while shaking

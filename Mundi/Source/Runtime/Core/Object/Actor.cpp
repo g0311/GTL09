@@ -579,9 +579,41 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 	else if (RootComponent)
 	{
 		InOutHandle["RootComponentId"] = RootComponent->UUID;
-	
+
 		JSON Components = JSON::Make(JSON::Class::Array);
+
+		// CRITICAL FIX: OwnedComponents는 unordered_set이므로 순서가 보장되지 않음
+		// 계층 구조를 유지하려면 RootComponent부터 시작하여 깊이 우선 순회로 저장해야 함
+		TArray<UActorComponent*> SortedComponents;
+
+		// 1. RootComponent와 그 자식들을 먼저 추가 (계층 구조 순서)
+		if (RootComponent)
+		{
+			std::function<void(USceneComponent*)> AddComponentRecursive = [&](USceneComponent* Comp)
+			{
+				if (!Comp) return;
+				SortedComponents.Add(Comp);
+
+				// 자식 컴포넌트들도 재귀적으로 추가
+				for (USceneComponent* Child : Comp->GetAttachChildren())
+				{
+					AddComponentRecursive(Child);
+				}
+			};
+			AddComponentRecursive(RootComponent);
+		}
+
+		// 2. SceneComponent가 아닌 나머지 컴포넌트들 추가 (ScriptComponent 등)
 		for (auto& Component : OwnedComponents)
+		{
+			if (!Cast<USceneComponent>(Component))
+			{
+				SortedComponents.Add(Component);
+			}
+		}
+
+		// 3. 정렬된 순서로 직렬화
+		for (auto& Component : SortedComponents)
 		{
 			// 에디터 전용 컴포넌트는 직렬화하지 않음
 			// (CREATE_EDITOR_COMPONENT로 생성된 컴포넌트들은 OnRegister()에서 매번 새로 생성됨)
@@ -589,11 +621,11 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			{
 				continue;
 			}
-	
+
 			JSON ComponentJson;
-	
+
 			ComponentJson["Type"] = Component->GetClass()->Name;
-	
+
 			Component->Serialize(bInIsLoading, ComponentJson);
 			Components.append(ComponentJson);
 		}
