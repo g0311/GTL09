@@ -42,9 +42,9 @@ function BeginPlay()
             gm:AddScore(-PointsPerHit)
         end
             
-        if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
-            gm:EndGame(true)
-        end
+        --if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
+        --    gm:EndGame(true)
+        --end
     end)
     Log("[GameScore] Subscribed to PlayerHit")
 
@@ -91,9 +91,9 @@ function Tick(dt)
                 end
                 
                 scoreCarry = scoreCarry - whole
-                if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
-                    gm:EndGame(true)
-                end
+                --if not gm:IsGameOver() and gm:GetScore() >= GameOverScore then
+                --    gm:EndGame(true)
+                --end
             end
         end
         lastPos = pos

@@ -651,20 +651,14 @@
     <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="LuaScripts\Default_Ambient Light Actor.lua" />
-    <Content Include="LuaScripts\Default_Directional Light Actor.lua" />
-    <Content Include="LuaScripts\Default_Obstacle.backup.lua" />
-    <Content Include="LuaScripts\Default_Obstacle.lua" />
-    <Content Include="LuaScripts\Default_TempCar.lua" />
+    <Content Include="LuaScripts\FrenzyLightVFX.lua" />
+    <Content Include="LuaScripts\ObstacleController.lua" />
     <Content Include="LuaScripts\FirstPersonController.lua" />
     <Content Include="LuaScripts\FrenzyItem.lua" />
     <Content Include="LuaScripts\GameEvents.lua" />
     <Content Include="LuaScripts\GameScore.lua" />
-    <Content Include="LuaScripts\MultiCoroutineTest.lua" />
     <Content Include="LuaScripts\RoadGenerator.lua" />
     <Content Include="LuaScripts\teasd1.lua" />
-    <Content Include="LuaScripts\test.lua" />
-    <Content Include="LuaScripts\test2.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

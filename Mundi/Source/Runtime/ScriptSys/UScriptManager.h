@@ -82,6 +82,7 @@ private:
     void RegisterSceneComponent(sol::state* state);
     void RegisterStaticMeshComponent(sol::state* state);
     void RegisterLightComponent(sol::state* state);
+    void RegisterDirectionalLightComponent(sol::state* state);
     void RegisterCameraComponent(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
     void RegisterPlayerController(sol::state* state);

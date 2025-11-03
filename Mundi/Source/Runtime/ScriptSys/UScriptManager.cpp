@@ -26,6 +26,7 @@
 #include "Source/Runtime/Engine/Components/SceneComponent.h"
 #include "Source/Runtime/Engine/Components/StaticMeshComponent.h"
 #include "Source/Runtime/Engine/Components/LightComponent.h"
+#include "Source/Runtime/Engine/Components/DirectionalLightComponent.h"
 #include "Source/Runtime/Engine/Components/CameraComponent.h"
 #include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
@@ -197,6 +198,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterSceneComponent(state);
     RegisterStaticMeshComponent(state);
     RegisterLightComponent(state);
+    RegisterDirectionalLightComponent(state);
     RegisterCameraComponent(state);
     RegisterScriptComponent(state);
     RegisterPlayerController(state);
@@ -648,6 +650,24 @@ void UScriptManager::RegisterActor(sol::state* state)
                 return nullptr;
             })
 
+        // Light component accessor (Directional/Point/Spot share ULightComponent interface)
+        ADD_LUA_FUNCTION("GetLightComponent", [](AActor* actor) -> ULightComponent*
+            {
+                if (!actor) return nullptr;
+                // Check root first (many light actors keep the light as root)
+                if (USceneComponent* Root = actor->GetRootComponent())
+                {
+                    if (auto* L = Cast<ULightComponent>(Root))
+                        return L;
+                }
+                for (UActorComponent* Comp : actor->GetOwnedComponents())
+                {
+                    if (auto* L = Cast<ULightComponent>(Comp))
+                        return L;
+                }
+                return nullptr;
+            })
+
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
         return actor->GetName().ToString();
@@ -765,11 +785,27 @@ void UScriptManager::RegisterLightComponent(sol::state* state)
         ADD_LUA_FUNCTION("SetLightColor", [](ULightComponent* comp, float r, float g, float b) {
             comp->SetLightColor(FLinearColor(r, g, b, 1.0f));
         })
-        ADD_LUA_FUNCTION("GetLightColor", [](ULightComponent* comp) -> sol::table {
-            // FLinearColor를 Lua 테이블로 변환 {r, g, b, a}
-            // 간단하게 하려면 테이블 대신 개별 값 반환도 가능
-            return sol::nil; // TODO: FLinearColor 바인딩 필요
+        ADD_LUA_FUNCTION("GetLightColor", [](ULightComponent* comp, sol::this_state s) -> sol::table {
+            sol::state_view lua(s);
+            sol::table t = lua.create_table();
+            const FLinearColor& c = comp->GetLightColor();
+            // Lowercase keys for convenience
+            t["r"] = c.R; t["g"] = c.G; t["b"] = c.B; t["a"] = c.A;
+            // Also provide uppercase aliases
+            t["R"] = c.R; t["G"] = c.G; t["B"] = c.B; t["A"] = c.A;
+            return t;
         })
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterDirectionalLightComponent(sol::state* state)
+{
+    // ==================== UDirectionalLightComponent 등록 ====================
+    BEGIN_LUA_TYPE_WITH_BASE(state, UDirectionalLightComponent, "DirectionalLightComponent",
+        ULightComponent, ULightComponentBase, USceneComponent, UActorComponent)
+        // Directional-specific
+        ADD_LUA_FUNCTION("GetLightDirection", &UDirectionalLightComponent::GetLightDirection)
+        ADD_LUA_FUNCTION("IsOverrideCameraLightPerspective", &UDirectionalLightComponent::IsOverrideCameraLightPerspective)
     END_LUA_TYPE()
 }
 

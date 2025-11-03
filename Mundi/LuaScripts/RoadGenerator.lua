@@ -68,7 +68,7 @@ local Config = {
     InitialObstaclePoolSize = 50,
 
     -- 장애물 스크립트 경로
-    ObstacleScriptPath = "Default_Obstacle.lua",
+    ObstacleScriptPath = "ObstacleController.lua",
 
     -- ===== 도로 블록 간 장애물 배치 패턴 (Y축 방향) =====
     -- 패턴: N개 블록에 장애물 배치 -> M개 블록은 비움 -> 반복
