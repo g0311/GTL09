@@ -21,41 +21,47 @@ public:
     virtual void Tick(float DeltaTime);
 
     // 입력 처리
-    virtual void MouseMove(FViewport* Viewport, int32 X, int32 Y);
-    virtual void MouseButtonDown(FViewport* Viewport, int32 X, int32 Y, int32 Button);
-    virtual void MouseButtonUp(FViewport* Viewport, int32 X, int32 Y, int32 Button);
     virtual void MouseWheel(float DeltaSeconds);
-    virtual void KeyDown(FViewport* Viewport, int32 KeyCode) {}
-    virtual void KeyUp(FViewport* Viewport, int32 KeyCode) {}
+
+    // 입력 컨텍스트 관리
+    void SetupInputContext();
+    void OnFocusGained();
+    void OnFocusLost();
+
+    // 입력 컨텍스트 (public - USlateManager에서 포커스 관리 위해 필요)
+    class UInputMappingContext* ViewportInputContext = nullptr;
 
     // 뷰포트 설정
     void SetViewportType(EViewportType InType) { ViewportType = InType; }
     EViewportType GetViewportType() const { return ViewportType; }
 
-    void SetWorld(UWorld* InWorld) { World = InWorld; }
+    void SetWorld(UWorld* InWorld);
     UWorld* GetWorld() const { return World; }
 
     void SetCamera(ACameraActor* InCamera) { Camera = InCamera; }
     ACameraActor* GetCamera() const { return Camera; }
 
+    void SetViewport(FViewport* InViewport) { Viewport = InViewport; }
+    FViewport* GetViewport() const { return Viewport; }
+
     // 카메라 매트릭스 계산
     FMatrix GetViewMatrix() const;
-
 
     // 뷰포트별 카메라 설정
     void SetupCameraMode();
     void SetViewModeIndex(EViewModeIndex InViewModeIndex) { ViewModeIndex = InViewModeIndex; }
-
     EViewModeIndex GetViewModeIndex() { return ViewModeIndex;}
+
+    // PIE Eject 모드 관리
+    void EnterPIEEjectMode();
+    void ExitPIEEjectMode();
 
 
 protected:
     EViewportType ViewportType = EViewportType::Perspective;
     UWorld* World = nullptr;
     ACameraActor* Camera = nullptr;
-    int32 MouseLastX{};
-    int32 MouseLastY{};
-    bool bIsMouseButtonDown = false;
+    FViewport* Viewport = nullptr;
     bool bIsMouseRightButtonDown = false;
     static FVector CameraAddPosition;
 

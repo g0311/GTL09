@@ -22,23 +22,23 @@ function BeginPlay()
     Log("[BeginPlay] " .. name .. " at (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
 
     -- Input setup example (uncomment to use)
-    -- local input = GetInput()
-    -- local ctx = CreateInputContext()
+    -- PlayerController에서 InputContext를 가져와서 설정
+    -- local pc = GetPlayerController()
+    -- if pc then
+    --     local ctx = pc:GetInputContext()
     --
-    -- -- Map actions
-    -- ctx:MapAction("Jump", Keys.Space, false, false, false, true)
-    -- ctx:BindActionPressed("Jump", function()
-    --     Log("Jump pressed")
-    -- end)
+    --     -- Map actions
+    --     ctx:MapAction("Jump", Keys.Space, false, false, false, true)
+    --     ctx:BindActionPressed("Jump", function()
+    --         Log("Jump pressed")
+    --     end)
     --
-    -- -- Map axes (WASD movement - use GetAxisValue() in Tick)
-    -- ctx:MapAxisKey("MoveForward", Keys.W,  1.0)
-    -- ctx:MapAxisKey("MoveForward", Keys.S, -1.0)
-    -- ctx:MapAxisKey("MoveRight",   Keys.D,  1.0)
-    -- ctx:MapAxisKey("MoveRight",   Keys.A, -1.0)
-    --
-    -- -- Add context with priority 0
-    -- input:AddMappingContext(ctx, 0)
+    --     -- Map axes (WASD movement - use GetAxisValue() in Tick)
+    --     ctx:MapAxisKey("MoveForward", Keys.W,  1.0)
+    --     ctx:MapAxisKey("MoveForward", Keys.S, -1.0)
+    --     ctx:MapAxisKey("MoveRight",   Keys.D,  1.0)
+    --     ctx:MapAxisKey("MoveRight",   Keys.A, -1.0)
+    -- end
 end
 
 ---

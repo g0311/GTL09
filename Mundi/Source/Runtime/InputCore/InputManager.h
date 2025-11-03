@@ -109,4 +109,7 @@ private:
     // 커서 잠금 상태
     bool bIsCursorLocked = false;
     FVector2D LockedCursorPosition; // 우클릭한 위치 (기준점)
+
+    // 커서 가시성 상태
+    bool bIsCursorVisible = true;
 };

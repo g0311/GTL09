@@ -19,16 +19,6 @@
 local MoveSpeed = 15.0        -- 기본 이동 속도 (유닛/초)
 local SprintMultiplier = 2.0   -- Shift 누를 때 속도 배율
 
--- 카메라 회전 설정
-local MouseSensitivity = 0.05  -- 마우스 민감도
-local PitchMin = -89.0          -- 최소 피치
-local PitchMax = 89.0           -- 최대 피치
-
--- ==================== 내부 상태 ====================
-local CurrentYaw = 0.0
-local CurrentPitch = 0.0
-local InputContext = nil
-local CameraComponent = nil
 
 ---
 --- 게임 시작 시 초기화
@@ -39,20 +29,19 @@ function BeginPlay()
     Log("[FirstPersonController] Initializing for " .. name)
     Log("[FirstPersonController] Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
 
-    -- 카메라 컴포넌트 찾기
-    CameraComponent = actor:GetCameraComponent()
-    if not CameraComponent then
-        LogError("[FirstPersonController] No CameraComponent found!")
+    -- ==================== 입력 시스템 설정 ====================
+    -- PlayerController에서 InputContext를 가져옴
+    local pc = GetPlayerController()
+    if not pc then
+        LogError("[FirstPersonController] PlayerController not found!")
         return
     end
 
-    -- 현재 회전값 초기화
-    CurrentYaw = 0.0
-    CurrentPitch = 0.0
-
-    -- 입력 시스템 설정
-    local input = GetInput()
-    InputContext = CreateInputContext()
+    local InputContext = pc:GetInputContext()
+    if not InputContext then
+        LogError("[FirstPersonController] InputContext not found!")
+        return
+    end
 
     -- ==================== 이동 축 매핑 ====================
     -- MoveForward: W(+1.0), S(-1.0)
@@ -62,36 +51,19 @@ function BeginPlay()
     -- MoveRight: D(+1.0), A(-1.0)
     InputContext:MapAxisKey("MoveRight", Keys.D,  1.0)
     InputContext:MapAxisKey("MoveRight", Keys.A, -1.0)
-
-    -- ==================== 카메라 회전 축 매핑 ====================
-    InputContext:MapAxisMouse("LookYaw", EInputAxisSource.MouseX, 1.0)
-    InputContext:MapAxisMouse("LookPitch", EInputAxisSource.MouseY, -1.0)
-
-    -- ==================== 액션 매핑 ====================
-    -- Sprint: Shift
-    InputContext:MapAction("Sprint", Keys.Shift, false, false, false, true)
-
-    -- 입력 컨텍스트 추가
-    input:AddMappingContext(InputContext, 0)
-
+    
     Log("[FirstPersonController] Initialized!")
     Log("[FirstPersonController] Controls:")
     Log("  WASD - Move")
-    Log("  Mouse - Look")
-    Log("  Shift - Sprint")
 end
 
 ---
 --- 게임 종료 시 정리
+--- (InputContext는 PlayerController에서 자동으로 정리됨)
 ---
 function EndPlay()
     local name = actor:GetName()
     Log("[FirstPersonController] Cleaning up for " .. name)
-
-    if InputContext then
-        local input = GetInput()
-        input:RemoveMappingContext(InputContext)
-    end
 end
 
 ---
@@ -100,49 +72,8 @@ end
 function Tick(dt)
     local input = GetInput()
 
-    -- ==================== 카메라 회전 처리 ====================
-    UpdateCameraRotation(dt, input)
-
     -- ==================== 이동 처리 ====================
     UpdateMovement(dt, input)
-end
-
----
---- 카메라 회전 업데이트
----
-function UpdateCameraRotation(dt, input)
-    if not CameraComponent then
-        return
-    end
-
-    -- 마우스 델타 가져오기
-    local yawDelta = input:GetAxisValue("LookYaw")
-    local pitchDelta = input:GetAxisValue("LookPitch")
-
-    -- 회전 업데이트
-    if math.abs(yawDelta) > 0.001 or math.abs(pitchDelta) > 0.001 then
-        CurrentYaw = CurrentYaw + (yawDelta * MouseSensitivity)
-        CurrentPitch = CurrentPitch + (pitchDelta * MouseSensitivity)
-
-        -- Pitch 제한
-        if CurrentPitch > PitchMax then
-            CurrentPitch = PitchMax
-        elseif CurrentPitch < PitchMin then
-            CurrentPitch = PitchMin
-        end
-
-        -- Yaw 정규화
-        while CurrentYaw >= 360.0 do
-            CurrentYaw = CurrentYaw - 360.0
-        end
-        while CurrentYaw < 0.0 do
-            CurrentYaw = CurrentYaw + 360.0
-        end
-
-        -- 카메라 컴포넌트만 회전 (액터는 그대로)
-        local cameraRotation = Vector(0.0, -CurrentPitch, CurrentYaw)
-        CameraComponent:SetRelativeRotationEuler(cameraRotation)
-    end
 end
 
 ---

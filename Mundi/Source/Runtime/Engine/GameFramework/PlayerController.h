@@ -3,6 +3,7 @@
 
 class UCameraComponent;
 class FViewport;
+class UInputMappingContext;
 
 /**
  * @brief 플레이어 입력을 처리하고 카메라를 제어하는 컨트롤러 클래스
@@ -95,6 +96,28 @@ public:
      */
     FQuat GetCameraRotation() const;
 
+    // ───── 입력 관련 ────────────────────────────
+    /**
+     * @brief 입력 컨텍스트를 반환 (Lua 스크립트에서 입력 매핑 설정용)
+     * @return 입력 컨텍스트 포인터
+     */
+    UInputMappingContext* GetInputContext() const { return InputContext; }
+
+    /**
+     * @brief 입력 컨텍스트를 초기화하고 InputMappingSubsystem에 등록
+     */
+    void SetupInputContext();
+
+    /**
+     * @brief BeginPlay 시 호출 (입력 컨텍스트 설정)
+     */
+    void BeginPlay() override;
+
+    /**
+     * @brief EndPlay 시 호출 (입력 컨텍스트 정리)
+     */
+    void EndPlay(EEndPlayReason Reason) override;
+
     // ───── 직렬화 관련 ────────────────────────────
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
@@ -104,4 +127,7 @@ private:
 
     /** 현재 시점을 제공하는 액터 (기본적으로 PossessedPawn과 동일) */
     AActor* ViewTarget = nullptr;
+
+    /** 플레이어 입력 컨텍스트 (Lua 스크립트에서 입력 매핑 설정) */
+    UInputMappingContext* InputContext = nullptr;
 };

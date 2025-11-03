@@ -42,6 +42,7 @@ public:
     ~UWorld() override;
 
     bool bPie = false;
+    bool bPIEEjected = false;  // F8 Eject 모드 (PIE 중 에디터 카메라 제어)
 
 public:
     /** 초기화 */

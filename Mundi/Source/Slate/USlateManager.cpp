@@ -11,6 +11,7 @@
 #include "FViewportClient.h"
 #include "UIManager.h"
 #include "GlobalConsole.h"
+#include "InputMappingSubsystem.h"
 
 IMPLEMENT_CLASS(USlateManager)
 
@@ -312,6 +313,8 @@ void USlateManager::Update(float DeltaSeconds)
     {
         ConsoleWindow->Update();
     }
+
+    // 포커스는 마우스 클릭 시에만 변경됨 (OnMouseDown에서 처리)
 }
 
 void USlateManager::ProcessInput()
@@ -381,18 +384,33 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
         TopPanel->OnMouseDown(MousePos, Button);
 
         // 어떤 뷰포트 안에서 눌렸는지 확인
+        static SViewportWindow* FocusedViewport = nullptr;
+
         for (auto* VP : Viewports)
         {
             if (VP && VP->Rect.Contains(MousePos))
             {
-                ActiveViewport = VP; // 고정
+                ActiveViewport = VP; // 드래그용
 
-                // 우클릭인 경우 커서 숨김 및 잠금
-                if (Button == 1)
+                // 포커스 변경
+                if (FocusedViewport != VP)
                 {
-                    INPUT.SetCursorVisible(false);
-                    INPUT.LockCursor();
+                    // 이전 뷰포트 포커스 상실
+                    if (FocusedViewport && FocusedViewport->GetViewportClient())
+                    {
+                        FocusedViewport->GetViewportClient()->OnFocusLost();
+                    }
+
+                    // 새 뷰포트 포커스 획득
+                    if (VP->GetViewportClient())
+                    {
+                        VP->GetViewportClient()->OnFocusGained();
+                    }
+
+                    FocusedViewport = VP;
                 }
+
+                // 커서 관리는 FViewportClient의 InputContext에서 처리
                 break;
             }
         }
@@ -401,12 +419,7 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
 
 void USlateManager::OnMouseUp(FVector2D MousePos, uint32 Button)
 {
-    // 우클릭 해제 시 커서 복원 (ActiveViewport와 무관하게 처리)
-    if (Button == 1 && INPUT.IsCursorLocked())
-    {
-        INPUT.SetCursorVisible(true);
-        INPUT.ReleaseCursor();
-    }
+    // 커서 관리는 FViewportClient의 InputContext에서 처리
 
     if (ActiveViewport)
     {
@@ -456,9 +469,25 @@ void USlateManager::Shutdown()
     ActiveViewport = nullptr;
 }
 
-void USlateManager::SetPIEWorld(UWorld* InWorld)
+void USlateManager::SetWorld(UWorld* InWorld)
 {
-    MainViewport->SetVClientWorld(InWorld);
+    World = InWorld;
+
+    // 모든 뷰포트에 World 전파
+    for (int i = 0; i < 4; ++i)
+    {
+        if (Viewports[i])
+        {
+            Viewports[i]->SetVClientWorld(InWorld);
+        }
+    }
+
+    // PIE 종료 시 모든 뷰포트의 커서 해제
+    if (InWorld && !InWorld->bPie)
+    {
+        INPUT.SetCursorVisible(true);
+        INPUT.ReleaseCursor();
+    }
 }
 
 void USlateManager::ToggleConsole()

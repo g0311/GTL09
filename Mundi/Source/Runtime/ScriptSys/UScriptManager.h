@@ -84,6 +84,7 @@ private:
     void RegisterLightComponent(sol::state* state);
     void RegisterCameraComponent(sol::state* state);
     void RegisterScriptComponent(sol::state* state);
+    void RegisterPlayerController(sol::state* state);
     void RegisterGameMode(sol::state* state);
 
     // Collision components

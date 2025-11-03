@@ -22,6 +22,7 @@ public:
 
     // Authoring API
     void MapAction(const FString& ActionName, int KeyCode, bool bCtrl=false, bool bAlt=false, bool bShift=false, bool bConsume=true);
+    void MapActionMouse(const FString& ActionName, EMouseButton Button, bool bConsume=true);
     void MapAxisKey(const FString& AxisName, int KeyCode, float Scale);
     void MapAxisMouse(const FString& AxisName, EInputAxisSource MouseAxis, float Scale=1.0f);
 

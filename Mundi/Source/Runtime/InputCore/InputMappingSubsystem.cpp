@@ -46,19 +46,37 @@ bool UInputMappingSubsystem::IsValid()
 void UInputMappingSubsystem::AddMappingContext(UInputMappingContext* Context, int32 Priority)
 {
     if (!Context) return;
-    ActiveContexts.Add({ Context, Priority });
-    // Keep highest priority first
-    ActiveContexts.Sort([](const FActiveContext& A, const FActiveContext& B) { return A.Priority > B.Priority; });
+    // Pending에 추가 (Tick 끝나고 처리)
+    PendingOps.Add({ Context, Priority, true });
 }
 
 void UInputMappingSubsystem::RemoveMappingContext(UInputMappingContext* Context)
 {
+    if (!Context) return;
+    // Pending에 추가 (Tick 끝나고 처리)
+    PendingOps.Add({ Context, 0, false });
+}
+
+void UInputMappingSubsystem::RemoveMappingContextImmediate(UInputMappingContext* Context)
+{
+    if (!Context) return;
+
+    // 즉시 제거 (소멸자 전용 - Tick 외부에서만 호출!)
     for (int32 i = 0; i < ActiveContexts.Num(); ++i)
     {
         if (ActiveContexts[i].Context == Context)
         {
             ActiveContexts.RemoveAt(i);
             break;
+        }
+    }
+
+    // Pending에서도 제거 (혹시 대기 중이었다면)
+    for (int32 i = PendingOps.Num() - 1; i >= 0; --i)
+    {
+        if (PendingOps[i].Context == Context)
+        {
+            PendingOps.RemoveAt(i);
         }
     }
 }
@@ -90,28 +108,48 @@ void UInputMappingSubsystem::Tick(float /*DeltaSeconds*/)
             if (!TestModifiers(M.Modifiers))
                 continue;
 
-            const int VK = M.KeyCode;
+            bool bPressed = false;
+            bool bReleased = false;
+            bool bDown = false;
+            int ConsumeKey = 0;
+
+            if (M.Source == EInputAxisSource::Key)
+            {
+                const int VK = M.KeyCode;
+                ConsumeKey = VK;
+                bPressed = IM.IsKeyPressed(VK);
+                bReleased = IM.IsKeyReleased(VK);
+                bDown = IM.IsKeyDown(VK);
+            }
+            else if (M.Source == EInputAxisSource::MouseButton)
+            {
+                // 마우스 버튼은 고유 ID로 consume 처리 (음수로 구분)
+                ConsumeKey = -(int)M.MouseButton - 1;
+                bPressed = IM.IsMouseButtonPressed(M.MouseButton);
+                bReleased = IM.IsMouseButtonReleased(M.MouseButton);
+                bDown = IM.IsMouseButtonDown(M.MouseButton);
+            }
 
             // Pressed
-            if (!ConsumedKeys.Contains(VK) && IM.IsKeyPressed(VK))
+            if (!ConsumedKeys.Contains(ConsumeKey) && bPressed)
             {
                 ActionPressed.Add(M.ActionName, true);
                 ActionDown.Add(M.ActionName, true);
                 // Broadcast pressed
                 Ctx.Context->GetActionPressedDelegate(M.ActionName).Broadcast();
-                if (M.bConsume) ConsumedKeys.Add(VK);
+                if (M.bConsume) ConsumedKeys.Add(ConsumeKey);
             }
             // Released
-            if (!ConsumedKeys.Contains(VK) && IM.IsKeyReleased(VK))
+            if (!ConsumedKeys.Contains(ConsumeKey) && bReleased)
             {
                 ActionReleased.Add(M.ActionName, true);
                 // Broadcast released
                 Ctx.Context->GetActionReleasedDelegate(M.ActionName).Broadcast();
-                if (M.bConsume) ConsumedKeys.Add(VK);
+                if (M.bConsume) ConsumedKeys.Add(ConsumeKey);
             }
 
             // Down state (does not consume)
-            if (IM.IsKeyDown(VK))
+            if (bDown)
             {
                 ActionDown.Add(M.ActionName, true);
             }
@@ -163,6 +201,48 @@ void UInputMappingSubsystem::Tick(float /*DeltaSeconds*/)
         {
             Ctx.Context->GetAxisDelegate(Name).Broadcast(Value);
         }
+    }
+
+    // 4) Pending 처리 (Tick 끝 - 안전하게 Add/Remove)
+    for (const FPendingOp& Op : PendingOps)
+    {
+        if (Op.bAdd)
+        {
+            // 중복 체크
+            bool bExists = false;
+            for (const FActiveContext& Ctx : ActiveContexts)
+            {
+                if (Ctx.Context == Op.Context)
+                {
+                    bExists = true;
+                    break;
+                }
+            }
+
+            if (!bExists)
+            {
+                ActiveContexts.Add({ Op.Context, Op.Priority });
+            }
+        }
+        else
+        {
+            // Remove
+            for (int32 i = 0; i < ActiveContexts.Num(); ++i)
+            {
+                if (ActiveContexts[i].Context == Op.Context)
+                {
+                    ActiveContexts.RemoveAt(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Pending 처리 후 정렬 및 클리어
+    if (PendingOps.Num() > 0)
+    {
+        ActiveContexts.Sort([](const FActiveContext& A, const FActiveContext& B) { return A.Priority > B.Priority; });
+        PendingOps.Empty();
     }
 }
 

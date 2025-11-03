@@ -29,14 +29,28 @@ UInputMappingContext::~UInputMappingContext()
     (void)leakedAxis;
 
     // 3. 멤버 변수들은 이제 비어있으므로 자동 소멸 시 안전
+    // 소멸 시 InputMappingSubsystem에서 즉시 제거 (dangling pointer 방지)
+    // 소멸자이므로 Pending이 아닌 즉시 제거 사용
+    UInputMappingSubsystem::Get().RemoveMappingContextImmediate(this);
 }
 
 void UInputMappingContext::MapAction(const FString& ActionName, int KeyCode, bool bCtrl, bool bAlt, bool bShift, bool bConsume)
 {
     FActionKeyMapping M;
     M.ActionName = ActionName;
+    M.Source = EInputAxisSource::Key;
     M.KeyCode = KeyCode;
     M.Modifiers = { bCtrl, bAlt, bShift };
+    M.bConsume = bConsume;
+    ActionMappings.Add(M);
+}
+
+void UInputMappingContext::MapActionMouse(const FString& ActionName, EMouseButton Button, bool bConsume)
+{
+    FActionKeyMapping M;
+    M.ActionName = ActionName;
+    M.Source = EInputAxisSource::MouseButton;
+    M.MouseButton = Button;
     M.bConsume = bConsume;
     ActionMappings.Add(M);
 }

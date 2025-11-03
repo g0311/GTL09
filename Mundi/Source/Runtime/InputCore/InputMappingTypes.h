@@ -16,14 +16,17 @@ enum class EInputAxisSource : uint8
     Key,        // keyboard key treated as axis (1 when down)
     MouseX,     // per-frame delta X
     MouseY,     // per-frame delta Y
-    MouseWheel  // per-frame wheel delta
+    MouseWheel, // per-frame wheel delta
+    MouseButton // mouse button for actions
 };
 
 // Action mapping (edge-based)
 struct FActionKeyMapping
 {
     FString ActionName;
-    int KeyCode = 0;            // Win32 VK code or ASCII for letters
+    EInputAxisSource Source = EInputAxisSource::Key; // Key or MouseButton
+    int KeyCode = 0;            // Win32 VK code or ASCII for letters (when Source == Key)
+    EMouseButton MouseButton = LeftButton; // when Source == MouseButton
     FKeyModifiers Modifiers{};  // optional modifier requirements
     bool bConsume = true;       // consume so lower-priority contexts won't see it
 };

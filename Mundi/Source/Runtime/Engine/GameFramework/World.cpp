@@ -128,7 +128,11 @@ void UWorld::Tick(float DeltaSeconds)
 	}
 	for (AActor* EditorActor : EditorActors)
 	{
-		if (EditorActor && !bPie) EditorActor->Tick(DeltaSeconds);
+		// 에디터 모드 또는 PIE Ejected 모드에서 Tick
+		if (EditorActor && (!bPie || bPIEEjected))
+		{
+			EditorActor->Tick(DeltaSeconds);
+		}
 	}
 }
 
@@ -138,11 +142,12 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	// 월드 카피 및 월드에 이 새로운 레벨 할당
 	// 월드 컨텍스트 새로 생성(월드타입, 카피한 월드)
 	// 월드의 레벨에 원래 Actor들 다 복사
-	// 해당 월드의 Initialize 호출?
+	// 해당 월드의 Initialize 호출?9
 
 	//ULevel* NewLevel = ULevelService::CreateNewLevel();
 	UWorld* PIEWorld = NewObject<UWorld>(); // 레벨도 새로 생성됨
 	PIEWorld->bPie = true;
+	PIEWorld->Initialize();
 
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
@@ -197,7 +202,6 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 			}
 		}
 	}
-
 	return PIEWorld;
 }
 
