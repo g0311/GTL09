@@ -190,6 +190,7 @@
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
@@ -200,6 +201,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <FxCompile Include="Shaders\Materials\SkyDome.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Shaders\Shadows\DepthOnly_PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
@@ -480,6 +484,7 @@
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
