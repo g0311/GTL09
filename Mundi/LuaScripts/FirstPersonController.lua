@@ -150,6 +150,17 @@ function BeginPlay()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
 
+                -- CRITICAL: 카메라 셰이크 오프셋 제거 (위치 리셋 전에 필수!)
+                if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
+                    actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
+                    Log("[FirstPersonController] Removed shake offset: (" ..
+                        string.format("%.2f", ShakeOffset.X) .. ", " ..
+                        string.format("%.2f", ShakeOffset.Y) .. ", " ..
+                        string.format("%.2f", ShakeOffset.Z) .. ")")
+                    ShakeOffset = Vector(0.0, 0.0, 0.0)
+                end
+                ShakeTime = 0.0
+
                 -- 초기 위치로 복원 (0, 0, 0으로 강제 고정)
                 local resetPosition = Vector(0, 0, 0)
                 actor:SetActorLocation(resetPosition)
