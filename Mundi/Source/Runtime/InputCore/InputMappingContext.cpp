@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "InputMappingContext.h"
 #include "InputMappingSubsystem.h"
 
@@ -18,15 +18,15 @@ UInputMappingContext::~UInputMappingContext()
     // 방법: TMap을 힙으로 옮기고 delete하지 않음
 
     // 1. 현재 TMap을 힙으로 옮김 (이동 생성)
-    auto* leakedPressed = new TMap<FString, FOnActionEvent>(std::move(ActionPressedDelegates));
-    auto* leakedReleased = new TMap<FString, FOnActionEvent>(std::move(ActionReleasedDelegates));
-    auto* leakedAxis = new TMap<FString, FOnAxisEvent>(std::move(AxisDelegates));
+    //auto* leakedPressed = new TMap<FString, FOnActionEvent>(std::move(ActionPressedDelegates));
+    //auto* leakedReleased = new TMap<FString, FOnActionEvent>(std::move(ActionReleasedDelegates));
+    //auto* leakedAxis = new TMap<FString, FOnAxisEvent>(std::move(AxisDelegates));
 
     // 2. delete하지 않음 - 의도적인 메모리 릭
     // 프로세스 종료 시 OS가 정리
-    (void)leakedPressed;
-    (void)leakedReleased;
-    (void)leakedAxis;
+    //(void)leakedPressed;
+    //(void)leakedReleased;
+    //(void)leakedAxis;
 
     // 3. 멤버 변수들은 이제 비어있으므로 자동 소멸 시 안전
     // 소멸 시 InputMappingSubsystem에서 즉시 제거 (dangling pointer 방지)

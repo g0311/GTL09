@@ -87,7 +87,13 @@ void UGameHUDWidget::RenderWidget()
                 ImGui::Separator();
                 ImGui::Text("Final Score: %d", score);
                 ImGui::Text("Time: %.1f s", time);
-                ImGui::Text("Press R to Restart (placeholder)");
+                ImGui::Text("Press R to Restart");
+
+                // R 키 입력 감지 및 게임 리셋
+                if (ImGui::IsKeyPressed(ImGuiKey_R) && GameMode)
+                {
+                    GameMode->ResetGame();
+                }
             }
         }
         ImGui::End();

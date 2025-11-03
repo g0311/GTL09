@@ -29,6 +29,8 @@ APlayerController::~APlayerController()
     if (InputContext)
     {
         UInputMappingSubsystem::Get().RemoveMappingContextImmediate(InputContext);
+        ObjectFactory::DeleteObject(InputContext);
+        InputContext = nullptr;
     }
 }
 

@@ -6,6 +6,8 @@
 #include "InputMappingSubsystem.h"
 #include "InputMappingContext.h"
 #include "GameModeBase.h"
+#include "PlayerController.h"
+#include "PrimitiveComponent.h"
 
 // Delegate Test Actors - Force static initialization
 
@@ -358,7 +360,74 @@ void UEditorEngine::Shutdown()
     // Release ImGui first (it may hold D3D11 resources)
     UUIManager::GetInstance().Release();
 
-    // Delete all UObjects (Components, Actors, Resources)
+    for (auto& WorldContext : WorldContexts)
+    {
+        if (WorldContext.World)
+        {
+            // 3. 紐⑤뱺 PrimitiveComponent??Overlap ?몃━寃뚯씠???뺣━
+            TArray<AActor*> Actors = WorldContext.World->GetLevel()->GetActors();
+            for (AActor* Actor : Actors)
+            {
+                if (Actor)
+                {
+                    TSet<UActorComponent*> Components = Actor->GetOwnedComponents();
+                    for (UActorComponent* Comp : Components)
+                    {
+                        UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Comp);
+                        if (PrimComp)
+                        {
+                            PrimComp->OnBeginOverlapDelegate.Clear();
+                            PrimComp->OnEndOverlapDelegate.Clear();
+                        }
+                    }
+                }
+            }
+
+            // 1. GameMode의 Lua delegate 정리
+            AGameModeBase* GameMode = WorldContext.World->GetGameMode();
+            if (GameMode)
+            {
+                UE_LOG("[Shutdown] Clearing GameMode delegates early to prevent Lua delegate crash\n");
+
+                // 동적 이벤트 정리 (sol::function 참조 해제)
+                // CRITICAL: 삭제는 하지 않음! World 소멸 시 Level의 Actors와 함께 삭제됨
+                // 여기서 삭제하면 이중 삭제 발생 → dangling pointer crash
+                GameMode->ClearAllDynamicEvents();
+            }
+
+            // 2. PlayerController의 InputContext delegate 정리
+            APlayerController* PC = WorldContext.World->GetPlayerController();
+            if (PC)
+            {
+                UInputMappingContext* InputCtx = PC->GetInputContext();
+                if (InputCtx)
+                {
+                    UE_LOG("[Shutdown] Clearing PlayerController InputContext delegates\n");
+
+                    // 입력 델리게이트 정리 (sol::function 참조 해제)
+                    InputCtx->ClearAllDelegates();
+
+                    // CRITICAL: 삭제는 하지 않음! PlayerController 소멸자에서 처리됨
+                    // 여기서 삭제하면 PlayerController 소멸 시 이중 삭제 발생
+                }
+            }
+        }
+    }
+
+    // Delete all World objects first (before DeleteAll)
+    for (auto& WorldContext : WorldContexts)
+    {
+        if (WorldContext.World)
+        {
+            UE_LOG("[Shutdown] Deleting World\n");
+            ObjectFactory::DeleteObject(WorldContext.World);
+        }
+    }
+
+    // Clear WorldContexts after deleting World objects
+    WorldContexts.clear();
+
+    // Delete all remaining UObjects (Components, Actors, Resources)
     // Resource destructors will properly release D3D resources
     ObjectFactory::DeleteAll(true);
 

@@ -45,11 +45,11 @@ AGameModeBase::~AGameModeBase()
     // 방법: TMap을 힙으로 옮기고 delete하지 않음
 
     // 1. 현재 TMap을 힙으로 옮김 (이동 생성)
-    auto* leakedEventMap = new TMap<FString, TArray<std::pair<FDelegateHandle, sol::function>>>(std::move(DynamicEventMap));
+    //auto* leakedEventMap = new TMap<FString, TArray<std::pair<FDelegateHandle, sol::function>>>(std::move(DynamicEventMap));
 
     // 2. delete하지 않음 - 의도적인 메모리 릭
     // 프로세스 종료 시 OS가 정리
-    (void)leakedEventMap;
+    //(void)leakedEventMap;
 
     // 3. 멤버 변수는 이제 비어있으므로 자동 소멸 시 안전
 }
@@ -124,6 +124,18 @@ void AGameModeBase::BeginPlay()
             UE_LOG("  WARNING: ScriptPath is empty!\n");
         }
     }
+
+    // 게임 리셋 이벤트 등록 (스크립트들이 구독할 수 있도록)
+    RegisterEvent("OnGameReset");
+
+    // 플레이어 동결 이벤트 등록 (Player 스크립트가 구독하여 이동 멈춤)
+    RegisterEvent("FreezePlayer");
+
+    // 플레이어 동결 해제 이벤트 등록 (ResetGame 시 사용)
+    RegisterEvent("UnfreezePlayer");
+
+    // Chaser 거리 업데이트 이벤트 등록 (Chaser가 거리 브로드캐스트, Player가 수신)
+    RegisterEvent("OnChaserDistanceUpdate");
 
     // 컴포넌트들의 BeginPlay 호출
     AActor::BeginPlay();
@@ -215,6 +227,31 @@ void AGameModeBase::EndGame(bool bVictory)
     OnGameEndDelegate.Broadcast(bVictory);
 }
 
+void AGameModeBase::ResetGame()
+{
+    UE_LOG("[GameModeBase] ========================================\n");
+    UE_LOG("[GameModeBase] ResetGame() called - Firing reset events\n");
+    UE_LOG("[GameModeBase] ========================================\n");
+
+    // 1. 게임 상태 변수 초기화
+    Score = 0;
+    GameTime = 0.0f;
+    bIsGameOver = false;
+    bIsVictory = false;
+    UE_LOG("[GameModeBase] Game state reset (Score=0, Time=0, GameOver=false)\n");
+
+    // 2. OnGameReset 이벤트 발행 (각 스크립트가 자신의 상태를 초기화)
+    UE_LOG("[GameModeBase] Firing 'OnGameReset' event - scripts will reset themselves\n");
+    FireEvent("OnGameReset", sol::nil);
+
+    // 3. UnfreezePlayer 이벤트 발행 (Player가 다시 움직일 수 있도록)
+    UE_LOG("[GameModeBase] Firing 'UnfreezePlayer' event\n");
+    FireEvent("UnfreezePlayer", sol::nil);
+
+    UE_LOG("[GameModeBase] ResetGame() complete!\n");
+    UE_LOG("[GameModeBase] ========================================\n");
+}
+
 // ==================== Actor 스폰 ====================
 AActor* AGameModeBase::SpawnActorFromLua(const FString& ClassName, const FVector& Location)
 {
@@ -292,19 +329,30 @@ void AGameModeBase::RegisterEvent(const FString& EventName)
 
 void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
 {
+    UE_LOG(("[GameModeBase] FireEvent called: '" + EventName + "'\n").c_str());
+    UE_LOG(("  Total registered events: " + std::to_string(DynamicEventMap.Num()) + "\n").c_str());
+
     if (!DynamicEventMap.Contains(EventName))
     {
-        // 이벤트가 등록되지 않았으면 무시 (경고 없이)
+        // 이벤트가 등록되지 않았으면 경고 출력
+        UE_LOG(("[GameModeBase] WARNING: Event '" + EventName + "' is not registered!\n").c_str());
+        UE_LOG("[GameModeBase] Available events:\n");
+        for (const auto& [name, callbacks] : DynamicEventMap)
+        {
+            UE_LOG(("  - " + name + " (" + std::to_string(callbacks.Num()) + " listeners)\n").c_str());
+        }
         return;
     }
 
     auto& Callbacks = DynamicEventMap[EventName];
+    UE_LOG(("  Event found with " + std::to_string(Callbacks.Num()) + " listeners\n").c_str());
 
     // 모든 구독자에게 이벤트 발행
     for (auto& [Handle, Callback] : Callbacks)
     {
         if (Callback.valid())
         {
+            UE_LOG(("  Calling listener with handle: " + std::to_string(Handle) + "\n").c_str());
             try
             {
                 // EventData가 유효하고 nil이 아니면 파라미터로 전달
@@ -328,11 +376,16 @@ void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
                     // 파라미터 없이 호출
                     Callback();
                 }
+                UE_LOG("  Listener executed successfully\n");
             }
             catch (const sol::error& e)
             {
                 UE_LOG(("[GameModeBase] Event callback error (" + EventName + "): " + FString(e.what()) + "\n").c_str());
             }
+        }
+        else
+        {
+            UE_LOG(("  WARNING: Listener with handle " + std::to_string(Handle) + " is invalid!\n").c_str());
         }
     }
 
@@ -395,6 +448,12 @@ void AGameModeBase::ClearAllDynamicEvents()
     // sol::function 참조를 해제하기 위해 동적 이벤트 맵을 명시적으로 비웁니다
     // 이렇게 하면 Lua state가 무효화되기 전에 sol::function 소멸자가 호출됩니다
     DynamicEventMap.Empty();
+
+    OnGameStartDelegate.Clear();
+    OnGameEndDelegate.Clear();
+    OnActorSpawnedDelegate.Clear();
+    OnActorDestroyedDelegate.Clear();
+    OnScoreChangedDelegate.Clear();
 }
 
 // ==================== Serialization ====================
