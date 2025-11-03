@@ -4,6 +4,96 @@
 -- ==============================================================================
 
 ---
+--- 게임 시작 카운트다운 코루틴 (3초)
+---
+function GameStartCountdown(component)
+    -- 게임 일시정지
+    Log("[GameMode_Chaser] Freezing game for countdown...")
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+    end
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║          GAME STARTING IN...           ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   3                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   2                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   1                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║                 GO!                    ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    -- 게임 재개
+    Log("[GameMode_Chaser] Unfreezing game...")
+    if gm then
+        gm:FireEvent("UnfreezeGame")
+    end
+end
+
+---
+--- 게임 재시작 카운트다운 코루틴 (3초) - 리셋 완료 후 실행
+---
+function GameRestartCountdown(component)
+    -- 게임 일시정지 (이미 멈춰있지만 명시적으로 호출)
+    Log("[GameMode_Chaser] Freezing game for restart countdown...")
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+    end
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║        RESTARTING GAME IN...           ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   3                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   2                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   1                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║                 GO!                    ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    -- 게임 재개
+    Log("[GameMode_Chaser] Unfreezing game...")
+    if gm then
+        gm:FireEvent("UnfreezeGame")
+    end
+end
+
+---
 --- 게임 시작 시 초기화
 ---
 function BeginPlay()
@@ -38,9 +128,31 @@ function BeginPlay()
         Log("[GameMode_Chaser] ERROR subscribing to 'OnPlayerCaught': " .. tostring(handle1))
     end
 
+    -- OnGameReset 이벤트 구독 (게임 리셋 시 카운트다운 실행)
+    Log("[GameMode_Chaser] Subscribing to 'OnGameReset' event...")
+    local success2, handle2 = pcall(function()
+        return gm:SubscribeEvent("OnGameReset", function()
+            Log("[GameMode_Chaser] *** 'OnGameReset' event received! ***")
+            Log("[GameMode_Chaser] Starting restart countdown after reset...")
+            -- 리셋 완료 후 카운트다운 시작
+            self:StartCoroutine(function() GameRestartCountdown(self) end)
+        end)
+    end)
+
+    if success2 then
+        Log("[GameMode_Chaser] Subscribed to 'OnGameReset' with handle: " .. tostring(handle2))
+    else
+        Log("[GameMode_Chaser] ERROR subscribing to 'OnGameReset': " .. tostring(handle2))
+    end
+
     Log("[GameMode_Chaser] Event subscription complete")
     Log("[GameMode_Chaser] Ready to receive chaser notifications")
     Log("==============================================")
+
+    -- 게임 시작 카운트다운 코루틴 시작
+    Log("[GameMode_Chaser] Starting game countdown...")
+    local countdownId = self:StartCoroutine(function() GameStartCountdown(self) end)
+    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(countdownId))
 end
 
 ---
@@ -133,15 +245,14 @@ function OnPlayerCaught(chaserActor)
         Log("[GameMode_Chaser] ERROR: Could not get GameMode for EndGame")
     end
 
-    -- 게임 상태 리셋 (PIE 재시작 없이)
-    Log("[GameMode_Chaser] Resetting game state...")
+    -- 게임 리셋 호출 (OnGameReset 이벤트가 발행되어 카운트다운 시작됨)
+    Log("[GameMode_Chaser] Calling ResetGame()...")
     local success2, err2 = pcall(function()
         ResetGame()
     end)
 
     if success2 then
-        Log("[GameMode_Chaser] ResetGame() called successfully")
-        Log("[GameMode_Chaser] Game state has been reset to initial conditions")
+        Log("[GameMode_Chaser] ResetGame() called - waiting for OnGameReset event")
     else
         Log("[GameMode_Chaser] ERROR calling ResetGame: " .. tostring(err2))
     end

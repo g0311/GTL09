@@ -190,6 +190,21 @@ function BeginPlay()
             Log("[FirstPersonController] ERROR subscribing to 'OnChaserDistanceUpdate': " .. tostring(handle4))
         end
 
+        -- FreezeGame/UnfreezeGame subscriptions (for countdown)
+        gm:RegisterEvent("FreezeGame")
+        gm:SubscribeEvent("FreezeGame", function()
+            Log("[FirstPersonController] *** FreezeGame event received! ***")
+            bIsFrozen = true
+            Log("[FirstPersonController] Player FROZEN for countdown")
+        end)
+
+        gm:RegisterEvent("UnfreezeGame")
+        gm:SubscribeEvent("UnfreezeGame", function()
+            Log("[FirstPersonController] *** UnfreezeGame event received! ***")
+            bIsFrozen = false
+            Log("[FirstPersonController] Player UNFROZEN after countdown")
+        end)
+
         -- Frenzy mode subscriptions
         gm:RegisterEvent("EnterFrenzyMode")
         handleFrenzyEnter = gm:SubscribeEvent("EnterFrenzyMode", function(payload)
