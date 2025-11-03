@@ -352,6 +352,14 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
             if (!A) continue;
             A->SetWorld(this);
         }
+
+        // CRITICAL: OnSerialized는 모든 액터에 World가 설정된 후에 호출해야 함
+        // (GameMode가 OnSerialized에서 다른 액터를 찾을 수 있도록)
+        for (AActor* A : Level->GetActors())
+        {
+            if (!A) continue;
+            A->OnSerialized();
+        }
     }
 
     // Clean any dangling selection references just in case

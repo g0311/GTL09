@@ -270,7 +270,15 @@ void UObject::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 		// ObjectPtr, Struct 등은 필요시 추가
 		}
 	}
-	OnSerialized();
+
+	// OnSerialized는 로딩 시에만 호출하며, Level.cpp에서 모든 액터 로드 후 수동 호출
+	// 이렇게 하면 GameMode가 OnSerialized에서 DefaultPawnActor를 찾을 수 있음
+	// 저장 시에는 OnSerialized 호출 불필요
+	if (!bInIsLoading)
+	{
+		// OnSerialized(); // 저장 시에는 호출하지 않음
+	}
+	// 로딩 시에도 여기서 자동 호출하지 않음 - Level.cpp에서 명시적으로 호출
 }
 
 void UObject::DuplicateSubObjects()

@@ -96,6 +96,9 @@ void ULevel::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         JSON ActorListJson;
         if (FJsonSerializer::ReadObject(InOutHandle, "Actors", ActorListJson))
         {
+            // 1단계: 모든 액터를 먼저 생성하고 Serialize만 호출 (OnSerialized는 아직 호출 안됨)
+            TArray<AActor*> LoadedActors;
+
             // ObjectRange()를 사용하여 Primitives 객체의 모든 키-값 쌍을 순회
             for (auto& Pair : ActorListJson.ObjectRange())
             {
@@ -108,14 +111,13 @@ void ULevel::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 
                 //UClass* NewClass = FActorTypeMapper::TypeToActor(TypeString);
                 UClass* NewClass = UClass::FindClass(TypeString);
-
                 UWorld* World = UUIManager::GetInstance().GetWorld();
 
                 // 유효성 검사: Class가 유효하고 AActor를 상속했는지 확인
                 if (!NewClass || !NewClass->IsChildOf(AActor::StaticClass()))
                 {
                     UE_LOG("SpawnActor failed: Invalid class provided.");
-                    return;
+                    continue;
                 }
 
                 // ObjectFactory를 통해 UClass*로부터 객체 인스턴스 생성
@@ -123,7 +125,7 @@ void ULevel::Serialize(const bool bInIsLoading, JSON& InOutHandle)
                 if (!NewActor)
                 {
                     UE_LOG("SpawnActor failed: ObjectFactory could not create an instance of");
-                    return;
+                    continue;
                 }
 
                 AddActor(NewActor);
@@ -131,8 +133,12 @@ void ULevel::Serialize(const bool bInIsLoading, JSON& InOutHandle)
                 if (NewActor)
                 {
                     NewActor->Serialize(bInIsLoading, ActorDataJson);
+                    LoadedActors.Add(NewActor);
                 }
             }
+
+            // 2단계: OnSerialized는 World.cpp의 SetLevel()에서 호출됨
+            // (이 시점에는 아직 World가 설정되지 않았으므로 여기서 호출하면 안 됨)
         }
     }
     else
