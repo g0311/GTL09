@@ -3,6 +3,12 @@
 -- 사용법: GameMode 액터의 ScriptPath 속성에 이 스크립트 할당
 -- ==============================================================================
 
+-- Centralized Frenzy Mode manager (capped + refresh-on-pickup)
+local FrenzyRemaining = 0.0
+local FrenzyCapSeconds = 8.0
+local bFrenzyActive = false
+local handleFrenzyPickup = nil
+
 ---
 --- 게임 시작 시 초기화
 ---
@@ -37,6 +43,33 @@ function BeginPlay()
     else
         Log("[GameMode_Chaser] ERROR subscribing to 'OnPlayerCaught': " .. tostring(handle1))
     end
+
+    -- Frenzy pickup subscription (internal signal from item scripts)
+    gm:RegisterEvent("FrenzyPickup")
+    handleFrenzyPickup = gm:SubscribeEvent("FrenzyPickup", function(payload)
+        -- Payload can be a number (requested seconds) or ignored; we clamp to cap
+        local requested = nil
+        if type(payload) == "number" then
+            requested = payload
+        elseif type(payload) == "table" and payload.duration then
+            requested = tonumber(payload.duration)
+        end
+
+        local newTime = FrenzyCapSeconds
+        if requested and requested > 0 then
+            newTime = math.min(requested, FrenzyCapSeconds)
+        end
+
+        -- If not active, transition into frenzy and notify listeners once
+        if FrenzyRemaining <= 0.0 or not bFrenzyActive then
+            FrenzyRemaining = newTime
+            bFrenzyActive = true
+            gm:FireEvent("EnterFrenzyMode")
+        else
+            -- Already active: refresh remaining time to cap without re-firing Enter
+            FrenzyRemaining = newTime
+        end
+    end)
 
     Log("[GameMode_Chaser] Event subscription complete")
     Log("[GameMode_Chaser] Ready to receive chaser notifications")
@@ -151,7 +184,16 @@ end
 --- 매 프레임 업데이트
 ---
 function Tick(dt)
-    -- 필요시 여기에 코드 추가
+    -- Drive centralized Frenzy timer
+    if bFrenzyActive and FrenzyRemaining > 0.0 then
+        FrenzyRemaining = FrenzyRemaining - dt
+        if FrenzyRemaining <= 0.0 then
+            FrenzyRemaining = 0.0
+            bFrenzyActive = false
+            local gm = GetGameMode()
+            if gm then gm:FireEvent("ExitFrenzyMode") end
+        end
+    end
 end
 
 ---
@@ -159,4 +201,9 @@ end
 ---
 function EndPlay()
     Log("[GameMode] Chaser Handler shutting down")
+    local gm = GetGameMode()
+    if gm and handleFrenzyPickup then
+        gm:UnsubscribeEvent("FrenzyPickup", handleFrenzyPickup)
+        handleFrenzyPickup = nil
+    end
 end
