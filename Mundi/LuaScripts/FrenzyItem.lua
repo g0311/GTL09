@@ -47,8 +47,6 @@ function OnOverlap(other)
         return
     end
 
-    Log("frenzy item overlapped!!!")
-    
     FireEnterFrenzy()
     bIsInFrenzyMode = true
     FrenzyModeElapsedTime = 0.0
@@ -65,7 +63,6 @@ function UpdateFrenzyMode(dt)
         FireExitFrenzy()
         return
     end
-    Log("FRENZY MODE!!!!")
     FrenzyModeElapsedTime = FrenzyModeElapsedTime + dt
 end
 

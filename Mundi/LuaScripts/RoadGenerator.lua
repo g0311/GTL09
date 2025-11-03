@@ -77,10 +77,10 @@ local Config = {
 
     -- ===== 프렌지 아이템 설정 =====
     FrenzyScriptPath = "FrenzyItem.lua",
-    FrenzyModel = "Data/Model/smokegrenade.obj",                 -- 선택: 프렌지 아이템 메시 경로 (없어도 동작)
-    FrenzyMinScale = 0.3,
-    FrenzyMaxScale = 0.4,
-    FrenzyHeight = 0.2,                -- 바닥에서 살짝 띄우기
+    FrenzyModel = "Data/Model/coin/coin.obj",                 -- 선택: 프렌지 아이템 메시 경로 (없어도 동작)
+    FrenzyMinScale = 2.5,
+    FrenzyMaxScale = 2.5,
+    FrenzyHeight = 1.0,                -- 바닥에서 살짝 띄우기
     InitialFrenzyPoolSize = 3,
     FrenzySpawnBlockProbability = 0.05 -- 각 블록마다 하나 스폰할 확률
 }
@@ -203,11 +203,11 @@ local function InitializeFrenzyPool()
             end
 
             -- 충돌 박스 (작은 박스)
-            local baseBox = Vector(0.4, 0.4, 0.4)
+            local baseBox = Vector(0.1, 0.2, 0.2)
             local boxSize = Vector(baseBox.X * scale, baseBox.Y * scale, baseBox.Z * scale)
             local boxComp = AddBoxComponent(itemActor, boxSize)
             if boxComp then
-                boxComp:SetRelativeLocation(Vector(0, 0, boxSize.Z))
+                boxComp:SetRelativeLocation(Vector(0, 0, boxSize.Z - 0.5))
                 boxComp:SetCollisionEnabled(true)
                 boxComp:SetGenerateOverlapEvents(true)
             end
