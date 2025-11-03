@@ -5,7 +5,7 @@
 -- ==============================================================================
 
 -- ==================== 설정 ====================
-local MoveSpeed = 5.0           -- X축 이동 속도 (단위/초)
+local MoveSpeed = 20.0           -- X축 이동 속도 (단위/초)
 local CatchDistance = 10.0      -- 추격 성공 거리 (유닛)
 local bPlayerCaught = false     -- 플레이어를 잡았는지 여부
 local bIsStopped = false        -- Chaser가 멈췄는지 여부

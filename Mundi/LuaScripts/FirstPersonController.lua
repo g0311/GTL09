@@ -136,7 +136,7 @@ function BeginPlay()
             Log("[FirstPersonController] ERROR subscribing to 'UnfreezePlayer': " .. tostring(handle2))
         end
 
-        -- OnGameReset 이벤트 구독 (위치 복원)
+        -- OnGameReset 이벤트 구독 (위치 및 속도 복원)
         local success3, handle3 = pcall(function()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
@@ -152,6 +152,13 @@ function BeginPlay()
                 else
                     Log("[FirstPersonController] WARNING: InitialPosition not set!")
                 end
+
+                -- 속도 변수 초기화 (감속 상태 해제)
+                CurrentForwardSpeed = 0.0
+                CurrentRightSpeed = 0.0
+                CurrentMaxSpeed = MoveSpeed  -- 최고 속도를 기본값으로 복원
+                Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
+                    string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
             end)
         end)
 
