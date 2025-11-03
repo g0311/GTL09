@@ -13,6 +13,7 @@
 #include "StaticMeshActor.h"
 #include "Grid/GridActor.h"
 #include "Gizmo/GizmoActor.h"
+#include "SkyDomeActor.h"
 #include "RenderSettings.h"
 #include "Occlusion.h"
 #include "Frustum.h"
@@ -132,6 +133,9 @@ void FSceneRenderer::Render()
 void FSceneRenderer::RenderLitPath()
 {
 	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithId);
+
+	// Sky Pass (모든 객체 뒤에 그려짐)
+	RenderSkyPass();
 
 	// Base Pass
 	RenderOpaquePass(View->ViewMode);
@@ -596,6 +600,13 @@ void FSceneRenderer::GatherVisibleProxies()
 
 						if (bShouldAdd)
 						{
+							// 스카이돔과 일반 메시를 수집 단계에서 분리
+							if (Actor && Actor->IsA<ASkyDomeActor>())
+							{
+								Proxies.SkyDomeMeshes.Add(MeshComponent);
+								continue;
+							}
+
 							Proxies.Meshes.Add(MeshComponent);
 						}
 					}
@@ -762,6 +773,53 @@ void FSceneRenderer::PerformTileLightCulling()
 	}
 }
 
+void FSceneRenderer::RenderSkyPass()
+{
+	// 스카이돔 전용 셰이더 로드 (UberLit 언릿 모드 사용)
+	FString SkyShaderPath = "Shaders/Materials/SkyDome.hlsl";
+	UShader* SkyShader = UResourceManager::GetInstance().Load<UShader>(SkyShaderPath);
+
+	FShaderVariant* SkyShaderVariant = SkyShader->GetOrCompileShaderVariant(RHIDevice->GetDevice(), TArray<FShaderMacro>());
+	if (!SkyShaderVariant)
+	{
+		UE_LOG("RenderSkyPass: Failed to load sky shader: %s", SkyShaderPath.c_str());
+		return;
+	}
+
+	// --- 1. 스카이돔 메시 배치 수집 ---
+	TArray<FMeshBatchElement> SkyBatchElements;
+	for (UMeshComponent* MeshComponent : Proxies.SkyDomeMeshes)
+	{
+		MeshComponent->CollectMeshBatches(SkyBatchElements, View);
+	}
+
+	// 스카이돔이 없으면 렌더링하지 않음
+	if (SkyBatchElements.IsEmpty()) { return; }
+
+	// --- 2. 스카이 셰이더로 강제 오버라이드 ---
+	for (FMeshBatchElement& BatchElement : SkyBatchElements)
+	{
+		BatchElement.VertexShader = SkyShaderVariant->VertexShader;
+		BatchElement.PixelShader = SkyShaderVariant->PixelShader;
+		BatchElement.InputLayout = SkyShaderVariant->InputLayout;
+	}
+
+	// --- 3. 렌더 상태 설정 ---
+	// - 깊이: 쓰기 비활성화, 테스트는 LESS_EQUAL (셰이더에서 z=1)
+	// - 래스터라이저: 양면 렌더링 (카메라가 돔 내부에 있으므로)
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqualReadOnly);
+	RHIDevice->RSSetState(ERasterizerMode::Solid_NoCull);
+
+	// --- 4. 그리기 ---
+	// DrawMeshBatches를 호출하되, 내부에서 상태를 리셋하지 않도록 bSetDefaultState를 false로 전달
+	DrawMeshBatches(SkyBatchElements, false, false);
+
+	// --- 5. 렌더 상태 복구 ---
+	// 다음 Pass에 영향을 주지 않도록 상태를 원래대로 복구
+	RHIDevice->RSSetState(ERasterizerMode::Solid);
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
+}
+
 void FSceneRenderer::PerformFrustumCulling()
 {
 	PotentiallyVisibleComponents.clear();	// 할 필요 없는데 명목적으로 초기화
@@ -880,7 +938,7 @@ void FSceneRenderer::RenderOpaquePass(EViewModeIndex InRenderViewMode)
 	MeshBatchElements.Sort();
 
 	// --- 3. 그리기 (Draw) ---
-	DrawMeshBatches(MeshBatchElements, true);
+	DrawMeshBatches(MeshBatchElements, true, true);
 }
 
 void FSceneRenderer::RenderDecalPass()
@@ -997,7 +1055,7 @@ void FSceneRenderer::RenderDecalPass()
 			BatchElement.PixelShader = ShaderVariant->PixelShader;
 			BatchElement.VertexStride = sizeof(FVertexDynamic);
 		}
-		DrawMeshBatches(MeshBatchElements, true);
+		DrawMeshBatches(MeshBatchElements, true, true);
 
 		// --- 데칼 렌더 시간 측정 종료 및 결과 저장 ---
 		auto CpuTimeEnd = std::chrono::high_resolution_clock::now();
@@ -1196,7 +1254,7 @@ void FSceneRenderer::RenderEditorPrimitivesPass()
 	{
 		GizmoComp->CollectMeshBatches(MeshBatchElements, View);
 	}
-	DrawMeshBatches(MeshBatchElements, true);
+	DrawMeshBatches(MeshBatchElements, true, true);
 }
 
 // 경계, 외곽선 등 표시 (상호 작용, 피킹 X)
@@ -1276,16 +1334,19 @@ void FSceneRenderer::RenderOverayEditorPrimitivesPass()
 	}
 
 	// 수집된 배치를 그립니다.
-	DrawMeshBatches(MeshBatchElements, true);
+	DrawMeshBatches(MeshBatchElements, true, true);
 }
 
 // 수집한 Batch 그리기
-void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, bool bClearListAfterDraw)
+void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, bool bClearListAfterDraw, bool bSetDefaultState)
 {
 	if (InMeshBatches.IsEmpty()) return;
 
-	// RHI 상태 초기 설정 (Opaque Pass 기본값)
-	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual); // 깊이 쓰기 ON
+	if (bSetDefaultState)
+	{
+		// RHI 상태 초기 설정 (Opaque Pass 기본값)
+		RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual); // 깊이 쓰기 ON
+	}
 
 	// PS 리소스 초기화
 	ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
