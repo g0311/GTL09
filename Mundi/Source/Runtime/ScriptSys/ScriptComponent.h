@@ -90,6 +90,11 @@ public:
 	 */
 	bool IsScriptLoaded() const { return bScriptLoaded; }
 
+	/**
+	 * @brief 스크립트 환경 가져오기 (코루틴에서 사용)
+	 */
+	sol::environment GetScriptEnv() const { return ScriptEnv; }
+
     template<typename ...Args>
     void CallLuaFunction(const FString& InFunctionName, Args&&... InArgs);
 
@@ -116,7 +121,10 @@ private:
 
     FString ScriptPath;                 ///< 스크립트 파일 경로
     bool bScriptLoaded = false;   ///< 스크립트 로드 성공 여부
-    sol::state* Lua = nullptr;          ///< Owning Lua state (per component)
+
+    // 전역 Lua state 대신 스크립트별 독립 환경 사용
+    sol::environment ScriptEnv;         ///< 스크립트별 독립 환경 (전역 변수 격리)
+    sol::table ScriptTable;             ///< 스크립트 함수/변수를 담은 테이블
 
     // Hot-reload on tick
     float HotReloadCheckTimer = 0.0f;        ///< 핫 리로드 체크 타이머
@@ -128,16 +136,20 @@ private:
 template <typename ... Args>
 void UScriptComponent::CallLuaFunction(const FString& InFunctionName, Args&&... InArgs)
 {
-	if (!bScriptLoaded || !Lua)
+	if (!bScriptLoaded || !ScriptTable.valid())
 	{
 		return;
 	}
 
 	try
 	{
-		sol::protected_function func = (*Lua)[InFunctionName];
+		sol::protected_function func = ScriptTable[InFunctionName];
 		if (func.valid())
 		{
+			// Set environment for the function call
+			sol::environment funcEnv = ScriptEnv;
+			sol::set_environment(funcEnv, func);
+
 			auto result = func(std::forward<Args>(InArgs)...);
 			if (!result.valid())
 			{
@@ -148,7 +160,7 @@ void UScriptComponent::CallLuaFunction(const FString& InFunctionName, Args&&... 
 			}
 		}
 	}
-	catch (const sol::error& e) 
+	catch (const sol::error& e)
 	{
 		FString errorMsg = "[Lua Error] Failed to retrieve " + InFunctionName + ": " + e.what() + "\n";
 		UE_LOG(errorMsg.c_str());

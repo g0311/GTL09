@@ -181,6 +181,35 @@ void UScriptManager::EditScript(const FString& ScriptPath)
     }
 }
 
+void UScriptManager::InitializeGlobalLuaState()
+{
+    if (GlobalLuaState)
+    {
+        UE_LOG("[ScriptManager] Global Lua state already initialized\n");
+        return;
+    }
+
+    UE_LOG("[ScriptManager] Initializing global Lua state...\n");
+    GlobalLuaState = std::make_unique<sol::state>();
+    GlobalLuaState->open_libraries(
+        sol::lib::base,
+        sol::lib::package,
+        sol::lib::coroutine,
+        sol::lib::string,
+        sol::lib::os,
+        sol::lib::math,
+        sol::lib::table,
+        sol::lib::debug,
+        sol::lib::bit32,
+        sol::lib::io,
+        sol::lib::utf8
+    );
+    // 모든 타입 등록
+    RegisterTypesToState(GlobalLuaState.get());
+
+    UE_LOG("[ScriptManager] Global Lua state initialized successfully\n");
+}
+
 void UScriptManager::RegisterTypesToState(sol::state* state)
 {
     if (!state) return;
@@ -421,16 +450,22 @@ void UScriptManager::RegisterWorld(sol::state* state)
         END_LUA_TYPE()
 
         // Global accessor GetGameMode()
-        state->set_function("GetGameMode", [](sol::this_state L) -> AGameModeBase* {
+        state->set_function("GetGameMode", [](sol::this_state L, sol::this_environment env) -> AGameModeBase* {
         // Actor의 World를 통해 GameMode 접근
-        // 이 함수는 ScriptComponent의 sol::state에서 호출되므로
-        // state["actor"]에 바인딩된 AActor*를 사용
-        sol::state_view lua(L);
-        sol::optional<AActor*> actorOpt = lua["actor"];
+        // environment에서 actor를 찾음 (독립 environment 지원)
+        sol::environment current_env = env;
+        sol::optional<AActor*> actorOpt = current_env["actor"];
+
+        // environment에서 못 찾으면 전역 state에서 찾기
+        if (!actorOpt)
+        {
+            sol::state_view lua(L);
+            actorOpt = lua["actor"];
+        }
 
         if (!actorOpt)
         {
-            UE_LOG("[Lua] Error: GetGameMode() - 'actor' global not found\n");
+            UE_LOG("[Lua] Error: GetGameMode() - 'actor' not found in environment or global state\n");
             return nullptr;
         }
 
@@ -480,13 +515,21 @@ void UScriptManager::RegisterWorld(sol::state* state)
         });
 
     // Get PlayerPawn (현재 플레이어가 조종하는 Pawn)
-    state->set_function("GetPlayerPawn", [](sol::this_state L) -> AActor* {
-        sol::state_view lua(L);
-        sol::optional<AActor*> actorOpt = lua["actor"];
+    state->set_function("GetPlayerPawn", [](sol::this_state L, sol::this_environment env) -> AActor* {
+        // environment에서 actor를 찾음 (독립 environment 지원)
+        sol::environment current_env = env;
+        sol::optional<AActor*> actorOpt = current_env["actor"];
+
+        // environment에서 못 찾으면 전역 state에서 찾기
+        if (!actorOpt)
+        {
+            sol::state_view lua(L);
+            actorOpt = lua["actor"];
+        }
 
         if (!actorOpt)
         {
-            UE_LOG("[Lua] Error: GetPlayerPawn() - 'actor' global not found");
+            UE_LOG("[Lua] Error: GetPlayerPawn() - 'actor' not found in environment or global state");
             return nullptr;
         }
 
@@ -522,9 +565,17 @@ void UScriptManager::RegisterWorld(sol::state* state)
         });
 
     // Global actor search functions
-        state->set_function("FindActorByName", [](sol::this_state L, const FString& name) -> AActor* {
-            sol::state_view lua(L);
-            sol::optional<AActor*> actorOpt = lua["actor"];
+        state->set_function("FindActorByName", [](sol::this_state L, sol::this_environment env, const FString& name) -> AActor* {
+            // environment에서 actor를 찾음 (독립 environment 지원)
+            sol::environment current_env = env;
+            sol::optional<AActor*> actorOpt = current_env["actor"];
+
+            // environment에서 못 찾으면 전역 state에서 찾기
+            if (!actorOpt)
+            {
+                sol::state_view lua(L);
+                actorOpt = lua["actor"];
+            }
             if (!actorOpt) return nullptr;
 
             AActor* actor = actorOpt.value();
@@ -541,11 +592,19 @@ void UScriptManager::RegisterWorld(sol::state* state)
             return nullptr; }
         );
 
-        state->set_function("FindActorsByClass", [](sol::this_state L, const FString& className) -> sol::table {
+        state->set_function("FindActorsByClass", [](sol::this_state L, sol::this_environment env, const FString& className) -> sol::table {
             sol::state_view lua(L);
             sol::table result = lua.create_table();
 
-            sol::optional<AActor*> actorOpt = lua["actor"];
+            // environment에서 actor를 찾음 (독립 environment 지원)
+            sol::environment current_env = env;
+            sol::optional<AActor*> actorOpt = current_env["actor"];
+
+            // environment에서 못 찾으면 전역 state에서 찾기
+            if (!actorOpt)
+            {
+                actorOpt = lua["actor"];
+            }
             if (!actorOpt) return result;
 
             AActor* actor = actorOpt.value();
@@ -564,9 +623,17 @@ void UScriptManager::RegisterWorld(sol::state* state)
             });
 
         // Global SpawnActor helper (위치만 지정)
-        state->set_function("SpawnActor", [](sol::this_state L, const FString& className, const FVector& location) -> AActor* {
-            sol::state_view lua(L);
-            sol::optional<AActor*> actorOpt = lua["actor"];
+        state->set_function("SpawnActor", [](sol::this_state L, sol::this_environment env, const FString& className, const FVector& location) -> AActor* {
+            // environment에서 actor를 찾음 (독립 environment 지원)
+            sol::environment current_env = env;
+            sol::optional<AActor*> actorOpt = current_env["actor"];
+
+            // environment에서 못 찾으면 전역 state에서 찾기
+            if (!actorOpt)
+            {
+                sol::state_view lua(L);
+                actorOpt = lua["actor"];
+            }
             if (!actorOpt) return nullptr;
 
             AActor* actor = actorOpt.value();
@@ -1304,10 +1371,21 @@ void UScriptManager::RegisterProjectileMovement(sol::state* state)
             }
             return Comp;
         },
-        [](sol::this_state ts) -> UProjectileMovementComponent*
+        [](sol::this_state ts, sol::this_environment env) -> UProjectileMovementComponent*
         {
-            sol::state_view sv(ts);
-            AActor* Owner = sv["actor"];
+            // environment에서 actor를 찾음 (독립 environment 지원)
+            sol::environment current_env = env;
+            sol::optional<AActor*> OwnerOpt = current_env["actor"];
+
+            // environment에서 못 찾으면 전역 state에서 찾기
+            if (!OwnerOpt)
+            {
+                sol::state_view sv(ts);
+                OwnerOpt = sv["actor"];
+            }
+            if (!OwnerOpt) return nullptr;
+
+            AActor* Owner = OwnerOpt.value();
             if (!Owner) return nullptr;
             UProjectileMovementComponent* Comp = ObjectFactory::NewObject<UProjectileMovementComponent>();
             Owner->AddOwnedComponent(Comp);
@@ -1375,10 +1453,21 @@ void UScriptManager::RegisterRotatingMovement(sol::state* state)
             }
             return Comp;
         },
-        [](sol::this_state ts) -> URotatingMovementComponent*
+        [](sol::this_state ts, sol::this_environment env) -> URotatingMovementComponent*
         {
-            sol::state_view sv(ts);
-            AActor* Owner = sv["actor"];
+            // environment에서 actor를 찾음 (독립 environment 지원)
+            sol::environment current_env = env;
+            sol::optional<AActor*> OwnerOpt = current_env["actor"];
+
+            // environment에서 못 찾으면 전역 state에서 찾기
+            if (!OwnerOpt)
+            {
+                sol::state_view sv(ts);
+                OwnerOpt = sv["actor"];
+            }
+            if (!OwnerOpt) return nullptr;
+
+            AActor* Owner = OwnerOpt.value();
             if (!Owner) return nullptr;
             URotatingMovementComponent* Comp = ObjectFactory::NewObject<URotatingMovementComponent>();
             Owner->AddOwnedComponent(Comp);

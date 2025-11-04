@@ -28,6 +28,7 @@
 #include "LightManager.h"
 #include "PlayerController.h"
 #include "../GameplayStatic/GameMode.h"
+#include "Source/Runtime/ScriptSys/UScriptManager.h"
 
 IMPLEMENT_CLASS(UWorld)
 

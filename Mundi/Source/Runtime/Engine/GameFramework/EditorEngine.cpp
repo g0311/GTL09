@@ -217,7 +217,10 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     //매니저 초기화
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
-    
+
+    // 전역 Lua state 초기화 (모든 스크립트 컴포넌트가 공유)
+    SCRIPT.InitializeGlobalLuaState();
+
     FObjManager::Preload();
 
     ///////////////////////////////////
