@@ -92,7 +92,6 @@ void FSceneRenderer::Render()
 		GWorld->GetLightManager()->UpdateLightBuffer(RHIDevice);	//라이트 구조체 버퍼 업데이트, 바인딩
 		PerformTileLightCulling();	// 타일 기반 라이트 컬링 수행
 		RenderLitPath();
-		RenderPostProcessingPasses();	// 후처리 체인 실행
 		RenderTileCullingDebug();	// 타일 컬링 디버그 시각화 draw
 	}
 	else if (View->ViewMode == EViewModeIndex::VMI_Unlit)
@@ -111,6 +110,7 @@ void FSceneRenderer::Render()
 	{
 		RenderSceneDepthPath();
 	}
+	RenderPostProcessingPasses();	// 후처리 체인 실행
 
 #ifdef _EDITOR
 	//그리드와 디버그용 Primitive는 Post Processing 적용하지 않음.
@@ -120,9 +120,6 @@ void FSceneRenderer::Render()
 	// 오버레이(Overlay) Primitive 렌더링
 	RenderOverayEditorPrimitivesPass();	// 기즈모 출력
 #endif
-	
-	// FXAA 등 화면에서 최종 이미지 품질을 위해 적용되는 효과를 적용
-	ApplyScreenEffectsPass();
 
 	// 최종적으로 Scene에 그려진 텍스쳐를 Back 버퍼에 그힌다
 	CompositeToBackBuffer();
@@ -1071,114 +1068,169 @@ void FSceneRenderer::RenderDecalPass()
 	RHIDevice->OMSetBlendState(false);
 }
 
+void FSceneRenderer::RenderFogPass()
+{
+	UHeightFogComponent* FogComponent = nullptr;
+	if (0 < SceneGlobals.Fogs.Num())
+	{
+		FogComponent = SceneGlobals.Fogs[0];
+	}
+
+	if (!FogComponent)
+	{
+		return;
+	}
+
+	// Swap 가드 객체 생성: 스왑을 수행하고, 소멸 시 0번 슬롯부터 2개의 SRV를 자동 해제하도록 설정
+	FSwapGuard SwapGuard(RHIDevice, 0, 2);
+
+	// 렌더 타겟 설정
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	// 쉐이더 설정
+	UShader* FullScreenTriangleVS = UResourceManager::GetInstance().Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* HeightFogPS = UResourceManager::GetInstance().Load<UShader>("Shaders/PostProcess/HeightFog_PS.hlsl");
+	if (!FullScreenTriangleVS || !FullScreenTriangleVS->GetVertexShader() || !HeightFogPS || !HeightFogPS->GetPixelShader())
+	{
+		UE_LOG("HeightFog용 셰이더 없음!\n");
+		return;
+	}
+
+	RHIDevice->PrepareShader(FullScreenTriangleVS, HeightFogPS);
+
+	// 텍스쳐 관련 설정
+	ID3D11ShaderResourceView* DepthSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneDepth);
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* PointClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::PointClamp);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+
+	if (!DepthSRV || !SceneSRV || !PointClampSamplerState || !LinearClampSamplerState)
+	{
+		UE_LOG("Depth SRV / Scene SRV / PointClamp Sampler / LinearClamp Sampler is null!\n");
+		return;
+	}
+
+	ID3D11ShaderResourceView* srvs[2] = { DepthSRV, SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 2, srvs);
+
+	ID3D11SamplerState* Samplers[2] = { LinearClampSamplerState, PointClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 2, Samplers);
+
+	// 상수 버퍼 업데이트
+	ECameraProjectionMode ProjectionMode = View->ProjectionMode;
+	//RHIDevice->UpdatePostProcessCB(ZNear, ZFar, ProjectionMode == ECameraProjectionMode::Orthographic);
+	RHIDevice->SetAndUpdateConstantBuffer(PostProcessBufferType(View->ZNear, View->ZFar, ProjectionMode == ECameraProjectionMode::Orthographic));
+	UHeightFogComponent* F = FogComponent;
+	//RHIDevice->UpdateFogCB(F->GetFogDensity(), F->GetFogHeightFalloff(), F->GetStartDistance(), F->GetFogCutoffDistance(), F->GetFogInscatteringColor()->ToFVector4(), F->GetFogMaxOpacity(), F->GetFogHeight());
+	RHIDevice->SetAndUpdateConstantBuffer(FogBufferType(F->GetFogDensity(), F->GetFogHeightFalloff(), F->GetStartDistance(), F->GetFogCutoffDistance(), F->GetFogInscatteringColor().ToFVector4(), F->GetFogMaxOpacity(), F->GetFogHeight()));
+
+	// Draw
+	RHIDevice->DrawFullScreenQuad();
+
+	// 모든 작업이 성공적으로 끝났으므로 Commit 호출
+	// 이제 소멸자는 버퍼 스왑을 되돌리지 않고, SRV 해제 작업만 수행함
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderVignettingPass()
+{
+	UCameraComponent* Camera = View->Camera;
+	if (!Camera || !Camera->IsVignettingEnabled())
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Vignetting: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Vignetting_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("VIGNETTE용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer
+	RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(Camera->GetVignettingIntensity(), Camera->GetVignettingSmoothness(), { 0.f, 0.f }));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderGammaCorrectionPass()
+{
+	UCameraComponent* Camera = View->Camera;
+	if (!Camera || !Camera->IsGammaCorrectionEnabled())
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("GammaCorrection: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/GammaCorrection_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("GammaCorrection용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer
+	RHIDevice->SetAndUpdateConstantBuffer(FGammaCorrectionBufferType(Camera->GetGammaValue(), { 0.f, 0.f, 0.f }));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
 void FSceneRenderer::RenderPostProcessingPasses()
 {
-	//FOG PASS
-	{
-		UHeightFogComponent* FogComponent = nullptr;
-		if (0 < SceneGlobals.Fogs.Num())
-		{
-			FogComponent = SceneGlobals.Fogs[0];
-		}
+	RenderFogPass();
+	RenderVignettingPass();
+	RenderFXAAPass();
+	RenderGammaCorrectionPass();
 
-		if (!FogComponent)
-		{
-			return;
-		}
-
-		// Swap 가드 객체 생성: 스왑을 수행하고, 소멸 시 0번 슬롯부터 2개의 SRV를 자동 해제하도록 설정
-		FSwapGuard SwapGuard(RHIDevice, 0, 2);
-
-		// 렌더 타겟 설정
-		RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
-
-		// Depth State: Depth Test/Write 모두 OFF
-		RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
-		RHIDevice->OMSetBlendState(false);
-
-		// 쉐이더 설정
-		UShader* FullScreenTriangleVS = UResourceManager::GetInstance().Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
-		UShader* HeightFogPS = UResourceManager::GetInstance().Load<UShader>("Shaders/PostProcess/HeightFog_PS.hlsl");
-		if (!FullScreenTriangleVS || !FullScreenTriangleVS->GetVertexShader() || !HeightFogPS || !HeightFogPS->GetPixelShader())
-		{
-			UE_LOG("HeightFog용 셰이더 없음!\n");
-			return;
-		}
-
-		RHIDevice->PrepareShader(FullScreenTriangleVS, HeightFogPS);
-
-		// 텍스쳐 관련 설정
-		ID3D11ShaderResourceView* DepthSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneDepth);
-		ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
-		ID3D11SamplerState* PointClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::PointClamp);
-		ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
-
-		if (!DepthSRV || !SceneSRV || !PointClampSamplerState || !LinearClampSamplerState)
-		{
-			UE_LOG("Depth SRV / Scene SRV / PointClamp Sampler / LinearClamp Sampler is null!\n");
-			return;
-		}
-
-		ID3D11ShaderResourceView* srvs[2] = { DepthSRV, SceneSRV };
-		RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 2, srvs);
-
-		ID3D11SamplerState* Samplers[2] = { LinearClampSamplerState, PointClampSamplerState };
-		RHIDevice->GetDeviceContext()->PSSetSamplers(0, 2, Samplers);
-
-		// 상수 버퍼 업데이트
-		ECameraProjectionMode ProjectionMode = View->ProjectionMode;
-		//RHIDevice->UpdatePostProcessCB(ZNear, ZFar, ProjectionMode == ECameraProjectionMode::Orthographic);
-		RHIDevice->SetAndUpdateConstantBuffer(PostProcessBufferType(View->ZNear, View->ZFar, ProjectionMode == ECameraProjectionMode::Orthographic));
-		UHeightFogComponent* F = FogComponent;
-		//RHIDevice->UpdateFogCB(F->GetFogDensity(), F->GetFogHeightFalloff(), F->GetStartDistance(), F->GetFogCutoffDistance(), F->GetFogInscatteringColor()->ToFVector4(), F->GetFogMaxOpacity(), F->GetFogHeight());
-		RHIDevice->SetAndUpdateConstantBuffer(FogBufferType(F->GetFogDensity(), F->GetFogHeightFalloff(), F->GetStartDistance(), F->GetFogCutoffDistance(), F->GetFogInscatteringColor().ToFVector4(), F->GetFogMaxOpacity(), F->GetFogHeight()));
-
-		// Draw
-		RHIDevice->DrawFullScreenQuad();
-
-		// 모든 작업이 성공적으로 끝났으므로 Commit 호출
-		// 이제 소멸자는 버퍼 스왑을 되돌리지 않고, SRV 해제 작업만 수행함
-		SwapGuard.Commit();
-	}
-
-	//VIGNETTING PASS
-	{
-		UCameraComponent* Camera = View->Camera;
-		if (Camera && Camera->IsVignettingEnabled())
-		{
-			FSwapGuard SwapGuard(RHIDevice, 0, 1);
-
-			RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
-
-			ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
-			ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
-			if (!SceneSRV || !LinearClampSamplerState)
-			{
-				UE_LOG("Depth SRV / Scene SRV / PointClamp Sampler / LinearClamp Sampler is null!\n");
-				return;
-			}
-			ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
-			RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
-			ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
-			RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
-			
-			UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
-			UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Vignetting_PS.hlsl");
-			if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
-			{
-				UE_LOG("VIGNETTE용 셰이더 없음!\n");
-				return;
-			}
-			RHIDevice->PrepareShader(VS, PS);
-			
-			// Update Constant Buffer
-			RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(Camera->GetVignettingIntensity(), Camera->GetVignettingSmoothness(), {0.f, 0.f}));
-			RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(Camera->GetVignettingIntensity(), Camera->GetVignettingSmoothness(), {0.f, 0.f}));
-			
-			RHIDevice->DrawFullScreenQuad();
-			SwapGuard.Commit();
-		}
-	}
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원
 	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
@@ -1554,7 +1606,7 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 	}
 }
 
-void FSceneRenderer::ApplyScreenEffectsPass()
+void FSceneRenderer::RenderFXAAPass()
 {
 	if (!World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_FXAA))
 	{

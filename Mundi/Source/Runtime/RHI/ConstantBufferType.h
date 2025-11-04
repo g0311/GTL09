@@ -167,6 +167,12 @@ struct FVignetteBufferType //b0
     float Padding[2];
 };
 
+struct FGammaCorrectionBufferType //b0
+{
+    float GammaValue;
+    float Padding[3];
+};
+
 #define CONSTANT_BUFFER_INFO(TYPE, SLOT, VS, PS) \
 constexpr uint32 TYPE##Slot = SLOT;\
 constexpr bool TYPE##IsVS = VS;\
@@ -187,7 +193,8 @@ MACRO(FLightBufferType)             \
 MACRO(FViewportConstants)           \
 MACRO(FTileCullingBufferType)       \
 MACRO(FPointLightShadowBufferType) \
-MACRO(FVignetteBufferType)
+MACRO(FVignetteBufferType)          \
+MACRO(FGammaCorrectionBufferType)
 
 // 16 바이트 패딩 어썰트
 #define STATIC_ASSERT_CBUFFER_ALIGNMENT(Type) \
@@ -210,3 +217,4 @@ CONSTANT_BUFFER_INFO(FViewportConstants, 10, true, true)   // 뷰 포트 크기�
 CONSTANT_BUFFER_INFO(FTileCullingBufferType, 11, false, true)  // b11, PS only (UberLit.hlsl과 일치)
 CONSTANT_BUFFER_INFO(FPointLightShadowBufferType, 12, true, true)  // b11, VS only
 CONSTANT_BUFFER_INFO(FVignetteBufferType, 0, false, true)  // b0, PS only
+CONSTANT_BUFFER_INFO(FGammaCorrectionBufferType, 0, false, true)  // b0, PS only
