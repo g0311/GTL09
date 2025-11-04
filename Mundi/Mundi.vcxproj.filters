@@ -44,14 +44,15 @@
     <FxCompile Include="Shaders\Common\LightingCommon.hlsl">
       <Filter>Shaders\Common</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\Common\LightStructures.hlsl">
-      <Filter>Shaders\Common</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\Shadows\DepthOnly_VS.hlsl">
       <Filter>Shaders\Shadows</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\Shadows\DepthOnly_PS.hlsl">
       <Filter>Shaders\Shadows</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Materials\SkyDome.hlsl" />
+    <FxCompile Include="Shaders\Common\LightStructures.hlsl">
+      <Filter>Shaders\Effects</Filter>
     </FxCompile>
   </ItemGroup>
   <!-- Root Files -->
@@ -443,6 +444,12 @@
     <ClCompile Include="Source\Runtime\ScriptSys\ScriptComponent.cpp" />
     <ClCompile Include="Source\Runtime\ScriptSys\UScriptManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Collision\CollisionQueries.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameplayStatic\GameMode.cpp" />
+    <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
+    <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
   </ItemGroup>
   <!-- ThirdParty/ImGui Files -->
   <!-- Source Files -->
@@ -925,6 +932,10 @@
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptUtils.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\UScriptManager.h" />
     <ClInclude Include="Source\Runtime\Engine\Collision\CollisionQueries.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameplayStatic\GameMode.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

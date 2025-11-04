@@ -6,16 +6,28 @@
 
 -- ==================== 설정 ====================
 local MoveSpeed = 20.0           -- X축 이동 속도 (단위/초)
-local CatchDistance = 10.0      -- 추격 성공 거리 (유닛)
+local CatchDistance = 0.0       -- 추격 성공 거리 (유닛) - 0이면 정확히 닿았을 때
 local PlayerOffsetDistance = 50.0 -- 플레이어로부터 뒤쪽 오프셋 거리 (유닛)
 local bPlayerCaught = false     -- 플레이어를 잡았는지 여부
-local bIsStopped = false        -- Chaser가 멈췄는지 여부
+local bIsStopped = true         -- Chaser가 멈췄는지 여부 (처음엔 멈춤 상태로 시작)
 local DebugLogInterval = 2.0    -- 디버그 로그 출력 간격 (초)
 local TimeSinceLastLog = 0.0    -- 마지막 로그 출력 이후 경과 시간
+local ChaserStartDelay = 5.0    -- 추격자 시작 지연 시간 (초)
 
 -- 게임 리셋을 위한 초기 위치 저장
 local InitialPosition = nil
 local InitialRotation = nil
+
+---
+--- 추격자 시작 지연 코루틴 (5초)
+---
+function ChaserStartDelayCoroutine(component)
+    Log("[Chaser] Waiting " .. ChaserStartDelay .. " seconds before starting...")
+    coroutine.yield(component:WaitForSeconds(ChaserStartDelay))
+
+    bIsStopped = false
+    Log("[Chaser] START! Beginning pursuit!")
+end
 
 ---
 --- 게임 시작 시 초기화
@@ -45,7 +57,7 @@ function BeginPlay()
                 -- 플래그 리셋
                 --Log("[Chaser] Resetting bPlayerCaught and bIsStopped flags")
                 bPlayerCaught = false
-                bIsStopped = false
+                bIsStopped = true  -- 리셋 후에도 멈춤 상태로 시작
 
                 -- 위치 강제 복원 (-50, 0, 0으로 고정)
                 local chaserPos = Vector(-50, 0, 0)
@@ -54,6 +66,9 @@ function BeginPlay()
                     actor:SetActorRotation(InitialRotation)
                 end
                 --Log("[Chaser] Position FORCED to (-50.00, 0.00, 0.00)")
+
+                -- 5초 지연 코루틴 시작 (리셋 후에도 5초 대기)
+                self:StartCoroutine(function() ChaserStartDelayCoroutine(self) end)
             end)
         end)
 
@@ -62,9 +77,29 @@ function BeginPlay()
         else
             --Log("[Chaser] ERROR subscribing to 'OnGameReset': " .. tostring(handle))
         end
+
+        -- FreezeGame/UnfreezeGame 이벤트 구독 (카운트다운 동안 멈춤)
+        gm:RegisterEvent("FreezeGame")
+        gm:SubscribeEvent("FreezeGame", function()
+            --Log("[Chaser] *** FreezeGame event received! ***")
+            bIsStopped = true
+            --Log("[Chaser] STOPPED for countdown")
+        end)
+
+        gm:RegisterEvent("UnfreezeGame")
+        gm:SubscribeEvent("UnfreezeGame", function()
+            --Log("[Chaser] *** UnfreezeGame event received! ***")
+            -- UnfreezeGame에서는 bIsStopped를 변경하지 않음
+            -- 5초 지연 코루틴이 끝나야 시작됨
+            --Log("[Chaser] UnfreezeGame received, but waiting for delay coroutine")
+        end)
     else
         --Log("[Chaser] WARNING: Could not get GameMode for event subscription")
     end
+
+    -- 초기 시작 시 5초 지연 코루틴 시작
+    Log("[Chaser] Starting initial delay coroutine...")
+    self:StartCoroutine(function() ChaserStartDelayCoroutine(self) end)
 end
 
 ---
@@ -98,8 +133,8 @@ function Tick(dt)
     local myPos = actor:GetActorLocation()
     local playerPos = pawn:GetActorLocation()
 
-    local dx = playerPos.X - myPos.X
-    local distanceX = math.abs(dx)  -- X 방향 거리만 사용
+    local dx = playerPos.X - myPos.X  -- 양수: 플레이어가 앞, 음수: Chaser가 플레이어를 지나침
+    local distanceX = math.abs(dx)  -- X 방향 거리만 사용 (HUD 표시용)
 
     -- 거리 정보를 GameMode 이벤트로 브로드캐스트 (플레이어가 사용 가능)
     local gm = GetGameMode()
@@ -116,12 +151,14 @@ function Tick(dt)
     --    TimeSinceLastLog = 0.0
     --end
 
-    -- 거리 체크 및 이벤트 발생 (X축 거리만, 한 번만 발생)
-    if distanceX <= CatchDistance then
+    -- 거리 체크 및 이벤트 발생
+    -- CRITICAL: dx <= CatchDistance로 체크 (음수/양수 구분)
+    -- Chaser가 플레이어를 지나치거나 도달하면 게임 오버
+    if dx <= CatchDistance then
         -- 플레이어를 잡음 (한 번만 발생)
         if not bPlayerCaught then
             bPlayerCaught = true
-            --Log("[Chaser] *** PLAYER IS NOW WITHIN CATCH DISTANCE! ***")
+            --Log("[Chaser] *** PLAYER CAUGHT! (dx = " .. string.format("%.2f", dx) .. ") ***")
             OnPlayerCaught(pawn, distanceX)
         end
     end

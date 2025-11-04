@@ -3,16 +3,112 @@
 -- 사용법: GameMode 액터의 ScriptPath 속성에 이 스크립트 할당
 -- ==============================================================================
 
+-- Centralized Frenzy Mode manager (capped + refresh-on-pickup)
+local FrenzyRemaining = 0.0
+local FrenzyCapSeconds = 8.0
+local bFrenzyActive = false
+local handleFrenzyPickup = nil
+
+---
+--- 게임 시작 카운트다운 코루틴 (3초)
+---
+function GameStartCountdown(component)
+    -- 게임 일시정지
+    Log("[GameMode_Chaser] Freezing game for countdown...")
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+    end
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║          GAME STARTING IN...           ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   3                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   2                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   1                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║                 GO!                    ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    -- 게임 재개
+    Log("[GameMode_Chaser] Unfreezing game...")
+    if gm then
+        gm:FireEvent("UnfreezeGame")
+    end
+end
+
+---
+--- 게임 재시작 카운트다운 코루틴 (3초) - 리셋 완료 후 실행
+---
+function GameRestartCountdown(component)
+    -- 게임 일시정지 (이미 멈춰있지만 명시적으로 호출)
+    Log("[GameMode_Chaser] Freezing game for restart countdown...")
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+    end
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║        RESTARTING GAME IN...           ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   3                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   2                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   1                    ")
+
+    coroutine.yield(component:WaitForSeconds(1.0))
+
+    Log("")
+    Log("╔════════════════════════════════════════╗")
+    Log("║                                        ║")
+    Log("║                 GO!                    ║")
+    Log("║                                        ║")
+    Log("╚════════════════════════════════════════╝")
+    Log("")
+
+    -- 게임 재개
+    Log("[GameMode_Chaser] Unfreezing game...")
+    if gm then
+        gm:FireEvent("UnfreezeGame")
+    end
+end
+
 ---
 --- 게임 시작 시 초기화
 ---
 function BeginPlay()
-    --Log("==============================================")
-    --Log("[GameMode_Chaser] BeginPlay() called!")
-    --Log("[GameMode_Chaser] Chaser Handler Initialized")
-    --Log("==============================================")
-    --Log("[GameMode_Chaser] Attempting to get GameMode...")
-    
+    Log("==============================================")
+    Log("[GameMode_Chaser] BeginPlay() called!")
+    Log("[GameMode_Chaser] Chaser Handler Initialized")
+    Log("==============================================")
+
+    Log("[GameMode_Chaser] Attempting to get GameMode...")
     local gm = GetGameMode()
     if not gm then
         Log("[GameMode_Chaser] ERROR: Could not get GameMode!")
@@ -21,10 +117,10 @@ function BeginPlay()
     end
 
     -- GetName() 대신 tostring() 사용
-    --Log("[GameMode_Chaser] GameMode found: " .. tostring(gm))
+    Log("[GameMode_Chaser] GameMode found: " .. tostring(gm))
 
     -- 플레이어 잡힘 이벤트 구독
-    --Log("[GameMode_Chaser] Subscribing to 'OnPlayerCaught' event...")
+    Log("[GameMode_Chaser] Subscribing to 'OnPlayerCaught' event...")
     local success1, handle1 = pcall(function()
         return gm:SubscribeEvent("OnPlayerCaught", function(chaserActor)
             Log("[GameMode_Chaser] *** 'OnPlayerCaught' event received! ***")
@@ -38,18 +134,67 @@ function BeginPlay()
     --    Log("[GameMode_Chaser] ERROR subscribing to 'OnPlayerCaught': " .. tostring(handle1))
     --end
 
-    --Log("[GameMode_Chaser] Event subscription complete")
-    --Log("[GameMode_Chaser] Ready to receive chaser notifications")
-    --Log("==============================================")
+    -- Frenzy pickup subscription (internal signal from item scripts)
+    gm:RegisterEvent("FrenzyPickup")
+    handleFrenzyPickup = gm:SubscribeEvent("FrenzyPickup", function(payload)
+        -- Payload can be a number (requested seconds) or ignored; we clamp to cap
+        local requested = nil
+        if type(payload) == "number" then
+            requested = payload
+        elseif type(payload) == "table" and payload.duration then
+            requested = tonumber(payload.duration)
+        end
+
+        local newTime = FrenzyCapSeconds
+        if requested and requested > 0 then
+            newTime = math.min(requested, FrenzyCapSeconds)
+        end
+
+        -- If not active, transition into frenzy and notify listeners once
+        if FrenzyRemaining <= 0.0 or not bFrenzyActive then
+            FrenzyRemaining = newTime
+            bFrenzyActive = true
+            gm:FireEvent("EnterFrenzyMode")
+        else
+            -- Already active: refresh remaining time to cap without re-firing Enter
+            FrenzyRemaining = newTime
+        end
+    end)
+
+    -- OnGameReset 이벤트 구독 (게임 리셋 시 카운트다운 실행)
+    Log("[GameMode_Chaser] Subscribing to 'OnGameReset' event...")
+    local success2, handle2 = pcall(function()
+        return gm:SubscribeEvent("OnGameReset", function()
+            Log("[GameMode_Chaser] *** 'OnGameReset' event received! ***")
+            Log("[GameMode_Chaser] Starting restart countdown after reset...")
+            -- 리셋 완료 후 카운트다운 시작
+            self:StartCoroutine(function() GameRestartCountdown(self) end)
+        end)
+    end)
+
+    if success2 then
+        Log("[GameMode_Chaser] Subscribed to 'OnGameReset' with handle: " .. tostring(handle2))
+    else
+        Log("[GameMode_Chaser] ERROR subscribing to 'OnGameReset': " .. tostring(handle2))
+    end
+
+    Log("[GameMode_Chaser] Event subscription complete")
+    Log("[GameMode_Chaser] Ready to receive chaser notifications")
+    Log("==============================================")
+
+    -- 게임 시작 카운트다운 코루틴 시작
+    Log("[GameMode_Chaser] Starting game countdown...")
+    local countdownId = self:StartCoroutine(function() GameStartCountdown(self) end)
+    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(countdownId))
 end
 
 ---
 --- 플레이어가 추격자에게 잡혔을 때
 ---
 function OnPlayerCaught(chaserActor)
-    --Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    --Log("[GameMode_Chaser] ALERT - Player Caught by Chaser!")
-    --Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    Log("[GameMode_Chaser] ALERT - Player Caught by Chaser!")
+    Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     -- Player 멈춤
     local pawn = GetPlayerPawn()
@@ -151,12 +296,26 @@ end
 --- 매 프레임 업데이트
 ---
 function Tick(dt)
-    -- 필요시 여기에 코드 추가
+    -- Drive centralized Frenzy timer
+    if bFrenzyActive and FrenzyRemaining > 0.0 then
+        FrenzyRemaining = FrenzyRemaining - dt
+        if FrenzyRemaining <= 0.0 then
+            FrenzyRemaining = 0.0
+            bFrenzyActive = false
+            local gm = GetGameMode()
+            if gm then gm:FireEvent("ExitFrenzyMode") end
+        end
+    end
 end
 
 ---
 --- 게임 종료 시 정리
 ---
 function EndPlay()
-    --Log("[GameMode] Chaser Handler shutting down")
+    Log("[GameMode] Chaser Handler shutting down")
+    local gm = GetGameMode()
+    if gm and handleFrenzyPickup then
+        gm:UnsubscribeEvent("FrenzyPickup", handleFrenzyPickup)
+        handleFrenzyPickup = nil
+    end
 end

@@ -1,27 +1,9 @@
--- ==================== Frenzy Item ====================
+-- This script only signals a frenzy pickup. Actual timing is handled centrally
+-- by the GameMode (see gamemode_chaser.lua) so pickups can refresh to a cap.
 
-local bIsInFrenzyMode = false
-local FrenzyModeElapsedTime = 0.0
 local MaxFrenzyModeTime = 8.0
-
-local ENTER_FRENZY_EVT = "EnterFrenzyMode"
-local EXIT_FRENZY_EVT  = "ExitFrenzyMode"
-
-local function FireEnterFrenzy()
-    local gm = GetGameMode and GetGameMode() or nil
-    if gm then
-        gm:RegisterEvent(ENTER_FRENZY_EVT)
-        gm:FireEvent(ENTER_FRENZY_EVT)
-    end
-end
-
-local function FireExitFrenzy()
-    local gm = GetGameMode and GetGameMode() or nil
-    if gm then
-        gm:RegisterEvent(EXIT_FRENZY_EVT)
-        gm:FireEvent(EXIT_FRENZY_EVT)
-    end
-end
+-- Internal pickup signal; GameMode translates this into public Enter/Exit events
+local PICKUP_EVT = "FrenzyPickup"
 
 local function IsPlayerActor(a)
     if a == nil then return false end
@@ -34,11 +16,8 @@ local function IsPlayerActor(a)
     return false
 end
 
-function Tick(dt)
-    if (bIsInFrenzyMode) then
-        UpdateFrenzyMode(dt)
-    end
-end
+-- No per-item ticking; timing is centralized.
+function Tick(dt) end
 
 function OnOverlap(other)
     if not other then return end
@@ -47,23 +26,18 @@ function OnOverlap(other)
         return
     end
 
-    FireEnterFrenzy()
-    bIsInFrenzyMode = true
-    FrenzyModeElapsedTime = 0.0
+    -- Notify GameMode to start/refresh frenzy time (manager clamps to cap)
+    local gm = GetGameMode and GetGameMode() or nil
+    if gm then
+        gm:RegisterEvent(PICKUP_EVT)
+        -- Pass desired duration; manager will cap and decide whether to fire public Enter
+        gm:FireEvent(PICKUP_EVT, MaxFrenzyModeTime)
+    end
 
     -- Move off-screen so the generator can reclaim it from the pool
     if actor then
         actor:SetActorLocation(Vector(-15000, -15000, -15000))
     end
-end
-
-function UpdateFrenzyMode(dt)
-    if (FrenzyModeElapsedTime >= MaxFrenzyModeTime) then
-        bIsInFrenzyMode = false
-        FireExitFrenzy()
-        return
-    end
-    FrenzyModeElapsedTime = FrenzyModeElapsedTime + dt
 end
 
 -- Called by the generator when this pooled item is returned

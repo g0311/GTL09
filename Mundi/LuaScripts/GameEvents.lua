@@ -10,7 +10,9 @@ local M = {}
 M.Events = {
     PlayerHit = "PlayerHit",
     EnterFrenzyMode = "EnterFrenzyMode",
-    ExitFrenzyMode = "ExitFrenzyMode"
+    ExitFrenzyMode = "ExitFrenzyMode",
+    FreezeGame = "FreezeGame",
+    UnfreezeGame = "UnfreezeGame"
 }
 
 -- Internal one-time init guard
@@ -31,6 +33,8 @@ function M.Init()
     gm:RegisterEvent(M.Events.PlayerHit)
     gm:RegisterEvent(M.Events.EnterFrenzyMode)
     gm:RegisterEvent(M.Events.ExitFrenzyMode)
+    gm:RegisterEvent(M.Events.FreezeGame)
+    gm:RegisterEvent(M.Events.UnfreezeGame)
 
     initialized = true
     return true
@@ -105,6 +109,24 @@ end
 
 function M.FireExitFrenzyMode(payload)
     return M.Fire(M.Events.ExitFrenzyMode, payload)
+end
+
+-- Game Freeze/Unfreeze convenience ------------------------------------------
+
+function M.OnFreezeGame(callback)
+    return M.Subscribe(M.Events.FreezeGame, callback)
+end
+
+function M.OnUnfreezeGame(callback)
+    return M.Subscribe(M.Events.UnfreezeGame, callback)
+end
+
+function M.FireFreezeGame(payload)
+    M.Fire(M.Events.FreezeGame, payload)
+end
+
+function M.FireUnfreezeGame(payload)
+    M.Fire(M.Events.UnfreezeGame, payload)
 end
 
 -- Auto-init on first load (safe if GameMode not yet bound)

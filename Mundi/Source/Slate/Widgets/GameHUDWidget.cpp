@@ -57,7 +57,7 @@ void UGameHUDWidget::RenderWidget()
         const ImGuiViewport* vp = ImGui::GetMainViewport();
         ImVec2 size(300, 140);
         ImVec2 pos(vp->WorkPos.x + (vp->WorkSize.x - size.x) * 0.5f,
-                   vp->WorkPos.y + (vp->WorkSize.y - size.y) * 0.4f);
+                   vp->WorkPos.y + (vp->WorkSize.y - size.y) * 0.5f);
         ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
         ImGui::SetNextWindowSize(size, ImGuiCond_Always);
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |

@@ -19,9 +19,25 @@ AActor::AActor()
 
 AActor::~AActor()
 {
-	// UE처럼 역순/안전 소멸: 모든 컴포넌트 DestroyComponent
+	// CRITICAL: DestroyComponent가 DeleteObject를 호출하면 즉시 소멸자가 실행되고
+	// SceneComponent 소멸자는 자식들도 파괴하므로, 순회 중에 컨테이너가 수정됨
+	// 반드시 복사본을 만들어서 순회해야 함
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
 	for (UActorComponent* Comp : OwnedComponents)
-		if (Comp) Comp->DestroyComponent();  // 안에서 Unregister/Detach 처리한다고 가정
+	{
+		ComponentsCopy.push_back(Comp);
+	}
+
+	// 복사본으로 안전하게 파괴
+	for (UActorComponent* Comp : ComponentsCopy)
+	{
+		if (Comp && !Comp->IsPendingDestroy())
+		{
+			Comp->DestroyComponent();
+		}
+	}
+
 	OwnedComponents.clear();
 	SceneComponents.Empty();
 	RootComponent = nullptr;
@@ -164,11 +180,21 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 
 void AActor::RegisterAllComponents(UWorld* InWorld)
 {
+	// CRITICAL: OnRegister()에서 CREATE_EDITOR_COMPONENT로 AddOwnedComponent()를 호출하면
+	// 순회 중에 OwnedComponents가 수정되어 이터레이터가 무효화됨 (댕글링 포인터)
+	// 반드시 복사본을 만들어서 순회해야 함
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
+	for (UActorComponent* Comp : OwnedComponents)
+	{
+		ComponentsCopy.push_back(Comp);
+	}
 
-	for (UActorComponent* Component : OwnedComponents)
+	for (UActorComponent* Component : ComponentsCopy)
 	{
 		Component->RegisterComponent(InWorld);
 	}
+
 	if (!RootComponent)
 	{
 		RootComponent = CreateDefaultSubobject<USceneComponent>("DefaultSceneComponent");
@@ -206,7 +232,7 @@ void AActor::DestroyAllComponents()
 
 	for (UActorComponent* C : Temp)
 	{
-		if (!C) continue;
+		if (!C || C->IsPendingDestroy()) continue;
 		C->DestroyComponent(); // 내부에서 Owner=nullptr 등도 처리
 	}
 	OwnedComponents.clear();
@@ -460,6 +486,16 @@ void AActor::DuplicateSubObjects()
 	// 2단계: 매핑 테이블을 이용해 씬 계층 구조 재구성
 	// ========================================================================
 
+	// CRITICAL: Duplicate()가 얕은 복사를 하므로, AttachParent와 AttachChildren이
+	// 원본 Actor의 컴포넌트들을 가리키고 있음. 먼저 모두 클리어해야 함!
+	for (auto const& [OriginalComp, NewComp] : OldToNewComponentMap)
+	{
+		if (USceneComponent* NewSceneComp = Cast<USceneComponent>(NewComp))
+		{
+			NewSceneComp->ClearAttachmentReferences();
+		}
+	}
+
 	// 2-1. 새로운 루트 컴포넌트 설정
 	UActorComponent** FoundNewRootPtr = OldToNewComponentMap.Find(RootComponent);
 	if (FoundNewRootPtr)
@@ -633,6 +669,29 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 		InOutHandle["Name"] = GetName().ToString();
 	}
 }
+
+void AActor::OnSerialized()
+{
+	Super::OnSerialized();
+
+	// 모든 컴포넌트의 OnSerialized 호출
+	// CRITICAL: 복사본으로 순회 (OnSerialized에서 컴포넌트가 추가될 수 있음)
+	TArray<UActorComponent*> ComponentsCopy;
+	ComponentsCopy.reserve(OwnedComponents.size());
+	for (UActorComponent* Comp : OwnedComponents)
+	{
+		ComponentsCopy.push_back(Comp);
+	}
+
+	for (UActorComponent* Component : ComponentsCopy)
+	{
+		if (Component)
+		{
+			Component->OnSerialized();
+		}
+	}
+}
+
 
 //AActor* AActor::Duplicate()
 //{

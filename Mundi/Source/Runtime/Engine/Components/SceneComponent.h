@@ -91,6 +91,13 @@ public:
         AttachParent = InParent;
     }
 
+    // Duplicate 시 attachment 관계를 클리어하기 위함
+    void ClearAttachmentReferences()
+    {
+        AttachParent = nullptr;
+        AttachChildren.clear();
+    }
+
     // Serialize
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
     void OnRegister(UWorld* InWorld) override;
