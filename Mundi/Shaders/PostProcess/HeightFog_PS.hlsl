@@ -37,6 +37,12 @@ cbuffer FogCB : register(b2)
     float FogHeight; // fog base height
 }
 
+cbuffer ViewportConstants : register(b10)
+{
+    float4 ViewportRect;  // (MinX, MinY, Width, Height)
+    float4 ScreenSize;    // (Width, Height, 1/Width, 1/Height)
+};
+
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
     float4 color = g_PrePathResultTex.Sample(g_LinearClampSample, input.texCoord);
@@ -49,8 +55,9 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     //float ndcZ = depth * 2.0f - 1.0f; // clip space 변환
 
     // NDC 좌표
-    float ndcX = input.texCoord.x * 2.0f - 1.0f;
-    float ndcY = 1.0f - input.texCoord.y * 2.0f; // y축 반전
+    float2 localUV = (input.position.xy - ViewportRect.xy) / ViewportRect.zw;
+    float ndcX = localUV.x * 2.0f - 1.0f;
+    float ndcY = 1.0f - localUV.y * 2.0f; // y축 반전
     float4 ndcPos = float4(ndcX, ndcY, depth, 1.0f);
 
     // -----------------------------

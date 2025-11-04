@@ -160,6 +160,13 @@ struct FPointLightShadowBufferType
     FVector Padding;                // 16바이트 정렬
 };
 
+struct FVignetteBufferType //b0
+{
+    float Intensity;
+    float Smoothness;
+    float Padding[2];
+};
+
 #define CONSTANT_BUFFER_INFO(TYPE, SLOT, VS, PS) \
 constexpr uint32 TYPE##Slot = SLOT;\
 constexpr bool TYPE##IsVS = VS;\
@@ -179,7 +186,8 @@ MACRO(CameraBufferType)             \
 MACRO(FLightBufferType)             \
 MACRO(FViewportConstants)           \
 MACRO(FTileCullingBufferType)       \
-MACRO(FPointLightShadowBufferType)
+MACRO(FPointLightShadowBufferType) \
+MACRO(FVignetteBufferType)
 
 // 16 바이트 패딩 어썰트
 #define STATIC_ASSERT_CBUFFER_ALIGNMENT(Type) \
@@ -198,6 +206,7 @@ CONSTANT_BUFFER_INFO(FPixelConstBufferType, 4, true, true) // GOURAUD에도 사�
 CONSTANT_BUFFER_INFO(DecalBufferType, 6, true, true)
 CONSTANT_BUFFER_INFO(CameraBufferType, 7, true, true)  // b7, VS+PS (UberLit.hlsl과 일치)
 CONSTANT_BUFFER_INFO(FLightBufferType, 8, true, true)
-CONSTANT_BUFFER_INFO(FViewportConstants, 10, true, false)   // 뷰 포트 크기에 따라 전체 화면 복사를 보정하기 위해 설정 (10번 고유번호로 사용)
+CONSTANT_BUFFER_INFO(FViewportConstants, 10, true, true)   // 뷰 포트 크기에 따라 전체 화면 복사를 보정하기 위해 설정 (10번 고유번호로 사용)
 CONSTANT_BUFFER_INFO(FTileCullingBufferType, 11, false, true)  // b11, PS only (UberLit.hlsl과 일치)
 CONSTANT_BUFFER_INFO(FPointLightShadowBufferType, 12, true, true)  // b11, VS only
+CONSTANT_BUFFER_INFO(FVignetteBufferType, 0, false, true)  // b0, PS only
