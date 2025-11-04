@@ -1224,12 +1224,58 @@ void FSceneRenderer::RenderGammaCorrectionPass()
 	SwapGuard.Commit();
 }
 
+void FSceneRenderer::RenderLetterBoxPass()
+{
+	UCameraComponent* Camera = View->Camera;
+	if (!Camera || !Camera->IsLetterboxEnabled())
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Letter Box: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Letterbox_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("Letter Box용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer
+	RHIDevice->SetAndUpdateConstantBuffer(
+		FLetterBoxBufferType(Camera->GetLetterboxHeight(),{0.f, 0.f, 0.f}, Camera->GetLetterboxColor()));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
 void FSceneRenderer::RenderPostProcessingPasses()
 {
 	RenderFogPass();
 	RenderVignettingPass();
 	RenderFXAAPass();
 	RenderGammaCorrectionPass();
+	RenderLetterBoxPass();
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원

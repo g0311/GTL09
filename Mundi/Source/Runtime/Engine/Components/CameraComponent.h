@@ -56,7 +56,7 @@ public:
     void SetLetterboxColor(const FVector& Color) { LetterboxColor = Color; }
     bool IsLetterboxEnabled() const { return bEnableLetterbox; }
     float GetLetterboxHeight() const { return LetterboxHeight; }
-    FVector GetLetterboxColor() const { return LetterboxColor; }
+    FLinearColor GetLetterboxColor() const { return LetterboxColor; }
 
 
     // Matrices
@@ -116,6 +116,6 @@ private:
     // Letterbox
     bool bEnableLetterbox{ false };
     float LetterboxHeight{ 0.1f };         // 0.0 ~ 1.0 (비율)
-    FVector LetterboxColor{ 0.0f, 0.0f, 0.0f };  // RGB (기본: 검정)
+    FLinearColor LetterboxColor{ 0.0f, 0.0f, 0.0f, 1.0f };  // RGB (기본: 검정)
 };
 

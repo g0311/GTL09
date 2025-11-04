@@ -173,6 +173,13 @@ struct FGammaCorrectionBufferType //b0
     float Padding[3];
 };
 
+struct FLetterBoxBufferType //b0
+{
+    float LetterboxHeight;
+    float Padding[3];
+    FLinearColor LetterBoxColor;
+};
+
 #define CONSTANT_BUFFER_INFO(TYPE, SLOT, VS, PS) \
 constexpr uint32 TYPE##Slot = SLOT;\
 constexpr bool TYPE##IsVS = VS;\
@@ -194,7 +201,8 @@ MACRO(FViewportConstants)           \
 MACRO(FTileCullingBufferType)       \
 MACRO(FPointLightShadowBufferType) \
 MACRO(FVignetteBufferType)          \
-MACRO(FGammaCorrectionBufferType)
+MACRO(FGammaCorrectionBufferType)\
+MACRO(FLetterBoxBufferType)
 
 // 16 바이트 패딩 어썰트
 #define STATIC_ASSERT_CBUFFER_ALIGNMENT(Type) \
@@ -218,3 +226,4 @@ CONSTANT_BUFFER_INFO(FTileCullingBufferType, 11, false, true)  // b11, PS only (
 CONSTANT_BUFFER_INFO(FPointLightShadowBufferType, 12, true, true)  // b11, VS only
 CONSTANT_BUFFER_INFO(FVignetteBufferType, 0, false, true)  // b0, PS only
 CONSTANT_BUFFER_INFO(FGammaCorrectionBufferType, 0, false, true)  // b0, PS only
+CONSTANT_BUFFER_INFO(FLetterBoxBufferType, 0, false, true)  // b0, PS only

@@ -27,7 +27,7 @@ BEGIN_PROPERTIES(UCameraComponent)
 	// Letterbox (레터박스)
 	ADD_PROPERTY(bool, bEnableLetterbox, "Post Process", true, "레터박스를 활성화합니다.")
 	ADD_PROPERTY_RANGE(float, LetterboxHeight, "Post Process", 0.0f, 0.5f, true, "레터박스 높이 비율입니다. (0.0 ~ 0.5)")
-	ADD_PROPERTY(FVector, LetterboxColor, "Post Process", true, "레터박스 색상입니다. (RGB)")
+	ADD_PROPERTY(FLinearColor, LetterboxColor, "Post Process", true, "레터박스 색상입니다. (RGB)")
 END_PROPERTIES()
 
 UCameraComponent::UCameraComponent()

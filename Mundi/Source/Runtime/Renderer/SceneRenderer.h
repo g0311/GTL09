@@ -106,11 +106,14 @@ private:
 	/** @brief 데칼(Decal)을 렌더링하는 패스입니다. */
 	void RenderDecalPass();
 
+	
+	/** @brief 후처리 렌더링 패스입니다. */
 	void RenderPostProcessingPasses();
 	void RenderFogPass();
 	void RenderVignettingPass();
 	void RenderFXAAPass();
 	void RenderGammaCorrectionPass();
+	void RenderLetterBoxPass();
 
 	void RenderSceneDepthPostProcess();
 	void RenderTileCullingDebug();
