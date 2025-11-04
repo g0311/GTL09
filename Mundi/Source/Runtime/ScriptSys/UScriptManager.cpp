@@ -447,6 +447,24 @@ void UScriptManager::RegisterWorld(sol::state* state)
             static_cast<AActor * (UWorld::*)(UClass*, const FTransform&)>(&UWorld::SpawnActor)
         )
         ADD_LUA_FUNCTION("DestroyActor", &UWorld::DestroyActor)
+
+        // ==================== Time Dilation API (Hit Stop / Slow Motion) ====================
+        ADD_LUA_FUNCTION("StartHitStop", sol::overload(
+            // 기본값: 0.01 dilation (1% 속도)
+            [](UWorld* world, float duration) {
+                if (world) world->StartHitStop(duration);
+            },
+            // 커스텀 dilation 지정
+            [](UWorld* world, float duration, float dilation) {
+                if (world) world->StartHitStop(duration, dilation);
+            }
+        ))
+        ADD_LUA_FUNCTION("IsHitStopActive", &UWorld::IsHitStopActive)
+        ADD_LUA_FUNCTION("SetGlobalTimeDilation", &UWorld::SetGlobalTimeDilation)
+        ADD_LUA_FUNCTION("GetGlobalTimeDilation", &UWorld::GetGlobalTimeDilation)
+        ADD_LUA_FUNCTION("StartSlowMotion", &UWorld::StartSlowMotion)
+        ADD_LUA_FUNCTION("StopSlowMotion", &UWorld::StopSlowMotion)
+        ADD_LUA_FUNCTION("GetRealDeltaTime", &UWorld::GetRealDeltaTime)
         END_LUA_TYPE()
 
         // Global accessor GetGameMode()

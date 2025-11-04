@@ -115,37 +115,85 @@ void UWorld::InitializeGizmo()
 	EditorActors.push_back(GizmoActor);
 }
 
-void UWorld::Tick(float DeltaSeconds)
+// Slomo + Hit Stop 관련 함수
+void UWorld::SetGlobalTimeDilation(float NewDilation)
 {
-    Partition->Update(DeltaSeconds, /*budget*/256);
-    if (Collision)
-    {
-        Collision->Update(DeltaSeconds, /*budget*/256);
-    }
+	GlobalTimeDilation = FMath::Clamp(NewDilation, 0.0f, 10.0f);
+}
 
-    // GameMode Tick (PIE 중에만)
-    if (GameMode && bPie)
-    {
-        GameMode->Tick(DeltaSeconds);
-    }
+void UWorld::StartHitStop(float Duration, float Dilation)
+{
+	HitStopTimeRemaining = Duration;
+	HitStopDilation = FMath::Clamp(Dilation, 0.0f, 1.0f);
+}
 
-//순서 바꾸면 안댐
+void UWorld::StartSlowMotion(float SlowMoScale)
+{
+	SetGlobalTimeDilation(SlowMoScale);
+}
+
+void UWorld::StopSlowMotion()
+{
+	SetGlobalTimeDilation(1.0f);
+}
+
+void UWorld::Tick(float RealDeltaSeconds)
+{
+	// 지연에 영향받지 않는 실제 Delta Time을 임시 저장
+	CurrentRealDeltaTime = RealDeltaSeconds;
+
+	// 남아있는 Hit Stop 효과 처리
+	if (HitStopTimeRemaining > 0.0f)
+	{
+		// 실제 Delta Time만큼 Hit Stop 남은 시간에서 감소
+		HitStopTimeRemaining -= RealDeltaSeconds;
+
+		float GameDelta = RealDeltaSeconds * HitStopDilation;
+		TickGameLogic(GameDelta);
+
+		// Hit Stop 종료 시 0으로 초기화하여 if에 분기 안 타도록 처리
+		if (HitStopTimeRemaining <= 0.0f)
+		{
+			HitStopTimeRemaining = 0.0f;
+		}
+
+		return;  // Hit Stop 중에는 게임 로직 실행 X -> Early Return
+	}
+
+	// Slomo에 영향을 받는 느린 로직 처리
+	float GameDelta = RealDeltaSeconds * GlobalTimeDilation;
+	TickGameLogic(GameDelta);
+}
+
+void UWorld::TickGameLogic(float GameDeltaSeconds)
+{
+	Partition->Update(GameDeltaSeconds, /*budget*/256);
+
+	if (Collision)
+	{
+		Collision->Update(GameDeltaSeconds, /*budget*/256);
+	}
+	if (GameMode && bPie)
+	{
+		GameMode->Tick(GameDeltaSeconds);
+	}
+
 	if (Level)
 	{
 		for (AActor* Actor : Level->GetActors())
 		{
 			if (Actor && (Actor->CanTickInEditor() || bPie))
 			{
-				Actor->Tick(DeltaSeconds);
+				Actor->Tick(GameDeltaSeconds);
 			}
 		}
 	}
+
 	for (AActor* EditorActor : EditorActors)
 	{
-		// 에디터 모드 또는 PIE Ejected 모드에서 Tick
 		if (EditorActor && (!bPie || bPIEEjected))
 		{
-			EditorActor->Tick(DeltaSeconds);
+			EditorActor->Tick(CurrentRealDeltaTime);
 		}
 	}
 }

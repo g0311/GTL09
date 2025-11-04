@@ -49,7 +49,7 @@ private:
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static void GetViewportSize(HWND hWnd);
 
-    void Tick(float DeltaSeconds);
+    void Tick(float RealDeltaSeconds);  // Real Time 기반 / 시간 지연에 영향 없음
     void Render();
 
     void HandleUVInput(float DeltaSeconds);
