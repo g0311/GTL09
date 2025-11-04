@@ -7,6 +7,7 @@
 #include "PlayerController.h"
 #include "Picking.h"
 #include "SelectionManager.h"
+#include "PlayerCameraManager.h"
 #include "Gizmo/GizmoActor.h"
 #include "RenderManager.h"
 #include "RenderSettings.h"
@@ -16,6 +17,7 @@
 #include "InputManager.h"
 #include "InputMappingContext.h"
 #include "InputMappingSubsystem.h"
+#include "PostProcessSettings.h"
 
 FVector FViewportClient::CameraAddPosition{};
 

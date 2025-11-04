@@ -31,6 +31,7 @@ class FOcclusionCullingManagerCPU;
 struct Frustum;
 struct FCandidateDrawable;
 class APlayerController;
+class APlayerCameraManager;
 class AGameModeBase;
 class AGameMode;
 

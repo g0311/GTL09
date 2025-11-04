@@ -45,6 +45,9 @@
 #include "LightStats.h"
 #include "ShadowStats.h"
 #include "PlatformTime.h"
+#include "PostProcessSettings.h"
+#include "PlayerController.h"
+#include "PlayerCameraManager.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, FSceneView* InView, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -121,6 +124,9 @@ void FSceneRenderer::Render()
 
 	// FXAA 등 화면에서 최종 이미지 품질을 위해 적용되는 효과를 적용
 	ApplyScreenEffectsPass();
+
+	// 카메라 후처리 효과 (Fade, Letterbox, Vignette 등)
+	RenderCameraEffectsPass();
 
 	// 최종적으로 Scene에 그려진 텍스쳐를 Back 버퍼에 그힌다
 	CompositeToBackBuffer();
@@ -1254,6 +1260,55 @@ void FSceneRenderer::RenderTileCullingDebug()
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
+}
+
+void FSceneRenderer::RenderCameraEffectsPass()
+{
+	// PIE 모드가 아니거나, 플레이어 컨트롤러가 없으면 중단
+	if (!World->bPie || !World->GetPlayerController()) { return; }
+
+	APlayerCameraManager* CameraManager = World->GetPlayerController()->GetPlayerCameraManager();
+	if (!CameraManager) { return; }
+
+	const FPostProcessSettings& Settings = CameraManager->GetPostProcessSettings();
+
+	// 후처리 효과가 하나도 없으면 조기 종료
+	if (Settings.IsEmpty()) { return; }
+
+	ImDrawList* DrawList = ImGui::GetForegroundDrawList();
+	if (!DrawList) { return; }
+
+	// 현재 뷰포트 크기 가져오기
+	float Width = static_cast<float>(OwnerRenderer->GetCurrentViewportWidth());
+	float Height = static_cast<float>(OwnerRenderer->GetCurrentViewportHeight());
+
+	if (Width <= 0 || Height <= 0)
+	{
+		// 뷰포트 크기가 설정되지 않았으면 메인 뷰포트 사용
+		if (ImGuiViewport* MainViewport = ImGui::GetMainViewport())
+		{
+			Width = MainViewport->Size.x;
+			Height = MainViewport->Size.y;
+		}
+	}
+
+	// ───── 후처리 파이프라인 (고정 순서) ─────
+
+	// 1. Letterbox (화면 상하에 검은 띠)
+	// TODO
+
+	// 2. Vignette
+	// TODO
+
+	// 3. Fade (전체 화면 오버레이 - 가장 마지막)
+	if (Settings.FadeAmount > 0.0f)
+	{
+		ImU32 FadeColorU32 = ImGui::ColorConvertFloat4ToU32(
+			ImVec4(Settings.FadeColor.R, Settings.FadeColor.G, Settings.FadeColor.B, Settings.FadeAmount)
+		);
+
+		DrawList->AddRectFilled(ImVec2(0, 0), ImVec2(Width, Height), FadeColorU32);
+	}
 }
 
 // 빌보드, 에디터 화살표 그리기 (상호 작용, 피킹 O)

@@ -188,7 +188,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\CameraModifier.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
@@ -485,7 +487,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\CameraModifier.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
