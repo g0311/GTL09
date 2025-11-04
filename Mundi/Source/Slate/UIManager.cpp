@@ -89,10 +89,10 @@ void UUIManager::Shutdown()
 	// 모든 UI 윈도우 정리
 	for (auto* Window : UIWindows)
 	{
-		if (Window && !Window->IsSingleton())
+		if (Window)
 		{
 			Window->Cleanup();
-			delete Window;
+			delete Window;  // Singleton 포함 모든 윈도우 삭제 (메모리 누수 방지)
 		}
 	}
 

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "InputMappingSubsystem.h"
 #include "Delegate.h"
 
@@ -88,7 +88,7 @@ void UInputMappingSubsystem::ClearContexts()
 
 void UInputMappingSubsystem::Tick(float /*DeltaSeconds*/)
 {
-    // Clear transient frame events
+    // Clear transient frame eventsKO
     ActionPressed.Empty();
     ActionReleased.Empty();
     AxisValues.Empty();

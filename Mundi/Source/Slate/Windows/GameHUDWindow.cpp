@@ -21,6 +21,7 @@ UGameHUDWindow::UGameHUDWindow()
 void UGameHUDWindow::Initialize()
 {
     // Add a single HUD widget to this window
-    AddWidget(new UGameHUDWidget());
+    // Use NewObject<> instead of new so ObjectFactory manages lifecycle
+    AddWidget(NewObject<UGameHUDWidget>());
 }
 
