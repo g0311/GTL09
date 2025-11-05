@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -383,6 +383,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/utf-8 /bigobj</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release_StandAlone|x64'">/utf-8 /bigobj</AdditionalOptions>
     </ClCompile>
+    <ClCompile Include="Source\Slate\TextOverlayD2D.cpp" />
     <ClCompile Include="Source\Slate\Widgets\PropertyRenderer.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -536,8 +537,6 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClCompile Include="Source\Slate\Windows\SViewportWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\SWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
-    <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
-    <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakePattern.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.cpp" />
   </ItemGroup>
@@ -725,6 +724,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptComponent.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptUtils.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\UScriptManager.h" />
+    <ClInclude Include="Source\Slate\TextOverlayD2D.h" />
     <ClInclude Include="Source\Slate\Widgets\PropertyRenderer.h" />
     <ClInclude Include="ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="ThirdParty\ImGui\imgui.h" />

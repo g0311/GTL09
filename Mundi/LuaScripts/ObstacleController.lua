@@ -209,7 +209,7 @@ function OnOverlap(other, contactInfo)
     end
 
     -- Trigger hit stop + slow motion sequence
-    CurrentHitStopCoroutine = self:StartCoroutine(HitStopAndSlowMotion)
+    --CurrentHitStopCoroutine = self:StartCoroutine(HitStopAndSlowMotion)
 end
 
 -- Coroutine: Hit stop (100ms) → Slow motion (500ms at 50% speed)
