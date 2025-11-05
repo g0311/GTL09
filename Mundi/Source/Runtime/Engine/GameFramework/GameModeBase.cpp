@@ -192,8 +192,6 @@ void AGameModeBase::Tick(float DeltaSeconds)
 void AGameModeBase::EndPlay(EEndPlayReason Reason)
 {
     AActor::EndPlay(Reason);
-
-    UE_LOG("[GameModeBase] Game Ended\n");
 }
 
 // ==================== 게임 상태 ====================
@@ -221,39 +219,24 @@ void AGameModeBase::EndGame(bool bVictory)
     bIsGameOver = true;
     bIsVictory = bVictory;
 
-    // 게임 오버 시 HUD의 거리를 0으로 표시
-    ChaserDistance = 0.0f;
-
-    UE_LOG(("[GameModeBase] Game Over - " + std::string(bVictory ? "Victory" : "Defeat") + "\n").c_str());
-
     // 게임 종료 이벤트 발행
     OnGameEndDelegate.Broadcast(bVictory);
 }
 
 void AGameModeBase::ResetGame()
 {
-    UE_LOG("[GameModeBase] ========================================\n");
-    UE_LOG("[GameModeBase] ResetGame() called - Firing reset events\n");
-    UE_LOG("[GameModeBase] ========================================\n");
-
     // 1. 게임 상태 변수 초기화
     Score = 0;
     GameTime = 0.0f;
     ChaserDistance = 999.0f;
     bIsGameOver = false;
     bIsVictory = false;
-    UE_LOG("[GameModeBase] Game state reset (Score=0, Time=0, ChaserDistance=999.0, GameOver=false)\n");
 
     // 2. OnGameReset 이벤트 발행 (각 스크립트가 자신의 상태를 초기화)
-    UE_LOG("[GameModeBase] Firing 'OnGameReset' event - scripts will reset themselves\n");
     FireEvent("OnGameReset", sol::nil);
 
     // 3. UnfreezePlayer 이벤트 발행 (Player가 다시 움직일 수 있도록)
-    UE_LOG("[GameModeBase] Firing 'UnfreezePlayer' event\n");
     FireEvent("UnfreezePlayer", sol::nil);
-
-    UE_LOG("[GameModeBase] ResetGame() complete!\n");
-    UE_LOG("[GameModeBase] ========================================\n");
 }
 
 // ==================== Actor 스폰 ====================
@@ -262,7 +245,6 @@ AActor* AGameModeBase::SpawnActorFromLua(const FString& ClassName, const FVector
     UWorld* World = GetWorld();
     if (!World)
     {
-        UE_LOG("[GameModeBase] Error: No world for spawning actor\n");
         return nullptr;
     }
 
@@ -270,7 +252,6 @@ AActor* AGameModeBase::SpawnActorFromLua(const FString& ClassName, const FVector
     UClass* Class = UClass::FindClass(FName(ClassName.c_str()));
     if (!Class)
     {
-        UE_LOG(("[GameModeBase] Error: Class not found: " + ClassName + "\n").c_str());
         return nullptr;
     }
 
@@ -281,11 +262,6 @@ AActor* AGameModeBase::SpawnActorFromLua(const FString& ClassName, const FVector
     AActor* NewActor = World->SpawnActor(Class, SpawnTransform);
     if (NewActor)
     {
-        UE_LOG(("[GameModeBase] Spawned: " + ClassName + " at (" +
-                std::to_string(Location.X) + ", " +
-                std::to_string(Location.Y) + ", " +
-                std::to_string(Location.Z) + ")\n").c_str());
-
         // 스폰 이벤트 발행
         OnActorSpawnedDelegate.Broadcast(NewActor);
     }
@@ -304,7 +280,6 @@ bool AGameModeBase::DestroyActorWithEvent(AActor* Actor)
     if (!PendingDestroyActors.Contains(Actor))
     {
         PendingDestroyActors.Add(Actor);
-        UE_LOG(("[GameModeBase] Actor scheduled for destruction: " + Actor->GetName().ToString() + "\n").c_str());
     }
 
     return true;
@@ -327,36 +302,24 @@ void AGameModeBase::RegisterEvent(const FString& EventName)
     if (!DynamicEventMap.Contains(EventName))
     {
         DynamicEventMap.Add(EventName, TArray<std::pair<FDelegateHandle, sol::function>>());
-        UE_LOG(("[GameModeBase] Registered dynamic event: " + EventName + "\n").c_str());
     }
 }
 
 void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
 {
-    UE_LOG(("[GameModeBase] FireEvent called: '" + EventName + "'\n").c_str());
-    UE_LOG(("  Total registered events: " + std::to_string(DynamicEventMap.Num()) + "\n").c_str());
-
     if (!DynamicEventMap.Contains(EventName))
     {
         // 이벤트가 등록되지 않았으면 경고 출력
-        UE_LOG(("[GameModeBase] WARNING: Event '" + EventName + "' is not registered!\n").c_str());
-        UE_LOG("[GameModeBase] Available events:\n");
-        for (const auto& [name, callbacks] : DynamicEventMap)
-        {
-            UE_LOG(("  - " + name + " (" + std::to_string(callbacks.Num()) + " listeners)\n").c_str());
-        }
         return;
     }
 
     auto& Callbacks = DynamicEventMap[EventName];
-    UE_LOG(("  Event found with " + std::to_string(Callbacks.Num()) + " listeners\n").c_str());
 
     // 모든 구독자에게 이벤트 발행
     for (auto& [Handle, Callback] : Callbacks)
     {
         if (Callback.valid())
         {
-            UE_LOG(("  Calling listener with handle: " + std::to_string(Handle) + "\n").c_str());
             try
             {
                 // EventData가 유효하고 nil이 아니면 파라미터로 전달
@@ -380,20 +343,13 @@ void AGameModeBase::FireEvent(const FString& EventName, sol::object EventData)
                     // 파라미터 없이 호출
                     Callback();
                 }
-                UE_LOG("  Listener executed successfully\n");
             }
             catch (const sol::error& e)
             {
                 UE_LOG(("[GameModeBase] Event callback error (" + EventName + "): " + FString(e.what()) + "\n").c_str());
             }
         }
-        else
-        {
-            UE_LOG(("  WARNING: Listener with handle " + std::to_string(Handle) + " is invalid!\n").c_str());
-        }
     }
-
-    UE_LOG(("[GameModeBase] Fired event: " + EventName + " (" + std::to_string(Callbacks.Num()) + " listeners)\n").c_str());
 }
 
 FDelegateHandle AGameModeBase::SubscribeEvent(const FString& EventName, sol::function Callback)
@@ -407,7 +363,6 @@ FDelegateHandle AGameModeBase::SubscribeEvent(const FString& EventName, sol::fun
     FDelegateHandle Handle = NextDynamicHandle++;
     DynamicEventMap[EventName].Add({ Handle, Callback });
 
-    UE_LOG(("[GameModeBase] Subscribed to event: " + EventName + " (handle: " + std::to_string(Handle) + ")\n").c_str());
     return Handle;
 }
 
@@ -424,7 +379,7 @@ bool AGameModeBase::UnsubscribeEvent(const FString& EventName, FDelegateHandle H
         if (Callbacks[i].first == Handle)
         {
             Callbacks.RemoveAt(i);
-            UE_LOG(("[GameModeBase] Unsubscribed from event: " + EventName + " (handle: " + std::to_string(Handle) + ")\n").c_str());
+          
             return true;
         }
     }
@@ -433,10 +388,8 @@ bool AGameModeBase::UnsubscribeEvent(const FString& EventName, FDelegateHandle H
 
 void AGameModeBase::PrintRegisteredEvents() const
 {
-    UE_LOG("[GameModeBase] ===== Registered Dynamic Events =====\n");
     if (DynamicEventMap.Num() == 0)
     {
-        UE_LOG("[GameModeBase] (No events registered)\n");
         return;
     }
 
@@ -444,7 +397,6 @@ void AGameModeBase::PrintRegisteredEvents() const
     {
         UE_LOG(("[GameModeBase] - " + EventName + " (" + std::to_string(Callbacks.Num()) + " listeners)\n").c_str());
     }
-    UE_LOG("[GameModeBase] =====================================\n");
 }
 
 void AGameModeBase::ClearAllDynamicEvents()
@@ -495,13 +447,6 @@ void AGameModeBase::OnSerialized()
 {
     AActor::OnSerialized();
 
-    // Scene에 저장된 오래된 테스트 스크립트 경로 무시
-    if (ScriptPath == "gamemode_test_simple.lua")
-    {
-        ScriptPath = "";
-        UE_LOG("[GameModeBase] Ignored legacy test script path from Scene file\n");
-    }
-
     // DefaultPawnActor 복원
     if (!DefaultPawnActorNameToRestore.empty())
     {
@@ -514,7 +459,6 @@ void AGameModeBase::OnSerialized()
                 if (Actor && Actor->GetName().ToString() == DefaultPawnActorNameToRestore)
                 {
                     DefaultPawnActor = Actor;
-                    UE_LOG("[GameModeBase] Restored DefaultPawnActor: %s\n", DefaultPawnActorNameToRestore.c_str());
                     break;
                 }
             }

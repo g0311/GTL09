@@ -21,33 +21,44 @@ local InitialRotation = nil
 ---
 --- 추격자 시작 지연 코루틴 (5초)
 ---
-function ChaserStartDelayCoroutine(component)
+function ChaserStartDelayCoroutine()
+    Log("[Chaser] ChaserStartDelayCoroutine START")
+    Log("[Chaser] self = " .. tostring(self))
     Log("[Chaser] Waiting " .. ChaserStartDelay .. " seconds before starting...")
-    coroutine.yield(component:WaitForSeconds(ChaserStartDelay))
 
+    local waitObj = self:WaitForSeconds(ChaserStartDelay)
+    Log("[Chaser] WaitForSeconds returned: " .. tostring(waitObj))
+
+    coroutine.yield(waitObj)
+
+    Log("[Chaser] Coroutine resumed after wait!")
     bIsStopped = false
-    Log("[Chaser] START! Beginning pursuit!")
+    Log("[Chaser] START! Beginning pursuit! bIsStopped = " .. tostring(bIsStopped))
 end
 
 ---
 --- 게임 시작 시 초기화
 ---
 function BeginPlay()
+    Log("[Chaser] BeginPlay START")
     local name = actor:GetName()
+    Log("[Chaser] Actor name: " .. name)
     local pos = actor:GetActorLocation()
 
     -- 초기 위치 및 회전 저장 (게임 리셋용)
     InitialPosition = Vector(pos.X, pos.Y, pos.Z)
     InitialRotation = actor:GetActorRotation()
 
-    --Log("[Chaser] Initialized on actor: " .. name)
-    --Log("[Chaser] Initial Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
-    --Log("[Chaser] Move speed: " .. MoveSpeed)
-    --Log("[Chaser] Catch distance: " .. CatchDistance)
-    --Log("[Chaser] Player offset distance: " .. PlayerOffsetDistance .. " (distance behind player on reset)")
+    Log("[Chaser] Initialized on actor: " .. name)
+    Log("[Chaser] Initial Position: (" .. pos.X .. ", " .. pos.Y .. ", " .. pos.Z .. ")")
+    Log("[Chaser] Move speed: " .. MoveSpeed)
+    Log("[Chaser] Catch distance: " .. CatchDistance)
+    Log("[Chaser] Player offset distance: " .. PlayerOffsetDistance .. " (distance behind player on reset)")
 
     -- 게임 리셋 이벤트 구독 (게임이 리셋될 때 상태 초기화)
+    Log("[Chaser] Calling GetGameMode()...")
     local gm = GetGameMode()
+    Log("[Chaser] GetGameMode() returned: " .. tostring(gm))
     if gm then
         --Log("[Chaser] Subscribing to 'OnGameReset' event...")
         local success, handle = pcall(function()
@@ -68,7 +79,7 @@ function BeginPlay()
                 --Log("[Chaser] Position FORCED to (-50.00, 0.00, 0.00)")
 
                 -- 5초 지연 코루틴 시작 (리셋 후에도 5초 대기)
-                self:StartCoroutine(function() ChaserStartDelayCoroutine(self) end)
+                self:StartCoroutine(ChaserStartDelayCoroutine)
             end)
         end)
 
@@ -99,7 +110,7 @@ function BeginPlay()
 
     -- 초기 시작 시 5초 지연 코루틴 시작
     Log("[Chaser] Starting initial delay coroutine...")
-    self:StartCoroutine(function() ChaserStartDelayCoroutine(self) end)
+    self:StartCoroutine(ChaserStartDelayCoroutine)
 end
 
 ---
@@ -108,6 +119,12 @@ end
 function Tick(dt)
     -- 디버그 로그 타이머 업데이트
     TimeSinceLastLog = TimeSinceLastLog + dt
+
+    -- 주기적으로 상태 출력
+    if TimeSinceLastLog >= DebugLogInterval then
+        Log("[Chaser::Tick] bIsStopped = " .. tostring(bIsStopped))
+        TimeSinceLastLog = 0.0
+    end
 
     -- 멈춤 상태면 이동하지 않음
     if bIsStopped then
@@ -120,14 +137,14 @@ function Tick(dt)
 
     -- 플레이어 Pawn 가져오기
     local pawn = GetPlayerPawn()
-    --if not pawn then
-    --    -- 주기적으로 경고 출력 (너무 많은 로그 방지)
-    --    if TimeSinceLastLog >= DebugLogInterval then
-    --        Log("[Chaser] WARNING: No PlayerPawn found!")
-    --        TimeSinceLastLog = 0.0
-    --    end
-    --    return  -- PlayerController가 없거나 Pawn이 빙의되지 않음
-    --end
+    if not pawn then
+        -- 주기적으로 경고 출력 (너무 많은 로그 방지)
+        if TimeSinceLastLog >= DebugLogInterval then
+            Log("[Chaser] WARNING: No PlayerPawn found!")
+            TimeSinceLastLog = 0.0
+        end
+        return  -- PlayerController가 없거나 Pawn이 빙의되지 않음
+    end
 
     -- 거리 계산 (X축 방향만)
     local myPos = actor:GetActorLocation()

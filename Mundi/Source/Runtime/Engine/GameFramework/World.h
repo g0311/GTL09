@@ -101,6 +101,17 @@ public:
     /** === 타임 / 틱 === */
     virtual void Tick(float DeltaSeconds);
 
+    void SetGlobalTimeDilation(float NewDilation);
+    float GetGlobalTimeDilation() const { return GlobalTimeDilation; }
+
+    float GetRealDeltaTime() const { return CurrentRealDeltaTime; }
+
+    void StartHitStop(float Duration, float Dilation = 0.01f);
+    bool IsHitStopActive() const { return HitStopTimeRemaining > 0.0f; }
+
+    void StartSlowMotion(float SlowMoScale);
+    void StopSlowMotion();
+
     /** === 필요한 엑터 게터 === */
     const TArray<AActor*>& GetActors() { static TArray<AActor*> Empty; return Level ? Level->GetActors() : Empty; }
     const TArray<AActor*>& GetEditorActors() { return EditorActors; }
@@ -153,6 +164,13 @@ private:
 
     // Per-world selection manager
     std::unique_ptr<USelectionManager> SelectionMgr;
+
+    float GlobalTimeDilation = 1.0f;
+    float HitStopTimeRemaining = 0.0f;
+    float HitStopDilation = 0.01f;
+    float CurrentRealDeltaTime = 0.0f;
+
+    void TickGameLogic(float GameDeltaSeconds);
 };
 
 template<class T>

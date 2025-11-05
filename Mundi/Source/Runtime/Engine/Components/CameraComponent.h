@@ -35,6 +35,29 @@ public:
     float GetZoomFactor()const { return ZooMFactor; };
     ECameraProjectionMode GetProjectionMode() const { return ProjectionMode; }
 
+    // Post-process effects
+    // Vignetting
+    void SetVignettingEnabled(bool bEnabled) { bEnableVignetting = bEnabled; }
+    void SetVignettingIntensity(float Intensity) { VignettingIntensity = Intensity; }
+    void SetVignettingSmoothness(float Smoothness) { VignettingSmoothness = Smoothness; }
+    bool IsVignettingEnabled() const { return bEnableVignetting; }
+    float GetVignettingIntensity() const { return VignettingIntensity; }
+    float GetVignettingSmoothness() const { return VignettingSmoothness; }
+
+    // Gamma Correction
+    void SetGammaCorrectionEnabled(bool bEnabled) { bEnableGammaCorrection = bEnabled; }
+    void SetGammaValue(float Gamma) { GammaValue = Gamma; }
+    bool IsGammaCorrectionEnabled() const { return bEnableGammaCorrection; }
+    float GetGammaValue() const { return GammaValue; }
+
+    // Letterbox
+    void SetLetterboxEnabled(bool bEnabled) { bEnableLetterbox = bEnabled; }
+    void SetLetterboxHeight(float Height) { LetterboxHeight = Height; }
+    void SetLetterboxColor(const FVector& Color) { LetterboxColor = Color; }
+    bool IsLetterboxEnabled() const { return bEnableLetterbox; }
+    float GetLetterboxHeight() const { return LetterboxHeight; }
+    FLinearColor GetLetterboxColor() const { return LetterboxColor; }
+
 
     // Matrices
     FMatrix GetViewMatrix() const;
@@ -75,10 +98,24 @@ private:
 
     float ZooMFactor;
 
-
     ECameraProjectionMode ProjectionMode;
 
     bool bSetViewGizmo;
     TArray<FVector> ViewGizmo;
+
+    // Post-process effect properties
+    // Vignetting
+    bool bEnableVignetting{ false };
+    float VignettingIntensity{ 0.5f };     // 0.0 ~ 1.0
+    float VignettingSmoothness{ 0.5f };    // 0.0 ~ 1.0
+
+    // Gamma Correction
+    bool bEnableGammaCorrection{ false };
+    float GammaValue{ 2.2f };              // Standard gamma value
+
+    // Letterbox
+    bool bEnableLetterbox{ false };
+    float LetterboxHeight{ 0.1f };         // 0.0 ~ 1.0 (비율)
+    FLinearColor LetterboxColor{ 0.0f, 0.0f, 0.0f, 1.0f };  // RGB (기본: 검정)
 };
 

@@ -25,6 +25,16 @@ public:
     UScriptManager& operator=(const UScriptManager&) = delete;
 
     /**
+     * @brief 전역 Lua state 초기화 (엔진 시작 시 호출)
+     */
+    void InitializeGlobalLuaState();
+
+    /**
+     * @brief 전역 Lua state 반환
+     */
+    sol::state* GetGlobalLuaState() { return GlobalLuaState.get(); }
+
+    /**
      * @brief template.lua를 복사하여 새 스크립트 파일 생성
      * @param SceneName 씬 이름
      * @param ActorName 액터 이름
@@ -99,4 +109,7 @@ private:
     void RegisterInputSubsystem(sol::state* state);
     void RegisterInputContext(sol::state* state);
     void RegisterInputEnums(sol::state* state);
+
+    // ==================== Private Members ====================
+    std::unique_ptr<sol::state> GlobalLuaState;  // 전역 Lua state (모든 스크립트 공유)
 };

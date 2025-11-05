@@ -27,7 +27,10 @@ private:
 	{
 		int ID;
 		sol::coroutine Coroutine;
+		sol::environment Env;  // 코루틴의 환경 저장
 		FYieldInstruction* CurrentInstruction{ nullptr };
+		int ThreadRef{ LUA_NOREF };  // Registry reference to keep thread alive
+		lua_State* MainState{ nullptr };  // Main state for unreferencing
 	};
 
 	UScriptComponent* OwnerComponent{ nullptr };
