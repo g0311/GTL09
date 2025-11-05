@@ -12,6 +12,59 @@ local handleFrenzyPickup = nil
 -- 실행 중인 코루틴 추적
 local CurrentCountdownCoroutine = nil
 
+-- ==================== Simple Countdown UI ====================
+-- Lightweight per-frame text rendering for "3... 2... 1... Start!"
+local CountdownUIActive = false
+local CountdownUITimer = 0.0
+local CountdownUIDuration = 4.0 -- 3s numbers + 1s "Start!"
+
+local function StartCountdownUI()
+    CountdownUIActive = true
+    CountdownUITimer = 0.0
+end
+
+local function UpdateAndDrawCountdownUI(dt)
+    if not CountdownUIActive then return end
+
+    -- advance timer
+    CountdownUITimer = CountdownUITimer + dt
+
+    -- choose label by elapsed time
+    local t = CountdownUITimer
+    local label
+    local r, g, b = 1.0, 1.0, 1.0
+    if t < 2.0 then
+        label = "Ready..."
+    elseif t < 3.0 then
+        label = "3..."
+        r, g, b = 1.0, 0.3, 0.3 -- reddish
+    elseif t < 4.0 then
+        label = "2..."
+        r, g, b = 1.0, 0.6, 0.2 -- orange
+    elseif t < 5.0 then
+        label = "1..."
+        r, g, b = 1.0, 0.9, 0.2 -- yellow
+    elseif t < 6.0 then
+        label = "Start!"
+        r, g, b = 0.3, 1.0, 0.4 -- greenish
+    else
+        CountdownUIActive = false
+        return
+    end
+
+    -- Draw big text near top-center-ish (fixed layout)
+    -- Adjust these numbers if needed for your resolution
+    local x = 780.0  -- left position in pixels
+    local y = 480.0   -- top position in pixels
+    local size = 100.0
+    local a = 1.0
+    local bgAlpha = 0.0
+    local width = 560.0
+    local height = 120.0
+    -- font/locale optional; keep defaults or set explicitly
+    DrawText(label, x, y, size, r, g, b, a, "Segoe UI", "en-us", bgAlpha, width, height)
+end
+
 ---
 --- 게임 시작 카운트다운 코루틴 (3초)
 ---
@@ -145,6 +198,7 @@ function BeginPlay()
             end
 
             -- 리셋 완료 후 카운트다운 시작
+            StartCountdownUI()
             CurrentCountdownCoroutine = self:StartCoroutine(function() GameRestartCountdown(self) end)
         end)
     end)
@@ -161,6 +215,8 @@ function BeginPlay()
 
     -- 게임 시작 카운트다운 코루틴 시작
     Log("[GameMode_Chaser] Starting game countdown...")
+    -- Kick off simple UI countdown overlay as well
+    StartCountdownUI()
     CurrentCountdownCoroutine = self:StartCoroutine(function() GameStartCountdown(self) end)
     Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(CurrentCountdownCoroutine))
 end
@@ -277,6 +333,9 @@ function Tick(dt)
             if gm then gm:FireEvent("ExitFrenzyMode") end
         end
     end
+
+    -- Draw countdown UI if active
+    UpdateAndDrawCountdownUI(dt)
 end
 
 ---
