@@ -50,6 +50,12 @@ public:
 	float GetTargetAlpha() const { return TargetAlpha; }
 	void SetTargetAlpha(const float InTargetAlpha) { TargetAlpha = InTargetAlpha; }
 
+	float GetAlphaInTime() const { return AlphaInTime; }
+	void SetAlphaInTime(const float InTime) { AlphaInTime = InTime; }
+
+	float GetAlphaOutTime() const { return AlphaOutTime; }
+	void SetAlphaOutTime(const float InTime) { AlphaOutTime = InTime; }
+
 
 protected:
 	APlayerCameraManager* CameraOwner = nullptr;

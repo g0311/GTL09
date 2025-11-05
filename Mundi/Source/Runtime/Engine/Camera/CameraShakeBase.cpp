@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "CameraShakeBase.h"
 #include "CameraShakePattern.h"
 #include "PlayerCameraManager.h"
@@ -24,7 +24,7 @@ UCameraShakeBase::~UCameraShakeBase()
 {
     if (RootPattern && bOwnsPattern)
     {
-        delete RootPattern;
+        DeleteObject(RootPattern);
         RootPattern = nullptr;
         bOwnsPattern = false;
     }

@@ -32,6 +32,7 @@
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
 #include "Source/Runtime/Engine/GameFrameWork/PlayerController.h"
 // Camera shake
+#include "SoundComponent.h"
 #include "Source/Runtime/Engine/GameFramework/PlayerCameraManager.h"
 #include "Source/Runtime/Engine/Camera/CameraShakeBase.h"
 #include "Source/Runtime/Engine/Camera/PerlinNoiseCameraShakePattern.h"
@@ -234,8 +235,10 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterLightComponent(state);
     RegisterDirectionalLightComponent(state);
     RegisterCameraComponent(state);
+    RegisterSoundComponent(state);
     RegisterScriptComponent(state);
     RegisterPlayerController(state);
+    RegisterPlayerCameraManager(state);
     RegisterGameMode(state);
     RegisterCameraEnums(state);
 
@@ -948,9 +951,9 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Shake->SetBlendInTime(0.25f);
             Shake->SetBlendOutTime(0.35f);
             Shake->SetRootPattern(Pattern, true);
-                
-            // Start shake (0.0f duration here means use shake’s Duration)
-            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+
+            // Start shake with provided Duration and Scale
+            return PCM->StartCameraShake(Shake, Scale, Duration);
         }
     );
 
@@ -984,7 +987,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Shake->SetRootPattern(Pattern, true);
                             
             // Start shake (0.0f duration here means use shake’s Duration)
-            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+            return PCM->StartCameraShake(Shake, Scale, Duration);
         }
     ));
     // Stop a specific camera shake instance
@@ -1060,6 +1063,57 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             return PCM->StartCameraShake(Shake, (Scale > 0.0f ? Scale : 1.0f), (Duration >= 0.0f ? Duration : 0.0f));
         }
     ));
+}
+
+void UScriptManager::RegisterSoundComponent(sol::state* state)
+{
+    UE_LOG("[UScriptManager] Registering USoundComponent to Lua...\n");
+
+    // ==================== USoundComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, USoundComponent, "SoundComponent")
+        // Sound control
+        ADD_LUA_FUNCTION("Play", &USoundComponent::Play)
+        ADD_LUA_FUNCTION("Stop", &USoundComponent::Stop)
+        ADD_LUA_FUNCTION("Pause", &USoundComponent::Pause)
+        ADD_LUA_FUNCTION("Resume", &USoundComponent::Resume)
+
+        // Settings
+        ADD_LUA_FUNCTION("SetAutoPlay", &USoundComponent::SetAutoPlay)
+        ADD_LUA_FUNCTION("GetAutoPlay", &USoundComponent::GetAutoPlay)
+        ADD_LUA_FUNCTION("SetLoop", &USoundComponent::SetLoop)
+        ADD_LUA_FUNCTION("GetLoop", &USoundComponent::GetLoop)
+        ADD_LUA_FUNCTION("SetVolume", &USoundComponent::SetVolume)
+        ADD_LUA_FUNCTION("GetVolume", &USoundComponent::GetVolume)
+        ADD_LUA_FUNCTION("SetSound", &USoundComponent::SetSound)
+        ADD_LUA_FUNCTION("GetSound", &USoundComponent::GetSound)
+
+        // Status
+        ADD_LUA_FUNCTION("IsPlaying", &USoundComponent::IsPlaying)
+    END_LUA_TYPE()
+
+    // Factory: add SoundComponent to an actor; register immediately
+    state->set_function("AddSoundComponent", [](AActor* Owner) -> USoundComponent*
+    {
+        if (!Owner) return nullptr;
+
+        USoundComponent* Comp = ObjectFactory::NewObject<USoundComponent>();
+        Owner->AddOwnedComponent(Comp);
+
+        if (UWorld* World = Owner->GetWorld())
+        {
+            Comp->RegisterComponent(World);
+            Comp->InitializeComponent();
+            if (World->bPie) { Comp->BeginPlay(); }
+        }
+
+        return Comp;
+    });
+
+    // Load sound from file path
+    state->set_function("LoadSound", [](const std::string& filePath) -> USound*
+    {
+        return UResourceManager::GetInstance().Load<USound>(filePath);
+    });
 }
 
 void UScriptManager::RegisterScriptComponent(sol::state* state)
@@ -1341,6 +1395,7 @@ void UScriptManager::RegisterPlayerController(sol::state* state)
         ADD_LUA_FUNCTION("GetActiveCameraComponent", &APlayerController::GetActiveCameraComponent)
         ADD_LUA_FUNCTION("GetCameraLocation", &APlayerController::GetCameraLocation)
         ADD_LUA_FUNCTION("GetCameraRotation", &APlayerController::GetCameraRotation)
+        ADD_LUA_FUNCTION("GetPlayerCameraManager", &APlayerController::GetPlayerCameraManager)
 
         // Input API
         ADD_LUA_FUNCTION("GetInputContext", &APlayerController::GetInputContext)
@@ -1353,6 +1408,137 @@ void UScriptManager::RegisterPlayerController(sol::state* state)
         if (!World) return nullptr;
         return World->GetPlayerController();
     });
+}
+
+void UScriptManager::RegisterPlayerCameraManager(sol::state* state)
+{
+    UE_LOG("[UScriptManager] Registering APlayerCameraManager to Lua...\n");
+
+    // ==================== APlayerCameraManager 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, APlayerCameraManager, "PlayerCameraManager")
+        // Fade effects
+        ADD_LUA_OVERLOAD("StartFadeOut",
+            [](APlayerCameraManager* pcm, float duration) {
+                if (pcm) pcm->StartFadeOut(duration);
+            },
+            [](APlayerCameraManager* pcm, float duration, float r, float g, float b, float a) {
+                if (pcm) pcm->StartFadeOut(duration, FLinearColor(r, g, b, a));
+            }
+        )
+        ADD_LUA_OVERLOAD("StartFadeIn",
+            [](APlayerCameraManager* pcm, float duration) {
+                if (pcm) pcm->StartFadeIn(duration);
+            },
+            [](APlayerCameraManager* pcm, float duration, float r, float g, float b, float a) {
+                if (pcm) pcm->StartFadeIn(duration, FLinearColor(r, g, b, a));
+            }
+        )
+
+        // Vignette effects
+        ADD_LUA_OVERLOAD("EnableVignette",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->EnableVignette();
+            },
+            [](APlayerCameraManager* pcm, float intensity) {
+                if (pcm) pcm->EnableVignette(intensity);
+            },
+            [](APlayerCameraManager* pcm, float intensity, float smoothness) {
+                if (pcm) pcm->EnableVignette(intensity, smoothness);
+            },
+            [](APlayerCameraManager* pcm, float intensity, float smoothness, bool bImmediate) {
+                if (pcm) pcm->EnableVignette(intensity, smoothness, bImmediate);
+            }
+        )
+        ADD_LUA_OVERLOAD("DisableVignette",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->DisableVignette();
+            },
+            [](APlayerCameraManager* pcm, bool bImmediate) {
+                if (pcm) pcm->DisableVignette(bImmediate);
+            }
+        )
+        ADD_LUA_FUNCTION("SetVignetteIntensity", &APlayerCameraManager::SetVignetteIntensity)
+        ADD_LUA_FUNCTION("SetVignetteSmoothness", &APlayerCameraManager::SetVignetteSmoothness)
+
+        // Gamma correction
+        ADD_LUA_OVERLOAD("EnableGammaCorrection",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->EnableGammaCorrection();
+            },
+            [](APlayerCameraManager* pcm, float gamma) {
+                if (pcm) pcm->EnableGammaCorrection(gamma);
+            },
+            [](APlayerCameraManager* pcm, float gamma, bool bImmediate) {
+                if (pcm) pcm->EnableGammaCorrection(gamma, bImmediate);
+            }
+        )
+        ADD_LUA_OVERLOAD("DisableGammaCorrection",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->DisableGammaCorrection();
+            },
+            [](APlayerCameraManager* pcm, bool bImmediate) {
+                if (pcm) pcm->DisableGammaCorrection(bImmediate);
+            }
+        )
+        ADD_LUA_FUNCTION("SetGamma", &APlayerCameraManager::SetGamma)
+
+        // Letterbox effects
+        ADD_LUA_OVERLOAD("EnableLetterbox",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->EnableLetterbox();
+            },
+            [](APlayerCameraManager* pcm, float height) {
+                if (pcm) pcm->EnableLetterbox(height);
+            },
+            [](APlayerCameraManager* pcm, float height, float r, float g, float b, float a) {
+                if (pcm) pcm->EnableLetterbox(height, FLinearColor(r, g, b, a));
+            },
+            [](APlayerCameraManager* pcm, float height, float r, float g, float b, float a, bool bImmediate) {
+                if (pcm) pcm->EnableLetterbox(height, FLinearColor(r, g, b, a), bImmediate);
+            }
+        )
+        ADD_LUA_OVERLOAD("DisableLetterbox",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->DisableLetterbox();
+            },
+            [](APlayerCameraManager* pcm, bool bImmediate) {
+                if (pcm) pcm->DisableLetterbox(bImmediate);
+            }
+        )
+        ADD_LUA_FUNCTION("SetLetterboxHeight", &APlayerCameraManager::SetLetterboxHeight)
+        usertype["SetLetterboxColor"] = [](APlayerCameraManager* pcm, float r, float g, float b, float a) {
+            if (pcm) pcm->SetLetterboxColor(FLinearColor(r, g, b, a));
+        };
+        ADD_LUA_FUNCTION("SetLetterboxFadeTime", &APlayerCameraManager::SetLetterboxFadeTime)
+        ADD_LUA_FUNCTION("SetVignetteFadeTime", &APlayerCameraManager::SetVignetteFadeTime)
+        ADD_LUA_FUNCTION("SetGammaFadeTime", &APlayerCameraManager::SetGammaFadeTime)
+
+        // Camera shake
+        ADD_LUA_FUNCTION("StartCameraShake", &APlayerCameraManager::StartCameraShake)
+        ADD_LUA_OVERLOAD("StopCameraShake",
+            [](APlayerCameraManager* pcm, UCameraShakeBase* shake) {
+                if (pcm) pcm->StopCameraShake(shake);
+            },
+            [](APlayerCameraManager* pcm, UCameraShakeBase* shake, bool bImmediately) {
+                if (pcm) pcm->StopCameraShake(shake, bImmediately);
+            }
+        )
+        ADD_LUA_OVERLOAD("StopAllCameraShakes",
+            [](APlayerCameraManager* pcm) {
+                if (pcm) pcm->StopAllCameraShakes();
+            },
+            [](APlayerCameraManager* pcm, bool bImmediately) {
+                if (pcm) pcm->StopAllCameraShakes(bImmediately);
+            }
+        )
+
+        // Camera info
+        ADD_LUA_FUNCTION("GetCameraLocation", &APlayerCameraManager::GetCameraLocation)
+        ADD_LUA_FUNCTION("GetCameraRotation", &APlayerCameraManager::GetCameraRotation)
+        ADD_LUA_FUNCTION("GetFOV", &APlayerCameraManager::GetFOV)
+        ADD_LUA_FUNCTION("GetViewTarget", &APlayerCameraManager::GetViewTarget)
+        ADD_LUA_FUNCTION("SetViewTarget", &APlayerCameraManager::SetViewTarget)
+    END_LUA_TYPE()
 }
 
 void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
