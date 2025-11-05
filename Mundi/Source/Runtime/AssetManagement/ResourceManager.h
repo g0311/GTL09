@@ -9,6 +9,7 @@
 #include "DynamicMesh.h"
 #include "Quad.h"
 #include "LineDynamicMesh.h"
+#include "Sound.h"
 
 #pragma once
 #include "ObjectFactory.h"
@@ -20,6 +21,7 @@ class UStaticMesh;
 class FMeshBVH;
 class UResourceBase;
 class UMaterial;
+class USound;
 
 //================================================================================================
 // UResourceManager
@@ -241,6 +243,8 @@ ResourceType UResourceManager::GetResourceType()
 		return ResourceType::Texture;
 	if (T::StaticClass() == UMaterial::StaticClass())
 		return ResourceType::Material;
+	if (T::StaticClass() == USound::StaticClass())
+		return ResourceType::Sound;
 
 	return ResourceType::None;
 }
