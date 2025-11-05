@@ -8,6 +8,7 @@
 #include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
 #include "World.h"
+#include <vld.h>
 
 IMPLEMENT_CLASS(APlayerCameraManager)
 
@@ -28,12 +29,6 @@ APlayerCameraManager::APlayerCameraManager()
 
 APlayerCameraManager::~APlayerCameraManager()
 {
-	for (UCameraModifier*& Modifier : ModifierList)
-	{
-		delete Modifier;
-		Modifier = nullptr;
-	}
-
 	ModifierList.clear();
 }
 
@@ -246,9 +241,25 @@ void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, float BlendTime,
 
 UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
 {
-	if (!ViewTarget.Target) { return nullptr; }
+	if (!ViewTarget.Target)
+	{
+		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - ViewTarget.Target is null");
+		return nullptr;
+	}
 
-	return ViewTarget.Target->GetComponent<UCameraComponent>();
+	UCameraComponent* CameraComp = ViewTarget.Target->GetComponent<UCameraComponent>();
+	if (!CameraComp)
+	{
+		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - CameraComponent not found on ViewTarget: %c", 
+			ViewTarget.Target->GetName());
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - Found CameraComponent on ViewTarget: %c", 
+			ViewTarget.Target->GetName());
+	}
+
+	return CameraComp;
 }
 
 FPostProcessSettings APlayerCameraManager::GetPostProcessSettings() const
