@@ -3,9 +3,7 @@
 #include "Actor.h"
 #include "CameraComponent.h"
 #include "ActorComponent.h"
-#include "PerlinNoiseCameraShakePattern.h"
 #include "PlayerCameraManager.h"
-#include "SinusoidalCameraShakePattern.h"
 #include "World.h"
 #include "Source/Runtime/InputCore/InputMappingContext.h"
 #include "Source/Runtime/InputCore/InputMappingSubsystem.h"
@@ -36,42 +34,26 @@ APlayerController::~APlayerController()
         InputContext = nullptr;
     }
 
-    // PlayerCameraManager는 World의 Actor로 관리되므로 World에서 제거됨
+	// PlayerCameraManager 파괴
+	if(PlayerCameraManager && !PlayerCameraManager->IsPendingDestroy())
+	{
+		GetWorld()->DestroyActor(PlayerCameraManager);
+		PlayerCameraManager = nullptr;
+	}
 }
 
 void APlayerController::BeginPlay()
 {
-    Super::BeginPlay();
+	Super::BeginPlay();
 
-    // 입력 컨텍스트 설정
-    SetupInputContext();
+	// PlayerCameraManager 스폰
+	if (GetWorld() && !PlayerCameraManager)
+	{
+		PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+	}
 
-    if (!PlayerCameraManager)
-    {
-        PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
-    }
-
-    if (!GetViewTarget())
-    {
-        // Prefer your possessed pawn if it has a camera, otherwise a camera actor you placed.
-        SetViewTarget(PossessedPawn /* or some camera actor */);
-    }
-    
-    auto* Pattern = NewObject<UPerlinNoiseCameraShakePattern>();
-    Pattern->LocationAmplitude = FVector(10, 10, 5);
-    Pattern->LocationFrequency = FVector(2, 2, 1);
-    Pattern->RotationAmplitudeDeg = FVector(1.5f, 1.5f, 2.0f);
-    Pattern->RotationFrequency = FVector(3, 2, 1);
-    Pattern->FOVAmplitude = 0.5f;
-    Pattern->FOVFrequency = 1.0f;
-	
-    auto* Shake = NewObject<UCameraShakeBase>();
-    Shake->SetBlendInTime(0.25f);
-    Shake->SetBlendOutTime(0.35f);
-    Shake->SetRootPattern(Pattern);
-	
-    // Start shake (0.0f duration here means use shake’s Duration)
-    PlayerCameraManager->StartCameraShake(Shake, /*Scale*/1.0f, /*Duration*/0.0f);
+	// 입력 컨텍스트 설정
+	SetupInputContext();
 }
 
 void APlayerController::Tick(float DeltaSeconds)

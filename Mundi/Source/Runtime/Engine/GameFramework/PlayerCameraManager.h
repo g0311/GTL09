@@ -112,6 +112,8 @@ public:
 	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 private:
+	void InitializeModifiers();
+
 	void UpdateCamera(float DeltaTime);
 
 	/**
