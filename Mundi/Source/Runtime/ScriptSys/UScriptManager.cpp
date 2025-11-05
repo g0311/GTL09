@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "ScriptComponent.h"
@@ -31,6 +31,11 @@
 #include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
 #include "Source/Runtime/Engine/GameFrameWork/PlayerController.h"
+// Camera shake
+#include "Source/Runtime/Engine/GameFramework/PlayerCameraManager.h"
+#include "Source/Runtime/Engine/Camera/CameraShakeBase.h"
+#include "Source/Runtime/Engine/Camera/PerlinNoiseCameraShakePattern.h"
+#include "Source/Runtime/Engine/Camera/SinusoidalCameraShakePattern.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -912,6 +917,148 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
         ADD_LUA_FUNCTION("GetRelativeLocation", &UCameraComponent::GetRelativeLocation)
         ADD_LUA_FUNCTION("GetRelativeRotation", &UCameraComponent::GetRelativeRotation)
     END_LUA_TYPE()
+
+    // Global helper: start a Perlin-noise camera shake with simple/default params
+    state->set_function("StartPerlinCameraShake",
+        [](float Duration, float Scale) -> UCameraShakeBase*
+        {
+            if (!GWorld) return nullptr;
+            APlayerController* PC = GWorld->GetPlayerController();
+            if (!PC) return nullptr;
+            APlayerCameraManager* PCM = PC->GetPlayerCameraManager();
+            if (!PCM) return nullptr;
+
+            UPerlinNoiseCameraShakePattern* Pattern = ObjectFactory::NewObject<UPerlinNoiseCameraShakePattern>();
+            if (!Pattern) return nullptr;
+
+            // Reasonable defaults
+            Pattern->LocationAmplitude = FVector(6.0f, 6.0f, 3.0f);
+            Pattern->LocationFrequency = FVector(1.5f, 1.5f, 0.8f);
+            Pattern->RotationAmplitudeDeg = FVector(1.0f, 1.0f, 1.4f);
+            Pattern->RotationFrequency = FVector(2.0f, 1.6f, 1.2f);
+            Pattern->FOVAmplitude = 0.25f;
+            Pattern->FOVFrequency = 0.8f;
+            Pattern->Octaves = 3;
+            Pattern->Lacunarity = 2.0f;
+            Pattern->Persistence = 0.5f;
+            Pattern->Seed = 1337;
+
+            auto* Shake = NewObject<UCameraShakeBase>();
+            Shake->SetBlendInTime(0.25f);
+            Shake->SetBlendOutTime(0.35f);
+            Shake->SetRootPattern(Pattern, true);
+                
+            // Start shake (0.0f duration here means use shake’s Duration)
+            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+        }
+    );
+
+    // Advanced overload: explicit vectors and timings
+    state->set_function("StartPerlinCameraShakeEx", sol::overload(
+        [](const FVector& LocAmp, const FVector& LocFreq,
+           const FVector& RotAmpDeg, const FVector& RotFreq,
+           float FovAmp, float FovFreq,
+           float Duration, float BlendIn, float BlendOut, float Scale) -> UCameraShakeBase*
+        {
+            if (!GWorld) return nullptr;
+            APlayerController* PC = GWorld->GetPlayerController();
+            if (!PC) return nullptr;
+            APlayerCameraManager* PCM = PC->GetPlayerCameraManager();
+            if (!PCM) return nullptr;
+
+            UPerlinNoiseCameraShakePattern* Pattern = ObjectFactory::NewObject<UPerlinNoiseCameraShakePattern>();
+            if (!Pattern) return nullptr;
+
+            Pattern->LocationAmplitude = LocAmp;
+            Pattern->LocationFrequency = LocFreq;
+            Pattern->RotationAmplitudeDeg = RotAmpDeg;
+            Pattern->RotationFrequency = RotFreq;
+            Pattern->FOVAmplitude = FovAmp;
+            Pattern->FOVFrequency = FovFreq;
+            // Keep fractal defaults; can be edited from Lua by accessing properties if desired
+
+            auto* Shake = NewObject<UCameraShakeBase>();
+            Shake->SetBlendInTime(0.25f);
+            Shake->SetBlendOutTime(0.35f);
+            Shake->SetRootPattern(Pattern, true);
+                            
+            // Start shake (0.0f duration here means use shake’s Duration)
+            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+        }
+    ));
+    // Stop a specific camera shake instance
+    state->set_function("StopCameraShake", [](UCameraShakeBase* Shake, bool bImmediate)
+    {
+        if (!Shake || !GWorld) return;
+        if (APlayerController* PC = GWorld->GetPlayerController())
+        {
+            if (APlayerCameraManager* PCM = PC->GetPlayerCameraManager())
+            {
+                PCM->StopCameraShake(Shake, bImmediate);
+            }
+        }
+    });
+
+    // Sinusoidal camera shake (simple)
+    state->set_function("StartSinusoidalCameraShake",
+        [](float Duration, float Scale) -> UCameraShakeBase*
+        {
+            if (!GWorld) return nullptr;
+            APlayerController* PC = GWorld->GetPlayerController();
+            if (!PC) return nullptr;
+            APlayerCameraManager* PCM = PC->GetPlayerCameraManager();
+            if (!PCM) return nullptr;
+
+            USinusoidalCameraShakePattern* Pattern = ObjectFactory::NewObject<USinusoidalCameraShakePattern>();
+            if (!Pattern) return nullptr;
+
+            // Defaults
+            Pattern->LocationAmplitude = FVector(8.0f, 8.0f, 4.0f);
+            Pattern->LocationFrequency = FVector(1.5f, 1.5f, 0.8f);
+            Pattern->RotationAmplitudeDeg = FVector(1.0f, 1.0f, 1.5f);
+            Pattern->RotationFrequency = FVector(2.0f, 1.6f, 1.2f);
+            Pattern->FOVAmplitude = 0.3f;
+            Pattern->FOVFrequency = 0.8f;
+            Pattern->bRandomizePhase = true;
+
+            auto* Shake = NewObject<UCameraShakeBase>();
+            Shake->SetBlendInTime(0.2f);
+            Shake->SetBlendOutTime(0.3f);
+            Shake->SetRootPattern(Pattern, true);
+            return PCM->StartCameraShake(Shake, (Scale > 0.0f ? Scale : 1.0f), (Duration >= 0.0f ? Duration : 0.0f));
+        }
+    );
+
+    // Sinusoidal camera shake (advanced)
+    state->set_function("StartSinusoidalCameraShakeEx", sol::overload(
+        [](const FVector& LocAmp, const FVector& LocFreq,
+           const FVector& RotAmpDeg, const FVector& RotFreq,
+           float FovAmp, float FovFreq,
+           float Duration, float BlendIn, float BlendOut, float Scale) -> UCameraShakeBase*
+        {
+            if (!GWorld) return nullptr;
+            APlayerController* PC = GWorld->GetPlayerController();
+            if (!PC) return nullptr;
+            APlayerCameraManager* PCM = PC->GetPlayerCameraManager();
+            if (!PCM) return nullptr;
+
+            USinusoidalCameraShakePattern* Pattern = ObjectFactory::NewObject<USinusoidalCameraShakePattern>();
+            if (!Pattern) return nullptr;
+
+            Pattern->LocationAmplitude = LocAmp;
+            Pattern->LocationFrequency = LocFreq;
+            Pattern->RotationAmplitudeDeg = RotAmpDeg;
+            Pattern->RotationFrequency = RotFreq;
+            Pattern->FOVAmplitude = FovAmp;
+            Pattern->FOVFrequency = FovFreq;
+
+            auto* Shake = NewObject<UCameraShakeBase>();
+            Shake->SetBlendInTime(BlendIn >= 0.0f ? BlendIn : 0.2f);
+            Shake->SetBlendOutTime(BlendOut >= 0.0f ? BlendOut : 0.3f);
+            Shake->SetRootPattern(Pattern, true);
+            return PCM->StartCameraShake(Shake, (Scale > 0.0f ? Scale : 1.0f), (Duration >= 0.0f ? Duration : 0.0f));
+        }
+    ));
 }
 
 void UScriptManager::RegisterScriptComponent(sol::state* state)

@@ -305,6 +305,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_StandAlone|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <ClCompile Include="Source\Runtime\AssetManagement\Sound.cpp" />
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierFade.cpp" />
@@ -312,11 +313,14 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierVignette.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\PerlinNoiseCameraShakePattern.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SoundComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Sound\USoundManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
@@ -534,6 +538,8 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
     <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakePattern.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
@@ -657,6 +663,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Runtime\AssetManagement\Sound.h" />
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h" />
@@ -664,12 +671,17 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakePattern.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\PerlinNoiseCameraShakePattern.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SoundComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
+    <ClInclude Include="Source\Runtime\Engine\Sound\USoundManager.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
@@ -840,7 +852,6 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <Content Include="LuaScripts\ObstacleController.lua" />
     <Content Include="LuaScripts\FirstPersonController.lua" />
     <Content Include="LuaScripts\FrenzyItem.lua" />
-    <Content Include="LuaScripts\GameEvents.lua" />
     <Content Include="LuaScripts\GameScore.lua" />
     <Content Include="LuaScripts\RoadGenerator.lua" />
     <Content Include="LuaScripts\teasd1.lua" />

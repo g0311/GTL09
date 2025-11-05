@@ -35,6 +35,8 @@
 
 #include <Windows.h>
 #include "DirectionalLightComponent.h"
+#include "PlayerController.h"
+
 URenderer::URenderer(D3D11RHI* InDevice) : RHIDevice(InDevice)
 {
 	InitializeLineBatch();
@@ -75,6 +77,26 @@ void URenderer::RenderSceneForView(UWorld* World, UCameraComponent* CameraCompon
 
 	// 1. 렌더에 필요한 정보를 모은 FSceneView를 생성합니다.
 	FSceneView View(CameraComponent, Viewport, World->GetRenderSettings().GetViewModeIndex());	// NOTE: 현재 viewport에 해당하는 ViewMode가 적용되는지 확인 필요
+
+    // 1-0. If a PlayerCameraManager exists, use its final view (location/rotation/FOV)
+    if (World)
+    {
+        APlayerController* PC = World->GetPlayerController();
+        if (PC)
+        {
+            if (APlayerCameraManager* PCM = PC->GetPlayerCameraManager())
+            {
+                // Override view matrix and FOV-based projection using PCM's cache
+                View.ViewMatrix = PCM->GetViewMatrix();
+
+                // Build a projection matrix from PCM's FOV while keeping near/far from the camera component
+                const float Aspect = (Viewport && Viewport->GetSizeY() > 0) ? (float)Viewport->GetSizeX() / (float)Viewport->GetSizeY() : 1.0f;
+                const float FovRad = PCM->GetFOV() * (PI / 180.0f);
+                View.ProjectionMatrix = FMatrix::PerspectiveFovLH(FovRad, Aspect, CameraComponent->GetNearClip(), CameraComponent->GetFarClip());
+                View.ViewLocation = PCM->GetCameraLocation();
+            }
+        }
+    }
 
 	// 1-1. World로부터 PostProcessSettings 가져오기
 	View.PostProcessSettings = World->GetPostProcessSettings();

@@ -8,9 +8,12 @@
 #include "Texture.h"
 #include "StaticMesh.h"
 #include "Material.h"
+#include "Sound.h"
+#include "SoundComponent.h"
 #include "BillboardComponent.h"
 #include "DecalComponent.h"
 #include "StaticMeshComponent.h"
+#include "Source/Runtime/Engine/Sound/USoundManager.h"
 #include "LightComponentBase.h"
 #include "LightComponent.h"
 #include "PointLightComponent.h"
@@ -32,6 +35,8 @@ TArray<FString> UPropertyRenderer::CachedShaderPaths;
 TArray<const char*> UPropertyRenderer::CachedShaderItems;
 TArray<FString> UPropertyRenderer::CachedTexturePaths;
 TArray<const char*> UPropertyRenderer::CachedTextureItems;
+TArray<FString> UPropertyRenderer::CachedSoundPaths;
+TArray<const char*> UPropertyRenderer::CachedSoundItems;
 
 bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectInstance)
 {
@@ -88,6 +93,10 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 
 	case EPropertyType::Material:
 		bChanged = RenderMaterialProperty(Property, ObjectInstance);
+		break;
+
+	case EPropertyType::Sound:
+		bChanged = RenderSoundProperty(Property, ObjectInstance);
 		break;
 
 	case EPropertyType::Array:
@@ -274,6 +283,18 @@ void UPropertyRenderer::CacheResources()
 			CachedTextureItems.push_back(path.c_str());
 		}
 	}
+
+	// 5. 사운드
+	if (CachedSoundPaths.IsEmpty() && CachedSoundItems.IsEmpty())
+	{
+		CachedSoundPaths = ResMgr.GetAllFilePaths<USound>();
+		for (const FString& path : CachedSoundPaths)
+		{
+			CachedSoundItems.push_back(path.c_str());
+		}
+		CachedSoundPaths.Insert("", 0);
+		CachedSoundItems.Insert("None", 0);
+	}
 }
 
 void UPropertyRenderer::ClearResourcesCache()
@@ -286,6 +307,8 @@ void UPropertyRenderer::ClearResourcesCache()
 	CachedShaderItems.Empty();
 	CachedTexturePaths.Empty();
 	CachedTextureItems.Empty();
+	CachedSoundPaths.Empty();
+	CachedSoundItems.Empty();
 }
 
 // ===== 타입별 렌더링 구현 =====
@@ -941,6 +964,109 @@ bool UPropertyRenderer::RenderSingleMaterialSlot(const char* Label, UMaterialInt
 	}
 
 	return bElementChanged;
+}
+
+bool UPropertyRenderer::RenderSoundProperty(const FProperty& Prop, void* Instance)
+{
+	USound** SoundPtr = Prop.GetValuePtr<USound*>(Instance);
+
+	FString CurrentPath;
+	if (*SoundPtr)
+	{
+		CurrentPath = (*SoundPtr)->GetFilePath();
+	}
+
+	if (CachedSoundPaths.empty())
+	{
+		ImGui::Text("%s: <No Sounds>", Prop.Name);
+		return false;
+	}
+
+	int SelectedIdx = 0; // Default to "None"
+	for (int i = 0; i < static_cast<int>(CachedSoundPaths.size()); ++i)
+	{
+		if (CachedSoundPaths[i] == CurrentPath)
+		{
+			SelectedIdx = i;
+			break;
+		}
+	}
+
+	bool bChanged = false;
+
+	ImGui::SetNextItemWidth(240);
+	if (ImGui::Combo(Prop.Name, &SelectedIdx, CachedSoundItems.data(), static_cast<int>(CachedSoundItems.size())))
+	{
+		if (SelectedIdx >= 0 && SelectedIdx < static_cast<int>(CachedSoundPaths.size()))
+		{
+			const FString& SelectedPath = CachedSoundPaths[SelectedIdx];
+			if (SelectedPath.empty())
+			{
+				*SoundPtr = nullptr;
+			}
+			else
+			{
+				*SoundPtr = UResourceManager::GetInstance().Load<USound>(SelectedPath);
+			}
+			bChanged = true;
+		}
+	}
+
+	// Tooltip with full path on hover
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted(CurrentPath.empty() ? "None" : CurrentPath.c_str());
+		ImGui::EndTooltip();
+	}
+
+	// SoundComponent용 Play/Stop 버튼
+	UObject* Obj = static_cast<UObject*>(Instance);
+	if (USoundComponent* SoundComp = Cast<USoundComponent>(Obj))
+	{
+		ImGui::Indent();
+
+		ImGui::BeginDisabled(!SoundComp->GetSound());
+
+		if (ImGui::Button("Play", ImVec2(80, 0)))
+		{
+			SoundComp->Play();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Stop", ImVec2(80, 0)))
+		{
+			SoundComp->Stop();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Pause", ImVec2(80, 0)))
+		{
+			SoundComp->Pause();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Resume", ImVec2(80, 0)))
+		{
+			SoundComp->Resume();
+		}
+
+		ImGui::EndDisabled();
+
+		// 재생 상태 표시
+		if (SoundComp->IsPlaying())
+		{
+			ImGui::SameLine();
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[Playing]");
+		}
+
+		ImGui::Unindent();
+	}
+
+	return bChanged;
 }
 
 // ===== 텍스처 선택 헬퍼 함수 =====
