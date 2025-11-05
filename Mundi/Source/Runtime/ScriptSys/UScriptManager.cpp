@@ -32,6 +32,7 @@
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
 #include "Source/Runtime/Engine/GameFrameWork/PlayerController.h"
 // Camera shake
+#include "SoundComponent.h"
 #include "Source/Runtime/Engine/GameFramework/PlayerCameraManager.h"
 #include "Source/Runtime/Engine/Camera/CameraShakeBase.h"
 #include "Source/Runtime/Engine/Camera/PerlinNoiseCameraShakePattern.h"
@@ -234,6 +235,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterLightComponent(state);
     RegisterDirectionalLightComponent(state);
     RegisterCameraComponent(state);
+    RegisterSoundComponent(state);
     RegisterScriptComponent(state);
     RegisterPlayerController(state);
     RegisterPlayerCameraManager(state);
@@ -1060,6 +1062,57 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             return PCM->StartCameraShake(Shake, (Scale > 0.0f ? Scale : 1.0f), (Duration >= 0.0f ? Duration : 0.0f));
         }
     ));
+}
+
+void UScriptManager::RegisterSoundComponent(sol::state* state)
+{
+    UE_LOG("[UScriptManager] Registering USoundComponent to Lua...\n");
+
+    // ==================== USoundComponent 등록 ====================
+    BEGIN_LUA_TYPE_NO_CTOR(state, USoundComponent, "SoundComponent")
+        // Sound control
+        ADD_LUA_FUNCTION("Play", &USoundComponent::Play)
+        ADD_LUA_FUNCTION("Stop", &USoundComponent::Stop)
+        ADD_LUA_FUNCTION("Pause", &USoundComponent::Pause)
+        ADD_LUA_FUNCTION("Resume", &USoundComponent::Resume)
+
+        // Settings
+        ADD_LUA_FUNCTION("SetAutoPlay", &USoundComponent::SetAutoPlay)
+        ADD_LUA_FUNCTION("GetAutoPlay", &USoundComponent::GetAutoPlay)
+        ADD_LUA_FUNCTION("SetLoop", &USoundComponent::SetLoop)
+        ADD_LUA_FUNCTION("GetLoop", &USoundComponent::GetLoop)
+        ADD_LUA_FUNCTION("SetVolume", &USoundComponent::SetVolume)
+        ADD_LUA_FUNCTION("GetVolume", &USoundComponent::GetVolume)
+        ADD_LUA_FUNCTION("SetSound", &USoundComponent::SetSound)
+        ADD_LUA_FUNCTION("GetSound", &USoundComponent::GetSound)
+
+        // Status
+        ADD_LUA_FUNCTION("IsPlaying", &USoundComponent::IsPlaying)
+    END_LUA_TYPE()
+
+    // Factory: add SoundComponent to an actor; register immediately
+    state->set_function("AddSoundComponent", [](AActor* Owner) -> USoundComponent*
+    {
+        if (!Owner) return nullptr;
+
+        USoundComponent* Comp = ObjectFactory::NewObject<USoundComponent>();
+        Owner->AddOwnedComponent(Comp);
+
+        if (UWorld* World = Owner->GetWorld())
+        {
+            Comp->RegisterComponent(World);
+            Comp->InitializeComponent();
+            if (World->bPie) { Comp->BeginPlay(); }
+        }
+
+        return Comp;
+    });
+
+    // Load sound from file path
+    state->set_function("LoadSound", [](const std::string& filePath) -> USound*
+    {
+        return UResourceManager::GetInstance().Load<USound>(filePath);
+    });
 }
 
 void UScriptManager::RegisterScriptComponent(sol::state* state)

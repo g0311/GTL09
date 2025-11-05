@@ -5,6 +5,8 @@
 local projectileMovement = nil
 local rotatingMovement = nil
 local initialRotation = nil
+local collisionSound = nil
+local collisionSounds = {}  -- Array of loaded sounds
 
 -- Tunables
 local UpSpeed = 15.0            -- upward impulse on hit (units/s)
@@ -45,6 +47,40 @@ function BeginPlay()
 
     -- Cache initial rotation to restore on reset
     initialRotation = actor:GetActorRotation()
+
+    -- Create collision sound component
+    collisionSound = AddSoundComponent(actor)
+    if collisionSound then
+        collisionSound:SetVolume(1.0)
+        collisionSound:SetLoop(false)
+        collisionSound:SetAutoPlay(false)
+
+        -- Load multiple collision sounds
+        local soundPaths = {
+            "Sound/Crash1.wav",
+            "Sound/Crash2.wav",
+            "Sound/Crash3.wav",
+            "Sound/Crash4.wav",
+        }
+
+        for i, path in ipairs(soundPaths) do
+            local sound = LoadSound(path)
+            if sound then
+                table.insert(collisionSounds, sound)
+                Log("[ObstacleController] Loaded collision sound: " .. path)
+            else
+                LogWarning("[ObstacleController] Failed to load: " .. path)
+            end
+        end
+
+        if #collisionSounds > 0 then
+            Log("[ObstacleController] Loaded " .. #collisionSounds .. " collision sounds")
+        else
+            LogError("[ObstacleController] No collision sounds loaded!")
+        end
+    else
+        LogError("[ObstacleController] Failed to create SoundComponent!")
+    end
 end
 
 -- Identify the player pawn to avoid obstacle-obstacle reactions
@@ -142,6 +178,14 @@ function OnOverlap(other)
     local rotationalSpeed = Randf(RotSpeedMin, RotSpeedMax)
     local rate = axis * rotationalSpeed
     rotatingMovement:SetRotationRate(rate)
+
+    -- Play random collision sound
+    if collisionSound and #collisionSounds > 0 then
+        local randomIndex = math.random(1, #collisionSounds)
+        local randomSound = collisionSounds[randomIndex]
+        collisionSound:SetSound(randomSound)
+        collisionSound:Play()
+    end
 
     -- Fire gameplay event for scoring/UI directly via GameMode (independent of Lua module state)
     local gm = GetGameMode and GetGameMode() or nil
