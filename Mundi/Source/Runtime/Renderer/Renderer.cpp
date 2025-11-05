@@ -31,6 +31,7 @@
 #include "DecalStatManager.h"
 #include "SceneRenderer.h"
 #include "SceneView.h"
+#include "PlayerCameraManager.h"
 
 #include <Windows.h>
 #include "DirectionalLightComponent.h"
@@ -74,6 +75,9 @@ void URenderer::RenderSceneForView(UWorld* World, UCameraComponent* CameraCompon
 
 	// 1. 렌더에 필요한 정보를 모은 FSceneView를 생성합니다.
 	FSceneView View(CameraComponent, Viewport, World->GetRenderSettings().GetViewModeIndex());	// NOTE: 현재 viewport에 해당하는 ViewMode가 적용되는지 확인 필요
+
+	// 1-1. World로부터 PostProcessSettings 가져오기
+	View.PostProcessSettings = World->GetPostProcessSettings();
 
 	// 2. FSceneRenderer 생성자에 'View'의 주소(&View)를 전달합니다.
 	FSceneRenderer SceneRenderer(World, &View, this);

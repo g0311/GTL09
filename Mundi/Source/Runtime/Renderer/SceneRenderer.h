@@ -106,7 +106,16 @@ private:
 	/** @brief 데칼(Decal)을 렌더링하는 패스입니다. */
 	void RenderDecalPass();
 
+	
+	/** @brief 후처리 렌더링 패스입니다. */
 	void RenderPostProcessingPasses();
+	void RenderFogPass();
+	void RenderVignettingPass();
+	void RenderFXAAPass();
+	void RenderGammaCorrectionPass();
+	void RenderLetterBoxPass();
+	void RenderFadePass();
+
 	void RenderSceneDepthPostProcess();
 	void RenderTileCullingDebug();
 
@@ -117,8 +126,6 @@ private:
 	/** @brief BVH 등 디버그 시각화 요소를 렌더링하는 패스입니다. */
 	void RenderDebugPass();
 	
-	/** @brief FXAA 등 화면에서 최종 이미지 품질을 위해 적용되는 효과를 적용하는 패스입니다. */
-	void ApplyScreenEffectsPass();
 
 	void CompositeToBackBuffer();
 

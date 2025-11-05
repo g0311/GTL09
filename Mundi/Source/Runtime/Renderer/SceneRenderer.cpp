@@ -45,6 +45,9 @@
 #include "LightStats.h"
 #include "ShadowStats.h"
 #include "PlatformTime.h"
+#include "PostProcessSettings.h"
+#include "PlayerController.h"
+#include "PlayerCameraManager.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, FSceneView* InView, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -92,7 +95,6 @@ void FSceneRenderer::Render()
 		GWorld->GetLightManager()->UpdateLightBuffer(RHIDevice);	//라이트 구조체 버퍼 업데이트, 바인딩
 		PerformTileLightCulling();	// 타일 기반 라이트 컬링 수행
 		RenderLitPath();
-		RenderPostProcessingPasses();	// 후처리 체인 실행
 		RenderTileCullingDebug();	// 타일 컬링 디버그 시각화 draw
 	}
 	else if (View->ViewMode == EViewModeIndex::VMI_Unlit)
@@ -111,16 +113,16 @@ void FSceneRenderer::Render()
 	{
 		RenderSceneDepthPath();
 	}
+	RenderPostProcessingPasses();	// 후처리 체인 실행
 
+#ifdef _EDITOR
 	//그리드와 디버그용 Primitive는 Post Processing 적용하지 않음.
 	RenderEditorPrimitivesPass();	// 빌보드, 기타 화살표 출력 (상호작용, 피킹 O)
 	RenderDebugPass();	//  그리드, 선택한 물체의 경계 출력 (상호작용, 피킹 X)
-	
+
 	// 오버레이(Overlay) Primitive 렌더링
 	RenderOverayEditorPrimitivesPass();	// 기즈모 출력
-
-	// FXAA 등 화면에서 최종 이미지 품질을 위해 적용되는 효과를 적용
-	ApplyScreenEffectsPass();
+#endif
 
 	// 최종적으로 Scene에 그려진 텍스쳐를 Back 버퍼에 그힌다
 	CompositeToBackBuffer();
@@ -1069,7 +1071,7 @@ void FSceneRenderer::RenderDecalPass()
 	RHIDevice->OMSetBlendState(false);
 }
 
-void FSceneRenderer::RenderPostProcessingPasses()
+void FSceneRenderer::RenderFogPass()
 {
 	UHeightFogComponent* FogComponent = nullptr;
 	if (0 < SceneGlobals.Fogs.Num())
@@ -1135,6 +1137,198 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	// 모든 작업이 성공적으로 끝났으므로 Commit 호출
 	// 이제 소멸자는 버퍼 스왑을 되돌리지 않고, SRV 해제 작업만 수행함
 	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderVignettingPass()
+{
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableVignette)
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Vignetting: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Vignetting_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("VIGNETTE용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(PPSettings.VignetteIntensity, PPSettings.VignetteSmoothness, { 0.f, 0.f }));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderGammaCorrectionPass()
+{
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableGammaCorrection)
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("GammaCorrection: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/GammaCorrection_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("GammaCorrection용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	RHIDevice->SetAndUpdateConstantBuffer(FGammaCorrectionBufferType(PPSettings.Gamma, { 0.f, 0.f, 0.f }));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderLetterBoxPass()
+{
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableLetterbox)
+	{
+		return;
+	}
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Letter Box: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Letterbox_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("Letter Box용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	RHIDevice->SetAndUpdateConstantBuffer(
+		FLetterBoxBufferType(PPSettings.LetterboxHeight, {0.f, 0.f, 0.f}, PPSettings.LetterboxColor));
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderFadePass()
+{
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+
+	// Fade가 비활성화되어 있으면 건너뛰기
+	if (PPSettings.FadeAmount <= 0.0f) return;
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Fade: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Fade_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("Fade용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	FFadeBufferType FadeBuffer;
+	FadeBuffer.FadeColor = PPSettings.FadeColor;
+	FadeBuffer.FadeAmount = PPSettings.FadeAmount;
+	FadeBuffer.Padding[0] = 0.0f;
+	FadeBuffer.Padding[1] = 0.0f;
+	FadeBuffer.Padding[2] = 0.0f;
+	RHIDevice->SetAndUpdateConstantBuffer(FadeBuffer);
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
+void FSceneRenderer::RenderPostProcessingPasses()
+{
+	RenderFogPass();
+	RenderVignettingPass();
+	RenderFXAAPass();
+	RenderGammaCorrectionPass();
+	RenderLetterBoxPass();
+	RenderFadePass();
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원
@@ -1511,7 +1705,7 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 	}
 }
 
-void FSceneRenderer::ApplyScreenEffectsPass()
+void FSceneRenderer::RenderFXAAPass()
 {
 	if (!World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_FXAA))
 	{

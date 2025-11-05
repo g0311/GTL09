@@ -623,7 +623,6 @@ struct FQuat
 	// 선언: 행렬 변환
 	FMatrix ToMatrix() const;
 
-private:
 	// 보조 연산 (내부용)
 	FQuat operator+(const FQuat& Quat) const { return FQuat(X + Quat.X, Y + Quat.Y, Z + Quat.Z, W + Quat.W); }
 };

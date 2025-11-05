@@ -1,8 +1,10 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PlayerController.h"
 #include "Actor.h"
 #include "CameraComponent.h"
 #include "ActorComponent.h"
+#include "PlayerCameraManager.h"
+#include "World.h"
 #include "Source/Runtime/InputCore/InputMappingContext.h"
 #include "Source/Runtime/InputCore/InputMappingSubsystem.h"
 
@@ -13,7 +15,7 @@ END_PROPERTIES()
 
 APlayerController::APlayerController()
     : PossessedPawn(nullptr)
-    , ViewTarget(nullptr)
+    , PlayerCameraManager(nullptr)
 {
     Name = "PlayerController";
     bTickInEditor = false; // 게임 중에만 틱
@@ -29,9 +31,42 @@ APlayerController::~APlayerController()
     if (InputContext)
     {
         UInputMappingSubsystem::Get().RemoveMappingContextImmediate(InputContext);
-        ObjectFactory::DeleteObject(InputContext);
         InputContext = nullptr;
     }
+
+    // PlayerCameraManager는 World의 Actor로 관리되므로 World에서 제거됨
+}
+
+void APlayerController::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // 입력 컨텍스트 설정
+    SetupInputContext();
+}
+
+void APlayerController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    // PlayerCameraManager는 자체적으로 Tick되므로 별도 호출 불필요
+}
+
+void APlayerController::EndPlay(EEndPlayReason Reason)
+{
+    // 입력 컨텍스트 정리
+    if (InputContext)
+    {
+        UInputMappingSubsystem::Get().RemoveMappingContext(InputContext);
+        InputContext = nullptr;
+    }
+
+    // PlayerCameraManager는 World의 Actor로 스폰되었으므로
+    // World 소멸 시 자동으로 정리됨 (이중 삭제 방지)
+    // 여기서는 nullptr만 설정
+    PlayerCameraManager = nullptr;
+
+    Super::EndPlay(Reason);
 }
 
 void APlayerController::Possess(AActor* InPawn)
@@ -55,156 +90,125 @@ void APlayerController::UnPossess()
 {
     if (PossessedPawn)
     {
-        PossessedPawn = nullptr;
-    }
+        // ViewTarget이 PossessedPawn이면 해제
+        if (PlayerCameraManager && PlayerCameraManager->GetViewTarget() == PossessedPawn)
+        {
+            PlayerCameraManager->SetViewTarget(nullptr);
+        }
 
-    // ViewTarget도 해제
-    if (ViewTarget == PossessedPawn)
-    {
-        ViewTarget = nullptr;
+        PossessedPawn = nullptr;
     }
 }
 
 void APlayerController::SetViewTarget(AActor* NewViewTarget, float BlendTime)
 {
-    if (ViewTarget == NewViewTarget)
+    if (!PlayerCameraManager)
     {
+        UE_LOG("APlayerController::SetViewTarget - PlayerCameraManager is null");
         return;
     }
 
-    ViewTarget = NewViewTarget;
-
-    // TODO: BlendTime을 사용한 부드러운 카메라 전환 구현
+    // PlayerCameraManager에 위임
+    PlayerCameraManager->SetViewTarget(NewViewTarget, BlendTime);
 }
 
-UCameraComponent* APlayerController::GetActiveCameraComponent() const
+AActor* APlayerController::GetViewTarget() const
 {
-    // 1. ViewTarget이 있으면 ViewTarget의 카메라 컴포넌트 찾기
-    AActor* TargetActor = ViewTarget ? ViewTarget : PossessedPawn;
-
-    if (!TargetActor)
+    if (!PlayerCameraManager)
     {
         return nullptr;
     }
 
-    // 2. 액터의 모든 컴포넌트를 순회하며 카메라 컴포넌트 찾기
-    const TSet<UActorComponent*>& Components = TargetActor->GetOwnedComponents();
-    for (UActorComponent* Component : Components)
-    {
-        if (UCameraComponent* CameraComp = Cast<UCameraComponent>(Component))
-        {
-            return CameraComp;
-        }
-    }
-
-    return nullptr;
+    return PlayerCameraManager->GetViewTarget();
 }
 
-void APlayerController::Tick(float DeltaSeconds)
+UCameraComponent* APlayerController::GetActiveCameraComponent() const
 {
-    Super::Tick(DeltaSeconds);
-    // 여기서 입력 처리 등을 할 수 있습니다
+    if (!PlayerCameraManager)
+    {
+        return nullptr;
+    }
+
+    return PlayerCameraManager->GetViewTargetCameraComponent();
 }
 
 FMatrix APlayerController::GetViewMatrix() const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetViewMatrix();
+        return FMatrix::Identity();
     }
 
-    // 카메라가 없으면 Identity 반환
-    return FMatrix::Identity();
+    return PlayerCameraManager->GetViewMatrix();
 }
 
 FMatrix APlayerController::GetProjectionMatrix() const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetProjectionMatrix();
+        return FMatrix::Identity();
     }
 
-    return FMatrix::Identity();
+    // ViewportAspectRatio는 CameraComponent가 자동 계산
+    return PlayerCameraManager->GetProjectionMatrix(nullptr);
 }
 
 FMatrix APlayerController::GetProjectionMatrix(float ViewportAspectRatio) const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetProjectionMatrix(ViewportAspectRatio);
+        return FMatrix::Identity();
     }
 
-    return FMatrix::Identity();
+    return PlayerCameraManager->GetProjectionMatrix(nullptr);
 }
 
 FMatrix APlayerController::GetProjectionMatrix(float ViewportAspectRatio, FViewport* Viewport) const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetProjectionMatrix(ViewportAspectRatio, Viewport);
+        return FMatrix::Identity();
     }
 
-    return FMatrix::Identity();
+    return PlayerCameraManager->GetProjectionMatrix(Viewport);
 }
 
 FVector APlayerController::GetCameraLocation() const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetWorldTransform().Translation;
+        return FVector::Zero();
     }
 
-    // 카메라가 없으면 ViewTarget 또는 Pawn의 위치 반환
-    AActor* TargetActor = ViewTarget ? ViewTarget : PossessedPawn;
-    if (TargetActor)
-    {
-        return TargetActor->GetActorLocation();
-    }
-
-    return FVector::Zero();
+    return PlayerCameraManager->GetCameraLocation();
 }
 
 FQuat APlayerController::GetCameraRotation() const
 {
-    UCameraComponent* CameraComp = GetActiveCameraComponent();
-    if (CameraComp)
+    if (!PlayerCameraManager)
     {
-        return CameraComp->GetWorldTransform().Rotation;
+        return FQuat::Identity();
     }
 
-    // 카메라가 없으면 ViewTarget 또는 Pawn의 회전 반환
-    AActor* TargetActor = ViewTarget ? ViewTarget : PossessedPawn;
-    if (TargetActor)
-    {
-        return TargetActor->GetActorRotation();
-    }
-
-    return FQuat::Identity();
+    return PlayerCameraManager->GetCameraRotation();
 }
 
-void APlayerController::BeginPlay()
+void APlayerController::StartCameraFade(float Duration, FLinearColor ToColor, bool bFadeOut)
 {
-    Super::BeginPlay();
-
-    // 입력 컨텍스트 설정
-    SetupInputContext();
-}
-
-void APlayerController::EndPlay(EEndPlayReason Reason)
-{
-    // 입력 컨텍스트 정리
-    if (InputContext)
+    if (!PlayerCameraManager)
     {
-        UInputMappingSubsystem::Get().RemoveMappingContext(InputContext);
-        InputContext = nullptr;
+        UE_LOG("APlayerController::StartCameraFade - PlayerCameraManager is null");
+        return;
     }
 
-    Super::EndPlay(Reason);
+    if (bFadeOut)
+    {
+        PlayerCameraManager->StartFadeOut(Duration, ToColor);
+    }
+    else
+    {
+        PlayerCameraManager->StartFadeIn(Duration, ToColor);
+    }
 }
 
 void APlayerController::SetupInputContext()
