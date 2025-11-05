@@ -150,7 +150,7 @@ void AGameModeBase::BeginPlay()
         static bool bHUDRegistered = false;
         if (!bHUDRegistered)
         {
-            UIManager.RegisterUIWindow(new UGameHUDWindow());
+            UIManager.RegisterUIWindow(NewObject<UGameHUDWindow>());
             bHUDRegistered = true;
         }
     }

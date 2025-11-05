@@ -1,7 +1,9 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "GameHUDWindow.h"
 #include "ImGui/imgui.h"
 #include "Source/Slate/Widgets/GameHUDWidget.h"
+
+IMPLEMENT_CLASS(UGameHUDWindow, UUIWindow)
 
 UGameHUDWindow::UGameHUDWindow()
 {
@@ -21,6 +23,7 @@ UGameHUDWindow::UGameHUDWindow()
 void UGameHUDWindow::Initialize()
 {
     // Add a single HUD widget to this window
-    AddWidget(new UGameHUDWidget());
+    // Use NewObject<> instead of new so ObjectFactory manages lifecycle
+    AddWidget(NewObject<UGameHUDWidget>());
 }
 

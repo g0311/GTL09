@@ -8,6 +8,11 @@
 #include "GameModeBase.h"
 #include "PlayerController.h"
 #include "PrimitiveComponent.h"
+#ifdef _GAME
+#include "Level.h"
+#include "JsonSerializer.h"
+#include <filesystem>
+#endif
 
 // Delegate Test Actors - Force static initialization
 
@@ -238,6 +243,45 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     //스폰을 위한 월드셋
     UI.SetWorld(WorldContexts[0].World);
 
+#ifdef _GAME
+    // Standalone build: Load scene and auto-start PIE
+    UE_LOG("=== STANDALONE BUILD: Loading test_real.scene ===\n");
+
+    try
+    {
+        std::filesystem::path scenePath = std::filesystem::current_path() / "Scene" / "test_real.Scene";
+
+        if (std::filesystem::exists(scenePath))
+        {
+            std::unique_ptr<ULevel> NewLevel = ULevelService::CreateDefaultLevel();
+            JSON LevelJsonData;
+
+            if (FJsonSerializer::LoadJsonFromFile(LevelJsonData, scenePath.string()))
+            {
+                NewLevel->Serialize(true, LevelJsonData);
+                GWorld->SetLevel(std::move(NewLevel));
+                UE_LOG("Successfully loaded scene: %s", scenePath.string().c_str());
+            }
+            else
+            {
+                UE_LOG("ERROR: Failed to load JSON from: %s", scenePath.string().c_str());
+            }
+        }
+        else
+        {
+            UE_LOG("ERROR: Scene file not found: %s", scenePath.string().c_str());
+        }
+    }
+    catch (const std::exception& e)
+    {
+        UE_LOG("ERROR: Failed to load scene: %s", e.what());
+    }
+
+    // Auto-start PIE after loading scene
+    UE_LOG("=== STANDALONE BUILD: Auto-starting game ===\n");
+    StartPIE();
+#endif
+
     bRunning = true;
     return true;
 }
@@ -373,7 +417,6 @@ void UEditorEngine::Shutdown()
     {
         if (WorldContext.World)
         {
-            // 3. 紐⑤뱺 PrimitiveComponent??Overlap ?몃━寃뚯씠???뺣━
             TArray<AActor*> Actors = WorldContext.World->GetLevel()->GetActors();
             for (AActor* Actor : Actors)
             {
