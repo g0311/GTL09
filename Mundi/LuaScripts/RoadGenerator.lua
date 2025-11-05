@@ -582,6 +582,11 @@ end
 -- [함수] 도로 블록에 장애물 배치
 -- =====================================================
 local function SpawnObstaclesOnRoadBlock(block, blockXPosition, laneYPositions)
+    local ownerX = OwnerActor and OwnerActor:GetActorLocation().X or 0.0
+    if math.abs(blockXPosition - ownerX) < (Config.BlockLength * 1.5) then
+        return  -- 1.5배 범위 내의 블록엔 스폰 안함
+    end
+
     -- 1) 예전에 이 블록에 달려있던 장애물 있으면 반환
     if block.Obstacles then
         for _, obstacle in ipairs(block.Obstacles) do
