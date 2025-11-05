@@ -4,10 +4,12 @@
 #include "World.h"
 #include "SceneComponent.h"
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
+#include "Source/Runtime/ScriptSys/UScriptManager.h"
 #include "Actor.h"
 #include "ObjectFactory.h"
 #include "Source/Slate/UIManager.h"
-#include "Source/Slate/Windows/GameHUDWindow.h"
+#include "Source/Slate/TextOverlayD2D.h"
+#include "Source/Runtime/InputCore/InputManager.h"
 
 IMPLEMENT_CLASS(AGameModeBase)
 
@@ -143,16 +145,9 @@ void AGameModeBase::BeginPlay()
     // 게임 시작 이벤트 발행
     OnGameStartDelegate.Broadcast();
 
-    // Register HUD window (simple ImGui-based overlay)
+    // No ImGui HUD window. HUD text is now driven by TextOverlayD2D via Lua or engine-side enqueue in Tick().
     {
-        UUIManager& UIManager = UUIManager::GetInstance();
-        // Register once per PIE world
-        static bool bHUDRegistered = false;
-        if (!bHUDRegistered)
-        {
-            UIManager.RegisterUIWindow(NewObject<UGameHUDWindow>());
-            bHUDRegistered = true;
-        }
+        (void)UUIManager::GetInstance(); // maintain dependency; no registration
     }
 
     UE_LOG("[GameModeBase] Game Started\n");
@@ -165,6 +160,115 @@ void AGameModeBase::Tick(float DeltaSeconds)
     if (!bIsGameOver)
     {
         GameTime += DeltaSeconds;
+    }
+
+    // Enqueue a simple HUD using TextOverlayD2D.
+    // If Lua provides HUD entries via ScriptComponent, use those; otherwise fallback to engine defaults.
+    float x = 20.0f;
+    float y = 120.0f;
+    const float lineH = 22.0f;
+    const float width = 320.0f;
+    const float height = 24.0f;
+
+    bool drewLua = false;
+    if (UScriptComponent* SC = GetScriptComponent())
+    {
+        TArray<UScriptComponent::FHUDRow> rows;
+        if (SC->GetHUDEntries(rows))
+        {
+            drewLua = true;
+            for (const auto& r : rows)
+            {
+                std::wstring text = UScriptManager::FStringToWideString(r.Label + ": " + r.Value);
+                if (r.bHasColor)
+                {
+                    UTextOverlayD2D::Get().EnqueueText(text, x, y, 18.0f, r.R, r.G, r.B, r.A, L"", L"", 0.0f, width, height);
+                }
+                else
+                {
+                    UTextOverlayD2D::Get().EnqueueText(text, x, y, 18.0f, 1.0f, 1.0f, 1.0f, 1.0f, L"", L"", 0.0f, width, height);
+                }
+                y += lineH;
+            }
+        }
+    }
+    if (!drewLua)
+    {
+        // Fallback HUD content
+        {
+            std::wstring w = UScriptManager::FStringToWideString("Score: " + std::to_string(Score));
+            UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
+        }
+        {
+            std::wstring w = UScriptManager::FStringToWideString("Time: " + std::to_string((int)GameTime) + " s");
+            UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
+        }
+        {
+            // Distance to Enemy
+            char buf[64];
+            sprintf_s(buf, "Distance to Enemy: %.1f", GetChaserDistance());
+            std::wstring w = UScriptManager::FStringToWideString(buf);
+            UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
+        }
+    }
+
+    // Game Over overlay
+    if (IsGameOver())
+    {
+        // Center the overlay
+        FVector2D screen = UInputManager::GetInstance().GetScreenSize();
+        float panelW = 420.0f;
+        float panelH = 160.0f;
+        float px = (screen.X - panelW) * 0.5f;
+        float py = (screen.Y - panelH) * 0.5f;
+        float cy = py + 10.0f;
+
+        FString title;
+        TArray<FString> lines;
+        bool hasLuaOverlay = false;
+        if (UScriptComponent* SC = GetScriptComponent())
+        {
+            hasLuaOverlay = SC->GetHUDGameOver(title, lines);
+        }
+
+        if (hasLuaOverlay)
+        {
+            std::wstring wt = UScriptManager::FStringToWideString(title);
+            UTextOverlayD2D::Get().EnqueueText(wt, px + 20.0f, cy, 22.0f, 1, 0.7f, 0.7f, 1, L"", L"", 0.0f, panelW - 40.0f, 28.0f);
+            cy += 30.0f;
+            for (const auto& L : lines)
+            {
+                std::wstring wl = UScriptManager::FStringToWideString(L);
+                UTextOverlayD2D::Get().EnqueueText(wl, px + 20.0f, cy, 18.0f, 1,1,1,1, L"", L"", 0.0f, panelW - 40.0f, 24.0f);
+                cy += 22.0f;
+            }
+        }
+        else
+        {
+            // Default game over content
+            UTextOverlayD2D::Get().EnqueueText(L"Game Over", px + 20.0f, cy - 35.0f, 50.0f, 1, 0.5f, 0.5f, 1, L"", L"", 0.0f, panelW - 40.0f, 32.0f);
+            cy += 32.0f;
+
+            char l1[64]; sprintf_s(l1, "Final Score: %d", Score);
+            std::wstring wl1 = UScriptManager::FStringToWideString(l1);
+            UTextOverlayD2D::Get().EnqueueText(wl1, px + 20.0f, cy, 25.0f, 1,1,1,1, L"", L"", 0.0f, panelW - 40.0f, 24.0f);
+            cy += 24.0f;
+
+            char l2[64]; sprintf_s(l2, "Time: %.1f s", GameTime);
+            std::wstring wl2 = UScriptManager::FStringToWideString(l2);
+            UTextOverlayD2D::Get().EnqueueText(wl2, px + 20.0f, cy, 25.0f, 1,1,1,1, L"", L"", 0.0f, panelW - 40.0f, 24.0f);
+            cy += 24.0f;
+
+            UTextOverlayD2D::Get().EnqueueText(L"Press R to Restart", px + 20.0f, cy + 4.0f, 25.0f, 1,1,0.5f,1, L"", L"", 0.0f, panelW - 40.0f, 24.0f);
+            
+            UTextOverlayD2D::Get().EnqueueText(L"팀 3: 정세연 박영빈 정석영 장수빈", px + 20.0f, cy + 40.0f, 25.0f, 1,1,1,1, L"", L"", 0.0f, panelW - 20.0f, 24.0f);
+        }
+
+        // Handle restart on R key press
+        if (UInputManager::GetInstance().IsKeyPressed('R'))
+        {
+            ResetGame();
+        }
     }
 
     // 지연 삭제 처리 (Lua 콜백이 끝난 후 안전하게 삭제)

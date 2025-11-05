@@ -37,6 +37,7 @@
 #include "Source/Runtime/Engine/Camera/CameraShakeBase.h"
 #include "Source/Runtime/Engine/Camera/PerlinNoiseCameraShakePattern.h"
 #include "Source/Runtime/Engine/Camera/SinusoidalCameraShakePattern.h"
+#include "TextOverlayD2D.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -672,6 +673,31 @@ void UScriptManager::RegisterWorld(sol::state* state)
 
             return gameMode->SpawnActorFromLua(className, location);
             });
+
+        // Global DrawText helper to render UI text via D2D overlay
+        state->set_function("DrawText", [](const std::string& utf8, float x, float y, float size,
+            float r, float g, float b, float a,
+            sol::optional<std::string> fontOpt, sol::optional<std::string> localeOpt,
+            sol::optional<float> bgAlphaOpt, sol::optional<float> widthOpt, sol::optional<float> heightOpt)
+        {
+            std::wstring wtext = UScriptManager::FStringToWideString(utf8);
+            std::wstring wfont = fontOpt ? UScriptManager::FStringToWideString(*fontOpt) : L"";
+            std::wstring wloc  = localeOpt ? UScriptManager::FStringToWideString(*localeOpt) : L"";
+            float bgAlpha = bgAlphaOpt.value_or(0.0f);
+            float width   = widthOpt.value_or(400.0f);
+            float height  = heightOpt.value_or(40.0f);
+
+            UTextOverlayD2D::Get().EnqueueText(
+                wtext,
+                x, y,
+                size,
+                r, g, b, a,
+                wfont,
+                wloc,
+                bgAlpha,
+                width,
+                height);
+        });
 }
 
 void UScriptManager::RegisterActor(sol::state* state)
