@@ -49,6 +49,8 @@ function GameRestartCountdown(component)
         roadGeneratorScript = roadGeneratorActor:GetScriptComponent()
     end
 
+    local gm = GetGameMode()
+
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   3                    ")
 
@@ -61,8 +63,9 @@ function GameRestartCountdown(component)
     coroutine.yield(component:WaitForSeconds(1.0))
 
     -- Start vehicle movement
-    if roadGeneratorScript then
-        roadGeneratorScript:CallLuaFunction("StartVehicleMovement", 0)
+    if gm then
+        gm:FireEvent("UnfreezeGame")
+        Log("[GameMode_Chaser] UnfreezeGame event fired (restart movement)")
     end
 end
 
@@ -170,22 +173,17 @@ function OnPlayerCaught(chaserActor)
     Log("[GameMode_Chaser] ALERT - Player Caught by Chaser!")
     Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    -- Player 멈춤
+    -- CRITICAL: 모든 것 멈춤 (플레이어, 장애물, Chaser)
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+        Log("[GameMode_Chaser] FreezeGame event fired - ALL movement stopped")
+    end
+
+    -- Player 멈춤 (이미 FreezeGame에서 처리됨)
     local pawn = GetPlayerPawn()
     if pawn then
-        Log("[GameMode_Chaser] Stopping player movement...")
-        -- Player의 이동을 멈추기 위해 FreezePlayer 이벤트 발행
-        local gm = GetGameMode()
-        if gm then
-            local success, err = pcall(function()
-                gm:FireEvent("FreezePlayer", pawn)
-            end)
-            --if success then
-            --    Log("[GameMode_Chaser] Player FROZEN")
-            --else
-            --    Log("[GameMode_Chaser] ERROR freezing player: " .. tostring(err))
-            --end
-        end
+        Log("[GameMode_Chaser] Player movement stopped via FreezeGame")
     end
 
     if chaserActor then
@@ -237,7 +235,6 @@ function OnPlayerCaught(chaserActor)
 
     -- 게임 종료 처리
     --Log("[GameMode_Chaser] Calling EndGame(false)...")
-    local gm = GetGameMode()
     if gm then
         local success, err = pcall(function()
             gm:EndGame(false) -- false = 패배

@@ -174,9 +174,14 @@ function BeginPlay()
                 CurrentRightSpeed = 0.0
                 CurrentMaxSpeed = MoveSpeed  -- 최고 속도를 기본값으로 복원
                 ChaserDistance = 999.0       -- Chaser 거리 초기화
+
+                -- CRITICAL: 리셋 후 플레이어를 얼림 (카운트다운 동안 움직이면 안 됨)
+                bIsFrozen = true
+
                 Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
                     string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
                 Log("[FirstPersonController] ChaserDistance reset to 999.0")
+                Log("[FirstPersonController] Player FROZEN after reset (waiting for UnfreezeGame)")
             end)
         end)
 
