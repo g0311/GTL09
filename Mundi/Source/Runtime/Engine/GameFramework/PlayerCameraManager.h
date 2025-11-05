@@ -56,9 +56,15 @@ public:
 	void Tick(float DeltaSeconds)  override;
 	void EndPlay(EEndPlayReason Reason)  override;
 
-	// Fade In & Out (UCameraModifier_Fade에 위임)
+	// Fade In & Out (UFadeModifier에 위임)
 	void StartFadeOut(float Duration, FLinearColor ToColor = FLinearColor(0, 0, 0, 1));
 	void StartFadeIn(float Duration, FLinearColor FromColor = FLinearColor(0, 0, 0, 1));
+
+	// Vignette (UVignetteModifier에 위임)
+	void EnableVignette(float Intensity = 0.5f, float Smoothness = 0.5f, bool bImmediate = true);
+	void DisableVignette(bool bImmediate = true);
+	void SetVignetteIntensity(float Intensity);
+	void SetVignetteSmoothness(float Smoothness);
 
 	UCameraModifier* AddCameraModifier(UCameraModifier* ModifierClass);
 	void RemoveCameraModifier(UCameraModifier* Modifier);
