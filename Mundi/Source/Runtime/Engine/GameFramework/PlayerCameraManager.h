@@ -3,6 +3,9 @@
 
 class UCameraComponent;
 class UCameraModifier;
+class UCameraShakeBase;
+class UCameraShakePattern;
+struct FCameraShakeStartParams;
 struct FPostProcessSettings;
 
 enum class ECameraBlendType : uint8
@@ -77,6 +80,10 @@ public:
 	void SetLetterboxHeight(float Height);
 	void SetLetterboxColor(const FLinearColor& Color);
 
+    UCameraShakeBase* StartCameraShake(UCameraShakeBase* Shake, float Scale = 1.0f, float Duration = 0.0f);
+	void StopCameraShake(UCameraShakeBase* Shake, bool bImmediately = false);
+	void StopAllCameraShakes(bool bImmediately = false);
+	
 	UCameraModifier* AddCameraModifier(UCameraModifier* ModifierClass);
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
@@ -91,9 +98,10 @@ public:
 	 */
 	FPostProcessSettings GetPostProcessSettings() const;
 
-	FMatrix GetViewMatrix() const;
-	
-	FMatrix GetProjectionMatrix(FViewport* Viewport) const;
+    FMatrix GetViewMatrix() const;
+    
+    FMatrix GetProjectionMatrix(FViewport* Viewport) const;
+    float GetFOV() const { return ViewCache.FOV; }
 	
 	FVector GetCameraLocation() const { return ViewCache.Location; }
 	
@@ -129,5 +137,5 @@ private:
 	FCameraCache ViewCache;
 
 	TArray<UCameraModifier*> ModifierList;
-
+	TArray<UCameraShakeBase*> ActiveShakes;
 };
