@@ -5,6 +5,7 @@
 #include "ObjectFactory.h"
 #include "RenderManager.h"
 #include "Renderer.h"
+#include "PathPointComponent.h"
 
 IMPLEMENT_CLASS(ACineCameraActor)
 
@@ -58,8 +59,11 @@ void ACineCameraActor::CollectPathPointsRecursive(USceneComponent* Parent)
         // CameraComponent는 제외
         if (Child == CameraComponent) continue;
 
-        // 현재 자식을 PathPoints에 추가
-        PathPoints.Add(Child);
+        // PathPointComponent만 수집
+        if (UPathPointComponent* PathPoint = Cast<UPathPointComponent>(Child))
+        {
+            PathPoints.Add(PathPoint);
+        }
 
         // 재귀적으로 자손들도 추가
         CollectPathPointsRecursive(Child);
@@ -87,7 +91,6 @@ void ACineCameraActor::RenderDebugVolume(URenderer* Renderer) const
         CachedColors.clear();
 
         const FVector4 PathColor = FVector4(0.0f, 1.0f, 1.0f, 1.0f); // 청록색
-        const FVector4 PointColor = FVector4(1.0f, 0.5f, 0.0f, 1.0f); // 주황색
 
         // 베지어 곡선 샘플링 (100개 세그먼트)
         const int NumSamples = 100;
@@ -106,28 +109,29 @@ void ACineCameraActor::RenderDebugVolume(URenderer* Renderer) const
             CachedColors.Add(PathColor);
         }
 
-        // PathPoint 위치에 작은 십자가 그리기
+        // PathPoint 위치에 로컬 축 그리기
         for (USceneComponent* Point : PathPoints)
         {
             if (Point)
             {
                 FVector Pos = Point->GetWorldLocation();
-                float Size = 2.0f; // 십자가 크기
+                FQuat Rot = Point->GetWorldRotation();
+                float Size = 2.0f; // 축 길이
 
-                // X축
-                CachedStartPoints.Add(Pos + FVector(-Size, 0, 0));
-                CachedEndPoints.Add(Pos + FVector(Size, 0, 0));
-                CachedColors.Add(FVector4(1.f, 0.f, 0.f, 1.f));
+                // 로컬 X축 (빨강)
+                CachedStartPoints.Add(Pos);
+                CachedEndPoints.Add(Pos + Rot.RotateVector(FVector(Size, 0, 0)));
+                CachedColors.Add(FVector4(1.0f, 0.0f, 0.0f, 1.0f));
 
-                // Y축
-                CachedStartPoints.Add(Pos + FVector(0, -Size, 0));
-                CachedEndPoints.Add(Pos + FVector(0, Size, 0));
-                CachedColors.Add(FVector4(0.f, 1.f, 0.f, 1.f));
+                // 로컬 Y축 (초록)
+                CachedStartPoints.Add(Pos);
+                CachedEndPoints.Add(Pos + Rot.RotateVector(FVector(0, Size, 0)));
+                CachedColors.Add(FVector4(0.0f, 1.0f, 0.0f, 1.0f));
 
-                // Z축
-                CachedStartPoints.Add(Pos + FVector(0, 0, -Size));
-                CachedEndPoints.Add(Pos + FVector(0, 0, Size));
-                CachedColors.Add(FVector4(0.f, 0.f, 1.f, 1.f));
+                // 로컬 Z축 (파랑)
+                CachedStartPoints.Add(Pos);
+                CachedEndPoints.Add(Pos + Rot.RotateVector(FVector(0, 0, Size)));
+                CachedColors.Add(FVector4(0.0f, 0.0f, 1.0f, 1.0f));
             }
         }
 

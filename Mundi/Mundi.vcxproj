@@ -315,6 +315,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\PerlinNoiseCameraShakePattern.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\PathPointComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SoundComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\CineCameraActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
@@ -677,6 +678,7 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClInclude Include="Source\Runtime\Engine\Camera\PerlinNoiseCameraShakePattern.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\PathPointComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\SoundComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\CineCameraActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
