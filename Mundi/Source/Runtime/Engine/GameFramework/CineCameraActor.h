@@ -21,6 +21,7 @@ public:
 
     virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
+    virtual void OnPossessed() override;
 
     // Debug rendering
     void RenderDebugVolume(class URenderer* Renderer) const;
@@ -92,6 +93,13 @@ public:
     /** 정규화된 재생 시간 반환 (0.0 ~ 1.0) */
     float GetPlaybackTimeNormalized() const;
 
+    /** 자동 전환 설정 */
+    void SetAutoReturnToPlayer(bool bInAuto) { bAutoReturnToPlayer = bInAuto; }
+    bool IsAutoReturnToPlayer() const { return bAutoReturnToPlayer; }
+
+    void SetTargetPawnActor(AActor* InActor) { TargetPawnActor = InActor; }
+    AActor* GetTargetPawnActor() const { return TargetPawnActor; }
+
     //================================================
     // 컴포넌트 접근
     //================================================
@@ -148,9 +156,19 @@ private:
     bool bLoop;              // 루프 여부
     bool bShowPath;          // 경로 시각화 표시 여부
 
+    //================================================
+    // 자동 전환 설정
+    //================================================
+
+    bool bAutoReturnToPlayer;    // 재생 완료 시 자동으로 플레이어 Pawn으로 전환
+    AActor* TargetPawnActor;     // 재생 완료 후 빙의할 타겟 Pawn (nullptr이면 자동 전환 안함)
+
     // 경로 라인 캐시 (RenderDebugVolume 성능 최적화)
     mutable bool bPathLinesDirty;
     mutable TArray<FVector> CachedStartPoints;
     mutable TArray<FVector> CachedEndPoints;
     mutable TArray<FVector4> CachedColors;
+
+    /** 직렬화 임시 변수 (OnSerialized에서 TargetPawnActor 복원) */
+    FString TargetPawnActorNameToRestore;
 };

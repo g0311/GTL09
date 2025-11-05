@@ -1729,6 +1729,53 @@ void UPropertyRenderer::RenderCineCameraActorProperties(ACineCameraActor* CineCa
 
 	ImGui::Spacing();
 
+	// ==================== Target Pawn Actor ====================
+	ImGui::Text("Target Pawn Actor:");
+
+	// 현재 선택된 액터 이름 표시
+	AActor* CurrentTargetPawn = CineCamera->GetTargetPawnActor();
+	FString CurrentTargetNameStr = CurrentTargetPawn ? CurrentTargetPawn->GetName().ToString() : "None";
+
+	if (ImGui::BeginCombo("##TargetPawnActor", CurrentTargetNameStr.c_str()))
+	{
+		// "None" 옵션
+		bool bIsSelected = (CurrentTargetPawn == nullptr);
+		if (ImGui::Selectable("None", bIsSelected))
+		{
+			CineCamera->SetTargetPawnActor(nullptr);
+		}
+		if (bIsSelected)
+		{
+			ImGui::SetItemDefaultFocus();
+		}
+
+		// 레벨의 모든 액터 목록
+		UWorld* World = CineCamera->GetWorld();
+		if (World)
+		{
+			const TArray<AActor*>& AllActors = World->GetActors();
+			for (AActor* Actor : AllActors)
+			{
+				if (Actor && Actor != CineCamera) // 자기 자신은 제외
+				{
+					bIsSelected = (CurrentTargetPawn == Actor);
+					FString ActorNameStr = Actor->GetName().ToString();
+					if (ImGui::Selectable(ActorNameStr.c_str(), bIsSelected))
+					{
+						CineCamera->SetTargetPawnActor(Actor);
+					}
+					if (bIsSelected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::Spacing();
+
 	// ==================== Timeline Slider ====================
 	float currentTime = CineCamera->GetPlaybackTime();
 

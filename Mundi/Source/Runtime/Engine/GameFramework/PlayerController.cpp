@@ -96,6 +96,12 @@ void APlayerController::Possess(AActor* InPawn)
 
     // ViewTarget을 자동으로 새 Pawn으로 설정
     SetViewTarget(InPawn);
+
+    // OnPossessed 이벤트 호출
+    if (InPawn)
+    {
+        InPawn->OnPossessed();
+    }
 }
 
 void APlayerController::UnPossess()

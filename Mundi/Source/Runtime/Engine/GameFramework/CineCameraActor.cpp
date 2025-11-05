@@ -6,6 +6,9 @@
 #include "RenderManager.h"
 #include "Renderer.h"
 #include "PathPointComponent.h"
+#include "World.h"
+#include "PlayerController.h"
+#include "GameModeBase.h"
 
 IMPLEMENT_CLASS(ACineCameraActor)
 
@@ -15,6 +18,7 @@ BEGIN_PROPERTIES(ACineCameraActor)
     ADD_PROPERTY_RANGE(float, PlaybackSpeed, "CineCamera", 0.0f, 10.0f, true, "재생 속도 배율")
     ADD_PROPERTY(bool, bLoop, "CineCamera", true, "재생 완료 후 루프")
     ADD_PROPERTY(bool, bShowPath, "CineCamera", true, "경로 시각화 표시")
+    ADD_PROPERTY(bool, bAutoReturnToPlayer, "CineCamera", true, "재생 완료 시 자동으로 플레이어 Pawn으로 전환")
 END_PROPERTIES()
 
 ACineCameraActor::ACineCameraActor()
@@ -24,6 +28,8 @@ ACineCameraActor::ACineCameraActor()
     , bPlaying(false)
     , bLoop(false)
     , bShowPath(true)
+    , bAutoReturnToPlayer(true)
+    , TargetPawnActor(nullptr)
     , bPathLinesDirty(true)
 {
     Name = "CineCameraActor";
@@ -45,6 +51,14 @@ ACineCameraActor::~ACineCameraActor()
 void ACineCameraActor::BeginPlay()
 {
     Super::BeginPlay();
+}
+
+void ACineCameraActor::OnPossessed()
+{
+    Super::OnPossessed();
+
+    // 빙의될 때 자동 재생 시작
+    Play();
 }
 
 void ACineCameraActor::CollectPathPointsRecursive(USceneComponent* Parent)
@@ -159,10 +173,22 @@ void ACineCameraActor::Tick(float DeltaSeconds)
             {
                 PlaybackTime = fmodf(PlaybackTime, Duration);
             }
+            // 초 불법 증축
             else
             {
                 PlaybackTime = Duration;
                 bPlaying = false;
+
+                // 자동으로 플레이어 Pawn으로 빙의 전환
+                if (bAutoReturnToPlayer && TargetPawnActor && World && World->bPie)
+                {
+                    APlayerController* PC = World->GetPlayerController();
+                    if (PC)
+                    {
+                        PC->Possess(TargetPawnActor);
+                        UE_LOG("[CineCameraActor] Auto-possessing target pawn: %s", TargetPawnActor->GetName().ToString().c_str());
+                    }
+                }
             }
         }
 
@@ -497,12 +523,43 @@ void ACineCameraActor::OnSerialized()
     // 네이티브 컴포넌트는 직렬화되지 않으므로 매번 다시 찾기
     CameraComponent = FindComponentByClass<UCameraComponent>();
     CollectPathPointsRecursive(RootComponent);
+
+    // TargetPawnActor 복원
+    if (!TargetPawnActorNameToRestore.empty())
+    {
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            // World에서 이름으로 Actor 찾기
+            for (AActor* Actor : World->GetActors())
+            {
+                if (Actor && Actor->GetName().ToString() == TargetPawnActorNameToRestore)
+                {
+                    TargetPawnActor = Actor;
+                    break;
+                }
+            }
+        }
+        TargetPawnActorNameToRestore.clear();
+    }
 }
 
 void ACineCameraActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
     Super::Serialize(bInIsLoading, InOutHandle);
 
-    // TODO: PathPoints 직렬화 (USceneComponent* 참조 저장/로드)
-    // 현재는 런타임에서만 사용
+    if (bInIsLoading)
+    {
+        // TargetPawnActor 이름 로드
+        FJsonSerializer::ReadString(InOutHandle, "TargetPawnActorName", TargetPawnActorNameToRestore);
+    }
+    else
+    {
+        // TargetPawnActor 이름 저장
+        if (TargetPawnActor)
+        {
+            FString PawnName = TargetPawnActor->GetName().ToString();
+            InOutHandle["TargetPawnActorName"] = PawnName.c_str();
+        }
+    }
 }

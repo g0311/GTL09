@@ -28,6 +28,9 @@ public:
     virtual void EndPlay(EEndPlayReason Reason);
     virtual void Destroy();
 
+    // 빙의 이벤트
+    virtual void OnPossessed() {}
+
     // 디버그 렌더링
     virtual void RenderDebugVolume(class URenderer* Renderer) const {}
 
