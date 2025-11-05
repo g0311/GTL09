@@ -8,7 +8,6 @@
 #include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
 #include "World.h"
-#include <vld.h>
 
 IMPLEMENT_CLASS(APlayerCameraManager)
 
@@ -214,7 +213,7 @@ UCameraModifier* APlayerCameraManager::AddCameraModifier(UCameraModifier* Modifi
 	// 3. 소유자 설정
 	Modifier->CameraOwner = this;
 
-	UE_LOG("APlayerCameraManager - CameraModifier added: {0}", Modifier->GetName());
+	UE_LOG("APlayerCameraManager - CameraModifier added: %c", Modifier->GetName());
 
 	return Modifier;
 }
@@ -224,7 +223,7 @@ void APlayerCameraManager::RemoveCameraModifier(UCameraModifier* Modifier)
 	if (!Modifier) { return; }
 
 	ModifierList.Remove(Modifier);
-	UE_LOG("APlayerCameraManager - CameraModifier removed: {0}", Modifier->GetName());
+	UE_LOG("APlayerCameraManager - CameraModifier removed: %c", Modifier->GetName());
 }
 
 void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, float BlendTime, ECameraBlendType BlendFunc)
@@ -236,7 +235,7 @@ void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, float BlendTime,
 	}
 
 	ViewTarget.Target = NewViewTarget;
-	UE_LOG("APlayerCameraManager - ViewTarget set to: {0}", NewViewTarget->GetName());
+	UE_LOG("APlayerCameraManager - ViewTarget set to: %c", NewViewTarget->GetName());
 }
 
 UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
@@ -247,19 +246,7 @@ UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
 		return nullptr;
 	}
 
-	UCameraComponent* CameraComp = ViewTarget.Target->GetComponent<UCameraComponent>();
-	if (!CameraComp)
-	{
-		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - CameraComponent not found on ViewTarget: %c", 
-			ViewTarget.Target->GetName());
-	}
-	else
-	{
-		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - Found CameraComponent on ViewTarget: %c", 
-			ViewTarget.Target->GetName());
-	}
-
-	return CameraComp;
+	return ViewTarget.Target->GetComponent<UCameraComponent>();
 }
 
 FPostProcessSettings APlayerCameraManager::GetPostProcessSettings() const

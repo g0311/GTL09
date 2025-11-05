@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "CollisionManager.h"
 #include "ShapeComponent.h"
 #include "PrimitiveComponent.h"
@@ -60,10 +60,10 @@ void UCollisionManager::Update(float /*DeltaTime*/, uint32 Budget)
             ++processed;
         }
     }
-    if (ShapeBVH)
-    {
-        ShapeBVH->FlushRebuild();
-    }
+    //if (ShapeBVH)
+    //{
+    //    ShapeBVH->FlushRebuild();
+    //}
 }
 
 void UCollisionManager::ProcessShape(UShapeComponent* Shape)
@@ -93,10 +93,10 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
     }
 
     // Update BVH entry to current bounds
-    if (ShapeBVH)
-    {
-        ShapeBVH->Update(Shape, Shape->GetBroadphaseAABB());
-    }
+    //if (ShapeBVH)
+    //{
+    //    ShapeBVH->Update(Shape, Shape->GetBroadphaseAABB());
+    //}
 
     // Build set from current overlaps
     TSet<UPrimitiveComponent*> OldSet;
@@ -109,12 +109,12 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
     // Compute new overlaps via BVH candidates
     TSet<UShapeComponent*> NewSet;
     TArray<UShapeComponent*> Candidates;
-    if (ShapeBVH)
-    {
-        const FAABB QueryBox = Shape->GetBroadphaseAABB();
-        ShapeBVH->Query(QueryBox, Candidates);
-    }
-    else
+    //if (ShapeBVH)
+    //{
+    //    const FAABB QueryBox = Shape->GetBroadphaseAABB();
+    //    ShapeBVH->Query(QueryBox, Candidates);
+    //}
+    //else
     {
         // Fallback: iterate all active shapes
         for (UShapeComponent* S : ActiveShapes) Candidates.Add(S);
@@ -173,11 +173,11 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
 void UCollisionManager::QueryAABB(const FAABB& QueryBox, TArray<UShapeComponent*>& OutCandidates)
 {
     OutCandidates.Empty();
-    if (ShapeBVH)
-    {
-        ShapeBVH->Query(QueryBox, OutCandidates);
-    }
-    else
+    //if (ShapeBVH)
+    //{
+    //    ShapeBVH->Query(QueryBox, OutCandidates);
+    //}
+    //else
     {
         for (UShapeComponent* S : ActiveShapes) OutCandidates.Add(S);
     }

@@ -514,6 +514,13 @@
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp">
       <Filter>Source\Runtime\Engine\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\AssetManagement\Sound.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierFade.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierVignette.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SoundComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Sound\USoundManager.cpp" />
   </ItemGroup>
   <!-- ThirdParty/ImGui Files -->
   <!-- Source Files -->
@@ -1047,6 +1054,13 @@
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h">
       <Filter>Source\Runtime\Engine\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Runtime\AssetManagement\Sound.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierFade.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SoundComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Sound\USoundManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

@@ -13,44 +13,25 @@ local handleFrenzyPickup = nil
 --- 게임 시작 카운트다운 코루틴 (3초)
 ---
 function GameStartCountdown(component)
-    -- 게임 일시정지
-    Log("[GameMode_Chaser] Freezing game for countdown...")
     local gm = GetGameMode()
     if gm then
         gm:FireEvent("FreezeGame")
+        Log("[GameMode_Chaser] FreezeGame event fired (player & obstacles frozen)")
     end
-
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║          GAME STARTING IN...           ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
 
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   3                    ")
-
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   2                    ")
-
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   1                    ")
 
     coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   GO!                    ")
 
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║                 GO!                    ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
-
-    -- 게임 재개
-    Log("[GameMode_Chaser] Unfreezing game...")
     if gm then
         gm:FireEvent("UnfreezeGame")
+        Log("[GameMode_Chaser] UnfreezeGame event fired (start movement)")
     end
 end
 
@@ -58,20 +39,12 @@ end
 --- 게임 재시작 카운트다운 코루틴 (3초) - 리셋 완료 후 실행
 ---
 function GameRestartCountdown(component)
-    -- 게임 일시정지 (이미 멈춰있지만 명시적으로 호출)
-    Log("[GameMode_Chaser] Freezing game for restart countdown...")
-    local gm = GetGameMode()
-    if gm then
-        gm:FireEvent("FreezeGame")
+    -- Find the RoadGenerator actor and its script component
+    local roadGeneratorActor = GetWorld():FindActorByTag("RoadGenerator")
+    local roadGeneratorScript = nil
+    if roadGeneratorActor then
+        roadGeneratorScript = roadGeneratorActor:GetScriptComponent()
     end
-
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║        RESTARTING GAME IN...           ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
 
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   3                    ")
@@ -84,18 +57,9 @@ function GameRestartCountdown(component)
 
     coroutine.yield(component:WaitForSeconds(1.0))
 
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║                 GO!                    ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
-
-    -- 게임 재개
-    Log("[GameMode_Chaser] Unfreezing game...")
-    if gm then
-        gm:FireEvent("UnfreezeGame")
+    -- Start vehicle movement
+    if roadGeneratorScript then
+        roadGeneratorScript:CallLuaFunction("StartVehicleMovement", 0)
     end
 end
 
