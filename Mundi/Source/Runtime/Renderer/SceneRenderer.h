@@ -114,12 +114,10 @@ private:
 	void RenderFXAAPass();
 	void RenderGammaCorrectionPass();
 	void RenderLetterBoxPass();
+	void RenderFadePass();
 
 	void RenderSceneDepthPostProcess();
 	void RenderTileCullingDebug();
-
-	/** @brief 카메라 후처리 효과 (Fade, Letterbox, Vignette 등)를 적용하는 패스입니다. */
-	void RenderCameraEffectsPass();
 
 	/** @brief 그리드 등 에디터 전용 객체들을 렌더링하는 패스입니다. */
 	void RenderEditorPrimitivesPass();

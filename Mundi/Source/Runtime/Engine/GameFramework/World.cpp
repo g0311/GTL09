@@ -205,7 +205,7 @@ void UWorld::TickGameLogic(float GameDeltaSeconds)
 	{
 		if (APlayerCameraManager* CameraManager = PlayerController->GetPlayerCameraManager())
 		{
-			CameraManager->Tick(DeltaSeconds);
+			CameraManager->Tick(GameDeltaSeconds);
 		}
 	}
 }

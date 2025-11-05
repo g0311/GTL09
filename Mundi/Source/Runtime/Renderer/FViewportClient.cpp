@@ -17,7 +17,6 @@
 #include "InputManager.h"
 #include "InputMappingContext.h"
 #include "InputMappingSubsystem.h"
-#include "PostProcessSettings.h"
 
 FVector FViewportClient::CameraAddPosition{};
 
@@ -520,4 +519,3 @@ void FViewportClient::ExitPIEEjectMode()
 
 	UE_LOG("PIE Resumed - Game mode");
 }
-

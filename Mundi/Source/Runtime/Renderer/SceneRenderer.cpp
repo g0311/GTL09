@@ -119,13 +119,10 @@ void FSceneRenderer::Render()
 	//그리드와 디버그용 Primitive는 Post Processing 적용하지 않음.
 	RenderEditorPrimitivesPass();	// 빌보드, 기타 화살표 출력 (상호작용, 피킹 O)
 	RenderDebugPass();	//  그리드, 선택한 물체의 경계 출력 (상호작용, 피킹 X)
-	
+
 	// 오버레이(Overlay) Primitive 렌더링
 	RenderOverayEditorPrimitivesPass();	// 기즈모 출력
 #endif
-
-	// 카메라 후처리 효과 (Fade, Letterbox, Vignette 등)
-	RenderCameraEffectsPass();
 
 	// 최종적으로 Scene에 그려진 텍스쳐를 Back 버퍼에 그힌다
 	CompositeToBackBuffer();
@@ -1275,6 +1272,62 @@ void FSceneRenderer::RenderLetterBoxPass()
 	SwapGuard.Commit();
 }
 
+void FSceneRenderer::RenderFadePass()
+{
+	// PlayerCameraManager 가져오기
+	APlayerController* PC = World->GetPlayerController();
+	if (!PC) return;
+
+	APlayerCameraManager* CameraManager = PC->GetPlayerCameraManager();
+	if (!CameraManager) return;
+
+	const FPostProcessSettings& Settings = CameraManager->GetPostProcessSettings();
+
+	// Fade가 비활성화되어 있으면 건너뛰기
+	if (Settings.FadeAmount <= 0.0f) return;
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Fade: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Fade_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("Fade용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer
+	FFadeBufferType FadeBuffer;
+	FadeBuffer.FadeColor = Settings.FadeColor;
+	FadeBuffer.FadeAmount = Settings.FadeAmount;
+	FadeBuffer.Padding[0] = 0.0f;
+	FadeBuffer.Padding[1] = 0.0f;
+	FadeBuffer.Padding[2] = 0.0f;
+	RHIDevice->SetAndUpdateConstantBuffer(FadeBuffer);
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
 void FSceneRenderer::RenderPostProcessingPasses()
 {
 	RenderFogPass();
@@ -1282,6 +1335,7 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	RenderFXAAPass();
 	RenderGammaCorrectionPass();
 	RenderLetterBoxPass();
+	RenderFadePass();
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원
@@ -1401,55 +1455,6 @@ void FSceneRenderer::RenderTileCullingDebug()
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
-}
-
-void FSceneRenderer::RenderCameraEffectsPass()
-{
-	// PIE 모드가 아니거나, 플레이어 컨트롤러가 없으면 중단
-	if (!World->bPie || !World->GetPlayerController()) { return; }
-
-	APlayerCameraManager* CameraManager = World->GetPlayerController()->GetPlayerCameraManager();
-	if (!CameraManager) { return; }
-
-	const FPostProcessSettings& Settings = CameraManager->GetPostProcessSettings();
-
-	// 후처리 효과가 하나도 없으면 조기 종료
-	if (Settings.IsEmpty()) { return; }
-
-	ImDrawList* DrawList = ImGui::GetForegroundDrawList();
-	if (!DrawList) { return; }
-
-	// 현재 뷰포트 크기 가져오기
-	float Width = static_cast<float>(OwnerRenderer->GetCurrentViewportWidth());
-	float Height = static_cast<float>(OwnerRenderer->GetCurrentViewportHeight());
-
-	if (Width <= 0 || Height <= 0)
-	{
-		// 뷰포트 크기가 설정되지 않았으면 메인 뷰포트 사용
-		if (ImGuiViewport* MainViewport = ImGui::GetMainViewport())
-		{
-			Width = MainViewport->Size.x;
-			Height = MainViewport->Size.y;
-		}
-	}
-
-	// ───── 후처리 파이프라인 (고정 순서) ─────
-
-	// 1. Letterbox (화면 상하에 검은 띠)
-	// TODO
-
-	// 2. Vignette
-	// TODO
-
-	// 3. Fade (전체 화면 오버레이 - 가장 마지막)
-	if (Settings.FadeAmount > 0.0f)
-	{
-		ImU32 FadeColorU32 = ImGui::ColorConvertFloat4ToU32(
-			ImVec4(Settings.FadeColor.R, Settings.FadeColor.G, Settings.FadeColor.B, Settings.FadeAmount)
-		);
-
-		DrawList->AddRectFilled(ImVec2(0, 0), ImVec2(Width, Height), FadeColorU32);
-	}
 }
 
 // 빌보드, 에디터 화살표 그리기 (상호 작용, 피킹 O)
