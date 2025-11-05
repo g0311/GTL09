@@ -4,6 +4,7 @@
 #include "OBB.h"
 #include "BoundingSphere.h"
 #include "Capsule.h"
+#include "PrimitiveComponent.h"
 
 namespace
 {
@@ -138,34 +139,84 @@ namespace
 
 namespace Collision
 {
-    bool OverlapAABBOBB(const FAABB& Aabb, const FOBB& Obb)
+    bool OverlapAABBOBB(const FAABB& Aabb, const FOBB& Obb, FContactInfo* OutContactInfo)
     {
         const FOBB ConvertedOBB(Aabb, FMatrix::Identity());
-        return ConvertedOBB.Intersects(Obb);
+        bool bOverlaps = ConvertedOBB.Intersects(Obb);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            FVector aabbCenter = (Aabb.Min + Aabb.Max) * 0.5f;
+            OutContactInfo->ContactPoint = (aabbCenter + Obb.Center) * 0.5f;
+
+            FVector AtoB = Obb.Center - aabbCenter;
+            float distance = AtoB.Size();
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = AtoB / distance;
+            }
+            else
+            {
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+            }
+            OutContactInfo->PenetrationDepth = 0.0f;
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapAABBSphere(const FAABB& Aabb, const FBoundingSphere& Sphere)
+    bool OverlapAABBSphere(const FAABB& Aabb, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         // Clamp sphere center to AABB, then compare squared distance to radius^2
         float dist2 = 0.0f;
+        FVector closestPoint;
         for (int i = 0; i < 3; ++i)
         {
             float v = Sphere.Center[i];
             if (v < Aabb.Min[i])
             {
+                closestPoint[i] = Aabb.Min[i];
                 float d = Aabb.Min[i] - v;
                 dist2 += d * d;
             }
             else if (v > Aabb.Max[i])
             {
+                closestPoint[i] = Aabb.Max[i];
                 float d = v - Aabb.Max[i];
                 dist2 += d * d;
             }
+            else
+            {
+                closestPoint[i] = v;
+            }
         }
-        return dist2 <= (Sphere.Radius * Sphere.Radius);
+
+        bool bOverlaps = dist2 <= (Sphere.Radius * Sphere.Radius);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            FVector toSphere = Sphere.Center - closestPoint;
+            float distance = toSphere.Size();
+
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = toSphere / distance;
+                OutContactInfo->ContactPoint = closestPoint;
+                OutContactInfo->PenetrationDepth = Sphere.Radius - distance;
+            }
+            else
+            {
+                // Sphere center inside AABB
+                OutContactInfo->ContactPoint = closestPoint;
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+                OutContactInfo->PenetrationDepth = Sphere.Radius;
+            }
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapOBBSphere(const FOBB& Obb, const FBoundingSphere& Sphere)
+    bool OverlapOBBSphere(const FOBB& Obb, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         // Compute closest point on OBB to sphere center
         const FVector d = Sphere.Center - Obb.Center;
@@ -177,34 +228,164 @@ namespace Collision
             closest += Obb.Axes[i] * t;
         }
         const float dist2 = (closest - Sphere.Center).SizeSquared();
-        return dist2 <= (Sphere.Radius * Sphere.Radius);
+        bool bOverlaps = dist2 <= (Sphere.Radius * Sphere.Radius);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            FVector toSphere = Sphere.Center - closest;
+            float distance = toSphere.Size();
+
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = toSphere / distance;
+                OutContactInfo->ContactPoint = closest;
+                OutContactInfo->PenetrationDepth = Sphere.Radius - distance;
+            }
+            else
+            {
+                // Sphere center is inside OBB
+                OutContactInfo->ContactPoint = closest;
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+                OutContactInfo->PenetrationDepth = Sphere.Radius;
+            }
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapOBBOBB(const FOBB& A, const FOBB& B)
+    bool OverlapOBBOBB(const FOBB& A, const FOBB& B, FContactInfo* OutContactInfo)
     {
-        return A.Intersects(B);
+        bool bOverlaps = A.Intersects(B);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            // 간단하게 두 OBB 중심의 중간 지점을 충돌 위치로 사용
+            OutContactInfo->ContactPoint = (A.Center + B.Center) * 0.5f;
+
+            FVector AtoB = B.Center - A.Center;
+            float distance = AtoB.Size();
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = AtoB / distance;
+            }
+            else
+            {
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+            }
+            OutContactInfo->PenetrationDepth = 0.0f; // OBB vs OBB는 계산 복잡
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapSphereSphere(const FBoundingSphere& A, const FBoundingSphere& B)
+    bool OverlapSphereSphere(const FBoundingSphere& A, const FBoundingSphere& B, FContactInfo* OutContactInfo)
     {
-        return A.Intersects(B);
+        bool bOverlaps = A.Intersects(B);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            // 두 구의 중심을 잇는 벡터
+            FVector AtoB = B.Center - A.Center;
+            float distance = AtoB.Size();
+
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                // ContactNormal: A에서 B로 향하는 방향
+                OutContactInfo->ContactNormal = AtoB / distance;
+
+                // ContactPoint: A 표면과 B 표면의 중간 지점
+                OutContactInfo->ContactPoint = A.Center + OutContactInfo->ContactNormal * A.Radius;
+
+                // PenetrationDepth: 겹친 깊이
+                OutContactInfo->PenetrationDepth = (A.Radius + B.Radius) - distance;
+            }
+            else
+            {
+                // 완전히 겹친 경우 (중심이 같음)
+                OutContactInfo->ContactPoint = A.Center;
+                OutContactInfo->ContactNormal = FVector(0, 0, 1); // 임의 방향
+                OutContactInfo->PenetrationDepth = A.Radius + B.Radius;
+            }
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapCapsuleSphere(const FCapsule& Capsule, const FBoundingSphere& Sphere)
+    bool OverlapCapsuleSphere(const FCapsule& Capsule, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         const float dist2 = DistPointSegmentSq(Sphere.Center, Capsule.Center1, Capsule.Center2);
         const float r = Capsule.Radius + Sphere.Radius;
-        return dist2 <= (r * r);
+        bool bOverlaps = dist2 <= (r * r);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            // Capsule의 중심 선분에서 Sphere에 가장 가까운 점 찾기
+            FVector AB = Capsule.Center2 - Capsule.Center1;
+            FVector AP = Sphere.Center - Capsule.Center1;
+            float abLen2 = FVector::Dot(AB, AB);
+
+            FVector closestOnSegment;
+            if (abLen2 <= KINDA_SMALL_NUMBER)
+            {
+                closestOnSegment = Capsule.Center1;
+            }
+            else
+            {
+                float t = FVector::Dot(AP, AB) / abLen2;
+                t = FMath::Clamp(t, 0.0f, 1.0f);
+                closestOnSegment = Capsule.Center1 + AB * t;
+            }
+
+            FVector toSphere = Sphere.Center - closestOnSegment;
+            float distance = toSphere.Size();
+
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = toSphere / distance;
+                OutContactInfo->ContactPoint = closestOnSegment + OutContactInfo->ContactNormal * Capsule.Radius;
+                OutContactInfo->PenetrationDepth = (Capsule.Radius + Sphere.Radius) - distance;
+            }
+            else
+            {
+                OutContactInfo->ContactPoint = closestOnSegment;
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+                OutContactInfo->PenetrationDepth = Capsule.Radius + Sphere.Radius;
+            }
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapCapsuleCapsule(const FCapsule& A, const FCapsule& B)
+    bool OverlapCapsuleCapsule(const FCapsule& A, const FCapsule& B, FContactInfo* OutContactInfo)
     {
         const float dist2 = DistSegmentSegmentSq(A.Center1, A.Center2, B.Center1, B.Center2);
         const float r = A.Radius + B.Radius;
-        return dist2 <= (r * r);
+        bool bOverlaps = dist2 <= (r * r);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            // 간단하게 두 Capsule의 중간 지점을 충돌 위치로 사용
+            FVector centerA = (A.Center1 + A.Center2) * 0.5f;
+            FVector centerB = (B.Center1 + B.Center2) * 0.5f;
+            OutContactInfo->ContactPoint = (centerA + centerB) * 0.5f;
+
+            FVector AtoB = centerB - centerA;
+            float distance = AtoB.Size();
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = AtoB / distance;
+            }
+            else
+            {
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+            }
+            OutContactInfo->PenetrationDepth = r - sqrt(dist2);
+        }
+
+        return bOverlaps;
     }
 
-    bool OverlapOBBCapsule(const FOBB& Obb, const FCapsule& Capsule)
+    bool OverlapOBBCapsule(const FOBB& Obb, const FCapsule& Capsule, FContactInfo* OutContactInfo)
     {
         // Transform capsule segment into OBB local space
         const FVector P0w = Capsule.Center1;
@@ -227,6 +408,27 @@ namespace Collision
         const FVector Bmax = FVector(+E.X, +E.Y, +E.Z);
 
         // Intersect segment with expanded box
-        return SegmentAABBIntersect(P0l, P1l, Bmin, Bmax);
+        bool bOverlaps = SegmentAABBIntersect(P0l, P1l, Bmin, Bmax);
+
+        if (bOverlaps && OutContactInfo)
+        {
+            // 간단하게 OBB 중심과 Capsule 중심의 중간 지점 사용
+            FVector capsuleCenter = (Capsule.Center1 + Capsule.Center2) * 0.5f;
+            OutContactInfo->ContactPoint = (Obb.Center + capsuleCenter) * 0.5f;
+
+            FVector AtoB = capsuleCenter - Obb.Center;
+            float distance = AtoB.Size();
+            if (distance > KINDA_SMALL_NUMBER)
+            {
+                OutContactInfo->ContactNormal = AtoB / distance;
+            }
+            else
+            {
+                OutContactInfo->ContactNormal = FVector(0, 0, 1);
+            }
+            OutContactInfo->PenetrationDepth = 0.0f;
+        }
+
+        return bOverlaps;
     }
 }

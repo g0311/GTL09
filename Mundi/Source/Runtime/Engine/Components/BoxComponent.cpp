@@ -74,7 +74,7 @@ FOBB UBoxComponent::GetWorldOBB() const
     return FOBB(LocalAABB, GetWorldMatrix());
 }
 
-bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
+bool UBoxComponent::Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo) const
 {
     // Respect collision/overlap flags on both shapes
     if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
@@ -86,15 +86,15 @@ bool UBoxComponent::Overlaps(const UShapeComponent* Other) const
     {
     case ECollisionShapeType::Sphere:
         if (const USphereComponent* S = Cast<USphereComponent>(Other))
-            return Collision::OverlapOBBSphere(This, S->GetWorldSphere());
+            return Collision::OverlapOBBSphere(This, S->GetWorldSphere(), OutContactInfo);
         break;
     case ECollisionShapeType::OBB:
         if (const UBoxComponent* B = Cast<UBoxComponent>(Other))
-            return Collision::OverlapOBBOBB(This, B->GetWorldOBB());
+            return Collision::OverlapOBBOBB(This, B->GetWorldOBB(), OutContactInfo);
         break;
     case ECollisionShapeType::Capsule:
         if (const UCapsuleComponent* C = Cast<UCapsuleComponent>(Other))
-            return Collision::OverlapOBBCapsule(This, C->GetWorldCapsule());
+            return Collision::OverlapOBBCapsule(This, C->GetWorldCapsule(), OutContactInfo);
         break;
     default:
         break;

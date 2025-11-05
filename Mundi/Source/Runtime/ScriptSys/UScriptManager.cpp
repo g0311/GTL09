@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "ScriptComponent.h"
@@ -30,6 +30,7 @@
 #include "Source/Runtime/Engine/Components/CameraComponent.h"
 #include "Source/Runtime/Engine/Components/ProjectileMovementComponent.h"
 #include "Source/Runtime/Engine/Components/MovementComponent.h"
+#include "Source/Runtime/Engine/Components/BillboardComponent.h"
 #include "Source/Runtime/Engine/GameFrameWork/PlayerController.h"
 // Camera shake
 #include "Source/Runtime/Engine/GameFramework/PlayerCameraManager.h"
@@ -231,6 +232,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterActorComponent(state);
     RegisterSceneComponent(state);
     RegisterStaticMeshComponent(state);
+    RegisterBillboardComponent(state);
     RegisterLightComponent(state);
     RegisterDirectionalLightComponent(state);
     RegisterCameraComponent(state);
@@ -452,6 +454,17 @@ void UScriptManager::RegisterWorld(sol::state* state)
             static_cast<AActor * (UWorld::*)(UClass*, const FTransform&)>(&UWorld::SpawnActor)
         )
         ADD_LUA_FUNCTION("DestroyActor", &UWorld::DestroyActor)
+
+        // SpawnEmptyActor: Billboard 이펙트 등을 위한 빈 Actor 생성
+        ADD_LUA_FUNCTION("SpawnEmptyActor", [](UWorld* world) -> AActor* {
+            if (!world) return nullptr;
+
+            // AActor 클래스로 빈 액터 생성
+            UClass* ActorClass = UClass::FindClass(FName("AActor"));
+            if (!ActorClass) return nullptr;
+
+            return world->SpawnActor(ActorClass);
+        })
 
         // ==================== Time Dilation API (Hit Stop / Slow Motion) ====================
         ADD_LUA_FUNCTION("StartHitStop", sol::overload(
@@ -807,6 +820,58 @@ void UScriptManager::RegisterActor(sol::state* state)
 
             return comp;
         })
+
+        // Billboard 컴포넌트 추가 (충돌 이펙트 등에 사용)
+        ADD_LUA_FUNCTION("AddBillboardComponent", [](AActor* actor) -> class UBillboardComponent* {
+            if (!actor)
+            {
+                UE_LOG("[AddBillboardComponent] Actor is null!\n");
+                return nullptr;
+            }
+
+            UE_LOG("[AddBillboardComponent] Creating billboard component...\n");
+
+            // 런타임에 동적으로 Billboard 컴포넌트 생성
+            auto* comp = ObjectFactory::NewObject<UBillboardComponent>();
+            if (!comp)
+            {
+                UE_LOG("[AddBillboardComponent] Failed to create component!\n");
+                return nullptr;
+            }
+
+            UE_LOG("[AddBillboardComponent] Component created successfully\n");
+
+            // Actor에 컴포넌트 추가
+            actor->AddOwnedComponent(comp);
+            UE_LOG("[AddBillboardComponent] Component added to actor\n");
+
+            // RootComponent로 설정 (SceneComponent는 Transform을 가지므로 필수)
+            if (!actor->GetRootComponent())
+            {
+                actor->SetRootComponent(comp);
+                UE_LOG("[AddBillboardComponent] Set as root component\n");
+            }
+            else
+            {
+                // 기존 RootComponent가 있으면 Attach
+                comp->SetupAttachment(actor->GetRootComponent());
+                UE_LOG("[AddBillboardComponent] Attached to existing root component\n");
+            }
+
+            // World가 있으면 컴포넌트 등록 및 초기화
+            if (UWorld* world = actor->GetWorld())
+            {
+                comp->RegisterComponent(world);
+                comp->InitializeComponent();
+                UE_LOG("[AddBillboardComponent] Component registered and initialized\n");
+            }
+            else
+            {
+                UE_LOG("[AddBillboardComponent] Warning: World is null, component not registered\n");
+            }
+
+            return comp;
+        })
     END_LUA_TYPE()
 }
 
@@ -852,6 +917,14 @@ void UScriptManager::RegisterSceneComponent(sol::state* state)
             }
             return children;
         })
+
+        // Visibility
+        ADD_LUA_FUNCTION("SetHiddenInGame", [](USceneComponent* comp, bool bHidden) {
+            if (comp) comp->SetHiddenInGame(bHidden);
+        })
+        ADD_LUA_FUNCTION("GetHiddenInGame", [](USceneComponent* comp) -> bool {
+            return comp ? comp->GetHiddenInGame() : true;
+        })
     END_LUA_TYPE()
 }
 
@@ -863,6 +936,21 @@ void UScriptManager::RegisterStaticMeshComponent(sol::state* state)
             comp->SetStaticMesh(path);
         })
         ADD_LUA_FUNCTION("GetStaticMesh", &UStaticMeshComponent::GetStaticMesh)
+    END_LUA_TYPE()
+}
+
+void UScriptManager::RegisterBillboardComponent(sol::state* state)
+{
+    // ==================== UBillboardComponent 등록 ====================
+    BEGIN_LUA_TYPE_WITH_BASE(state, UBillboardComponent, "BillboardComponent", UPrimitiveComponent, USceneComponent, UActorComponent)
+        // 텍스처 설정
+        ADD_LUA_FUNCTION("SetTextureName", [](UBillboardComponent* comp, const std::string& path) {
+            if (comp) comp->SetTextureName(path);
+        })
+        ADD_LUA_FUNCTION("GetFilePath", [](UBillboardComponent* comp) -> std::string {
+            if (!comp) return "";
+            return comp->GetFilePath();
+        })
     END_LUA_TYPE()
 }
 
@@ -1376,13 +1464,23 @@ void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
 
             // shared_ptr이 수명을 관리하므로 일반 Add() 사용 (ListenerPtr 불필요)
             return Comp->AddOnBeginOverlap(
-                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp) mutable
+                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo) mutable
                 {
-                    sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp);
-                    if (!r.valid())
+                    // FContactInfo를 Lua table로 변환
+                    sol::state* lua = UScriptManager::GetInstance().GetGlobalLuaState();
+                    if (lua)
                     {
-                        sol::error e = r;
-                        UE_LOG((FString("[Lua Error] OnBeginOverlap: ") + e.what() + "\n").c_str());
+                        sol::table contactInfoTable = lua->create_table();
+                        contactInfoTable["ContactPoint"] = ContactInfo.ContactPoint;
+                        contactInfoTable["ContactNormal"] = ContactInfo.ContactNormal;
+                        contactInfoTable["PenetrationDepth"] = ContactInfo.PenetrationDepth;
+
+                        sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp, contactInfoTable);
+                        if (!r.valid())
+                        {
+                            sol::error e = r;
+                            UE_LOG((FString("[Lua Error] OnBeginOverlap: ") + e.what() + "\n").c_str());
+                        }
                     }
                 }
             );
@@ -1396,13 +1494,23 @@ void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
 
             // shared_ptr이 수명을 관리하므로 일반 Add() 사용 (ListenerPtr 불필요)
             return Comp->AddOnEndOverlap(
-                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp) mutable
+                [FnPtr](UPrimitiveComponent* Self, AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo) mutable
                 {
-                    sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp);
-                    if (!r.valid())
+                    // FContactInfo를 Lua table로 변환
+                    sol::state* lua = UScriptManager::GetInstance().GetGlobalLuaState();
+                    if (lua)
                     {
-                        sol::error e = r;
-                        UE_LOG((FString("[Lua Error] OnEndOverlap: ") + e.what() + "\n").c_str());
+                        sol::table contactInfoTable = lua->create_table();
+                        contactInfoTable["ContactPoint"] = ContactInfo.ContactPoint;
+                        contactInfoTable["ContactNormal"] = ContactInfo.ContactNormal;
+                        contactInfoTable["PenetrationDepth"] = ContactInfo.PenetrationDepth;
+
+                        sol::protected_function_result r = (*FnPtr)(Self, OtherActor, OtherComp, contactInfoTable);
+                        if (!r.valid())
+                        {
+                            sol::error e = r;
+                            UE_LOG((FString("[Lua Error] OnEndOverlap: ") + e.what() + "\n").c_str());
+                        }
                     }
                 }
             );

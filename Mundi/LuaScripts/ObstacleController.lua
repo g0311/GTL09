@@ -99,14 +99,19 @@ function ResetState()
     end
 end
 
-function OnOverlap(other)
+function OnOverlap(other, contactInfo)
     if not other then return end
-    
+
     -- Only react to the player; ignore other obstacles to prevent chain reactions
     if not IsPlayerActor(other) then
         return
     end
-    
+
+    -- 충돌 위치에 Billboard 이펙트 생성
+    if contactInfo and contactInfo.ContactPoint then
+        SpawnHitEffectAtLocation(contactInfo.ContactPoint)
+    end
+
     -- Knockback direction: from other to self on XY plane
     local selfPos = actor:GetActorLocation()
     local otherPos = other:GetActorLocation()
@@ -151,6 +156,54 @@ function OnOverlap(other)
 
     -- Trigger hit stop + slow motion sequence
     self:StartCoroutine(HitStopAndSlowMotion)
+end
+
+-- 충돌 위치에 Billboard 이펙트 Actor 생성
+function SpawnHitEffectAtLocation(location)
+    local world = actor:GetWorld()
+    if not world then
+        print("Failed to get world!")
+        return
+    end
+
+    -- Billboard만 가진 Actor 생성
+    local effectActor = world:SpawnEmptyActor()
+    if not effectActor then
+        print("Failed to spawn effect actor!")
+        return
+    end
+    print("Effect actor spawned successfully!")
+
+    -- Billboard Component 먼저 추가 (RootComponent 설정)
+    print("Attempting to add billboard component...")
+    local billboard = effectActor:AddBillboardComponent()
+    print("AddBillboardComponent returned: " .. tostring(billboard))
+
+    -- RootComponent 설정 후 Actor 위치 설정 (충돌 위치에서 X +3, Z +3 오프셋)
+    local offsetLocation = location + Vector(3.0, 0.0, 0.0)
+    effectActor:SetActorLocation(offsetLocation)
+    print("Effect actor location set to: " .. tostring(offsetLocation))
+
+    if billboard then
+        print("Billboard component added successfully!")
+        -- 충돌 이펙트 텍스처 설정 (원하는 텍스처로 변경 가능)
+        billboard:SetTextureName("Data/UI/Icons/EmptyActor.dds")
+        --     billboard:SetTextureName("Data/Textures/Effects/Explosion.png")
+        -- 기본값(Pawn_64x.png)을 사용하려면 이 줄을 주석처리하세요
+
+        -- Billboard 크기 설정 (더 크게)
+        billboard:SetRelativeScale(Vector(5.0, 5.0, 5.0))
+
+        -- 게임에서 보이도록 설정 (기본값이 숨김이므로 필수!)
+        billboard:SetHiddenInGame(false)
+
+        print("Hit effect billboard spawned at: " .. tostring(location))
+    else
+        print("Failed to add billboard component!")
+    end
+
+    -- 일정 시간 후 자동 삭제 (옵션)
+    -- self:StartCoroutine(DestroyEffectAfterDelay, effectActor, 1.0)
 end
 
 -- Coroutine: Hit stop (100ms) → Slow motion (500ms at 50% speed)
