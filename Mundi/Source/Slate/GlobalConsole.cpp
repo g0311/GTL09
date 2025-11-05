@@ -47,7 +47,8 @@ void UGlobalConsole::LogV(const char* fmt, va_list args)
     {
         ConsoleWidget->VAddLog(fmt, args);
     }
-    else
+
+    //else
     {
         // Fallback to OutputDebugString if console widget not available
         char tmp[1024];

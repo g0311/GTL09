@@ -148,4 +148,28 @@ function OnOverlap(other)
     if gm and gm.FireEvent then
         gm:FireEvent("PlayerHit", { obstacle = actor, player = other })
     end
+
+    -- Trigger hit stop + slow motion sequence
+    self:StartCoroutine(HitStopAndSlowMotion)
+end
+
+-- Coroutine: Hit stop (100ms) → Slow motion (500ms at 50% speed)
+function HitStopAndSlowMotion()
+    local world = actor:GetWorld()
+    if not world then return end
+
+    -- 1. Start hit stop (100ms at 1% speed)
+    world:StartHitStop(0.1, 0.01)
+
+    -- 2. Wait for hit stop to finish
+    coroutine.yield(self:WaitForSeconds(0.1))
+
+    -- 3. Start slow motion (50% speed)
+    world:StartSlowMotion(0.5)
+
+    -- 4. Wait for slow motion duration
+    coroutine.yield(self:WaitForSeconds(0.5))
+
+    -- 5. Stop slow motion (return to normal speed)
+    world:StopSlowMotion()
 end

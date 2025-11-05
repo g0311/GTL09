@@ -14,6 +14,20 @@ BEGIN_PROPERTIES(UCameraComponent)
 	ADD_PROPERTY_RANGE(float, NearClip, "Camera", 0.01f, 1000.0f, true, "근거리 클리핑 평면입니다.")
 	ADD_PROPERTY_RANGE(float, FarClip, "Camera", 1.0f, 100000.0f, true, "원거리 클리핑 평면입니다.")
 	ADD_PROPERTY_RANGE(float, ZooMFactor, "Camera", 0.1f, 10.0f, true, "줌 배율입니다.")
+
+	// Vignetting (비네팅)
+	ADD_PROPERTY(bool, bEnableVignetting, "Post Process", true, "비네팅을 활성화합니다.")
+	ADD_PROPERTY_RANGE(float, VignettingIntensity, "Post Process", 0.0f, 1.0f, true, "비네팅 강도입니다.")
+	ADD_PROPERTY_RANGE(float, VignettingSmoothness, "Post Process", 0.0f, 1.0f, true, "비네팅 부드러움입니다.")
+
+	// Gamma Correction (감마 보정)
+	ADD_PROPERTY(bool, bEnableGammaCorrection, "Post Process", true, "감마 보정을 활성화합니다.")
+	ADD_PROPERTY_RANGE(float, GammaValue, "Post Process", 1.0f, 3.0f, true, "감마 값입니다. (기본: 2.2)")
+
+	// Letterbox (레터박스)
+	ADD_PROPERTY(bool, bEnableLetterbox, "Post Process", true, "레터박스를 활성화합니다.")
+	ADD_PROPERTY_RANGE(float, LetterboxHeight, "Post Process", 0.0f, 0.5f, true, "레터박스 높이 비율입니다. (0.0 ~ 0.5)")
+	ADD_PROPERTY(FLinearColor, LetterboxColor, "Post Process", true, "레터박스 색상입니다. (RGB)")
 END_PROPERTIES()
 
 UCameraComponent::UCameraComponent()

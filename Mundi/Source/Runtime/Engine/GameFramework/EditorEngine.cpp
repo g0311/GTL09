@@ -217,7 +217,10 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     //매니저 초기화
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
-    
+
+    // 전역 Lua state 초기화 (모든 스크립트 컴포넌트가 공유)
+    SCRIPT.InitializeGlobalLuaState();
+
     FObjManager::Preload();
 
     ///////////////////////////////////
@@ -237,29 +240,33 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     return true;
 }
 
-void UEditorEngine::Tick(float DeltaSeconds)
+// 기존의 DeltaSeconds->RealDeltaSeconds로 이름 변경
+void UEditorEngine::Tick(float RealDeltaSeconds)
 {
     //@TODO UV 스크롤 입력 처리 로직 이동
-    HandleUVInput(DeltaSeconds);
+    HandleUVInput(RealDeltaSeconds);
 
     for (auto& WorldContext : WorldContexts)
     {
-        WorldContext.World->Tick(DeltaSeconds);
+        // 월드에 리얼 타임을 넘겨주더라도 내부적으로 GameLogic용 Tick을 알아서 돌리기때문에 그대로 RealDeltaSecond 전달
+        WorldContext.World->Tick(RealDeltaSeconds);
         //// 테스트용으로 분기해놨음
         //if (WorldContext.World && bPIEActive && WorldContext.WorldType == EWorldType::Game)
         //{
-        //    WorldContext.World->Tick(DeltaSeconds, WorldContext.WorldType);
+        //    WorldContext.World->Tick(RealDeltaSeconds, WorldContext.WorldType);
         //}
         //else if (WorldContext.World && !bPIEActive && WorldContext.WorldType == EWorldType::Editor)
         //{
-        //    WorldContext.World->Tick(DeltaSeconds, WorldContext.WorldType);
+        //    WorldContext.World->Tick(RealDeltaSeconds, WorldContext.WorldType);
         //}
     }
-    
-    SLATE.Update(DeltaSeconds);
-    UI.Update(DeltaSeconds);
+
+    // UI는 리얼 타임
+    SLATE.Update(RealDeltaSeconds);
+    UI.Update(RealDeltaSeconds);
+
     // Evaluate high-level input mappings before raw input updates its previous-state snapshot
-    UInputMappingSubsystem::Get().Tick(DeltaSeconds);
+    UInputMappingSubsystem::Get().Tick(RealDeltaSeconds);
     INPUT.Update();
 }
 

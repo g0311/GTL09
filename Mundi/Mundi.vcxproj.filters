@@ -54,6 +54,10 @@
     <FxCompile Include="Shaders\Common\LightStructures.hlsl">
       <Filter>Shaders\Effects</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\PostProcess\Vignetting_PS.hlsl" />
+    <FxCompile Include="Shaders\PostProcess\GammaCorrection_PS.hlsl">
+      <Filter>Shaders\PostProcess</Filter>
+    </FxCompile>
   </ItemGroup>
   <!-- Root Files -->
   <ItemGroup>

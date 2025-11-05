@@ -18,23 +18,8 @@ UScriptComponent::UScriptComponent()
     SetCanEverTick(true);
     SetTickEnabled(true);
 
-	// Lua state 생성 및 표준 라이브러리 로드
-	Lua = new sol::state();
-	UE_LOG("[ScriptComponent] ★★★ Creating Lua state with open_libraries ★★★\n");
-	Lua->open_libraries(
-		sol::lib::base,
-		sol::lib::package,
-		sol::lib::coroutine,
-		sol::lib::string,
-		sol::lib::os,
-		sol::lib::math,
-		sol::lib::table,
-		sol::lib::debug,
-		sol::lib::bit32,
-		sol::lib::io,
-		sol::lib::utf8
-	);
-	UE_LOG("[ScriptComponent] ★★★ open_libraries() completed ★★★\n");
+	// 전역 Lua state 사용 (UScriptManager에서 관리)
+	// 각 스크립트는 ReloadScript에서 독립 환경 생성
 
 	EnsureCoroutineHelper();
 }
@@ -49,7 +34,7 @@ UScriptComponent::~UScriptComponent()
         CoroutineHelper = nullptr;
     }
 
-    delete Lua;
+    // Lua state는 전역 UScriptManager에서 관리하므로 여기서 삭제하지 않음
 }
 
 // ==================== Lifecycle ====================
@@ -96,14 +81,19 @@ void UScriptComponent::BeginPlay()
 	// Bind overlap delegates on owner's primitive components to forward into Lua
 	if (AActor* Owner = GetOwner())
 	{
+		int boundCount = 0;
 		for (UActorComponent* Comp : Owner->GetOwnedComponents())
 		{
 			if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Comp))
 			{
 				Prim->AddOnBeginOverlapDynamic(this, &UScriptComponent::OnBeginOverlap);
 				Prim->AddOnEndOverlapDynamic(this, &UScriptComponent::OnEndOverlap);
+				boundCount++;
 			}
 		}
+		FString ownerName = Owner->Name.ToString();
+		FString msg = FString("[ScriptComponent] BeginPlay: Bound overlap to ") + FString(std::to_string(boundCount)) + " primitive components on " + ownerName + "\n";
+		UE_LOG(msg.c_str());
 	}
 }
 
@@ -111,12 +101,19 @@ void UScriptComponent::TickComponent(float DeltaTime)
 {
 	UActorComponent::TickComponent(DeltaTime);
 
+    static int tickCount = 0;
+    if (tickCount < 5) // 처음 5번만 로그
+    {
+        UE_LOG(("[ScriptComponent::Tick] " + std::to_string(tickCount) + " Owner: " + (GetOwner() ? GetOwner()->Name.ToString() : "NULL") + ", ScriptPath: " + ScriptPath + "\n").c_str());
+        tickCount++;
+    }
+
     // 1. 핫 리로드 체크
     CheckHotReload(DeltaTime);
 
     // Case A. 스크립트가 존재하지 않으면 Tick 생략
     if (!bScriptLoaded) { return; }
-    
+
     // 2. Lua Tick 호출
     CallLuaFunction("Tick", DeltaTime);
 
@@ -203,11 +200,21 @@ bool UScriptComponent::ReloadScript()
 
     StopAllCoroutines();
 
-    UScriptManager::GetInstance().RegisterTypesToState(Lua);
+    // 전역 Lua state 가져오기
+    sol::state* GlobalLua = SCRIPT.GetGlobalLuaState();
+    if (!GlobalLua)
+    {
+        UE_LOG("[ScriptComponent] ERROR: Global Lua state not initialized!\n");
+        bScriptLoaded = false;
+        return false;
+    }
 
-    // 이 컴포넌트 전용 변수 바인딩
-    (*Lua)["actor"] = OwnerActor;
-    (*Lua)["self"] = this;
+    // 스크립트별 독립 환경 생성 (전역 환경을 fallback으로 사용)
+    ScriptEnv = sol::environment(*GlobalLua, sol::create, GlobalLua->globals());
+
+    // 이 컴포넌트 전용 변수 바인딩 (독립 환경에)
+    ScriptEnv["actor"] = OwnerActor;
+    ScriptEnv["self"] = this;
 
     // 스크립트 로드
     try
@@ -225,8 +232,32 @@ bool UScriptComponent::ReloadScript()
         std::string scriptContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         file.close();
 
-        // 스크립트 실행 (파일명을 chunk name으로 지정하여 에러 메시지 가독성 향상)
-        Lua->script(scriptContent, ScriptPath);
+        // 스크립트를 로드 (아직 실행 안 함)
+        auto loadResult = GlobalLua->load(scriptContent, ScriptPath);
+        if (!loadResult.valid())
+        {
+            sol::error err = loadResult;
+            UE_LOG(("Lua script load error: " + std::string(err.what()) + "\n").c_str());
+            bScriptLoaded = false;
+            return false;
+        }
+
+        // 로드된 chunk 함수에 환경 설정
+        sol::protected_function scriptFunc = loadResult;
+        sol::set_environment(ScriptEnv, scriptFunc);
+
+        // 스크립트 실행
+        auto execResult = scriptFunc();
+        if (!execResult.valid())
+        {
+            sol::error err = execResult;
+            UE_LOG(("Lua script execution error: " + std::string(err.what()) + "\n").c_str());
+            bScriptLoaded = false;
+            return false;
+        }
+
+        // 스크립트 환경을 ScriptTable에 저장
+        ScriptTable = ScriptEnv;
         bScriptLoaded = true;
 
         // Store timestamp for hot-reload
@@ -321,14 +352,39 @@ void UScriptComponent::CheckHotReload(float DeltaTime)
 // ==================== Lua Events ====================
 void UScriptComponent::NotifyOverlap(AActor* OtherActor)
 {
-    if (!bScriptLoaded || !OtherActor)
+    if (!bScriptLoaded)
+    {
+        UE_LOG("[Overlap] Script not loaded!\n");
         return;
-    
+    }
+
+    if (!OtherActor)
+    {
+        UE_LOG("[Overlap] OtherActor is null!\n");
+        return;
+    }
+
+    if (!ScriptTable.valid())
+    {
+        UE_LOG("[Overlap] ScriptTable is invalid!\n");
+        return;
+    }
+
+    UE_LOG("[Overlap] Calling Lua OnOverlap function...\n");
     CallLuaFunction("OnOverlap", OtherActor);
 }
 
 void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
 {
+	// Debug: 충돌 감지 확인
+	if (OtherActor && GetOwner())
+	{
+		FString ownerName = GetOwner()->Name.ToString();
+		FString otherName = OtherActor->Name.ToString();
+		FString msg = FString("[Overlap] ") + ownerName + " <-> " + otherName + "\n";
+		UE_LOG(msg.c_str());
+	}
+
 	// Forward to Lua handler
 	NotifyOverlap(OtherActor);
 }
@@ -336,7 +392,7 @@ void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, A
 void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
 {
 	// Optional: call Lua if function exists
-	if (!bScriptLoaded || !Lua || !OtherActor)
+	if (!bScriptLoaded || !OtherActor)
 	{
 		return;
 	}
@@ -347,13 +403,13 @@ void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AAc
 bool UScriptComponent::GetHUDEntries(TArray<FHUDRow>& OutRows)
 {
     OutRows.Empty();
-    if (!bScriptLoaded || !Lua)
+    if (!bScriptLoaded || !ScriptTable.valid())
     {
         return false;
     }
     try
     {
-        sol::protected_function func = (*Lua)["HUD_GetEntries"];
+        sol::protected_function func = ScriptTable["HUD_GetEntries"];
         if (!func.valid())
         {
             return false;
@@ -407,13 +463,13 @@ bool UScriptComponent::GetHUDGameOver(FString& OutTitle, TArray<FString>& OutLin
 {
     OutLines.Empty();
     OutTitle = "";
-    if (!bScriptLoaded || !Lua)
+    if (!bScriptLoaded || !ScriptTable.valid())
     {
         return false;
     }
     try
     {
-        sol::protected_function func = (*Lua)["HUD_GameOver"];
+        sol::protected_function func = ScriptTable["HUD_GameOver"];
         if (!func.valid())
         {
             return false;
@@ -486,18 +542,16 @@ void UScriptComponent::DuplicateSubObjects()
     // 복제본은 런타임 로드 상태를 초기화하고 필요 시 BeginPlay/OnSerialized에서 로드
     bScriptLoaded = false;
 	CoroutineHelper = nullptr;
-	Lua = nullptr;
+	// 전역 Lua state 사용하므로 초기화 불필요
+	// ScriptEnv와 ScriptTable은 ReloadScript에서 생성됨
 }
 
 void UScriptComponent::PostDuplicate()
 {
 	Super::PostDuplicate();
 
-	// Lua state 재생성
-	if (!Lua)
-	{
-		Lua = new sol::state();
-	}
+	// 전역 Lua state 사용하므로 별도 생성 불필요
+	// 스크립트 환경은 ReloadScript에서 생성됨
 
 	EnsureCoroutineHelper();
 }

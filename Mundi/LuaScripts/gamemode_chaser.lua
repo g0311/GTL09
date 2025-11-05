@@ -128,11 +128,11 @@ function BeginPlay()
         end)
     end)
 
-    if success1 then
-        Log("[GameMode_Chaser] Subscribed to 'OnPlayerCaught' with handle: " .. tostring(handle1))
-    else
-        Log("[GameMode_Chaser] ERROR subscribing to 'OnPlayerCaught': " .. tostring(handle1))
-    end
+    --if success1 then
+    --    Log("[GameMode_Chaser] Subscribed to 'OnPlayerCaught' with handle: " .. tostring(handle1))
+    --else
+    --    Log("[GameMode_Chaser] ERROR subscribing to 'OnPlayerCaught': " .. tostring(handle1))
+    --end
 
     -- Frenzy pickup subscription (internal signal from item scripts)
     gm:RegisterEvent("FrenzyPickup")
@@ -206,17 +206,17 @@ function OnPlayerCaught(chaserActor)
             local success, err = pcall(function()
                 gm:FireEvent("FreezePlayer", pawn)
             end)
-            if success then
-                Log("[GameMode_Chaser] Player FROZEN")
-            else
-                Log("[GameMode_Chaser] ERROR freezing player: " .. tostring(err))
-            end
+            --if success then
+            --    Log("[GameMode_Chaser] Player FROZEN")
+            --else
+            --    Log("[GameMode_Chaser] ERROR freezing player: " .. tostring(err))
+            --end
         end
     end
 
     if chaserActor then
         -- GetName() 대신 tostring() 사용
-        Log("[GameMode_Chaser] Chaser Actor: " .. tostring(chaserActor))
+        --Log("[GameMode_Chaser] Chaser Actor: " .. tostring(chaserActor))
 
         -- GetActorLocation도 pcall로 감싸기
         local success, chaserPos = pcall(function() return chaserActor:GetActorLocation() end)
@@ -232,63 +232,64 @@ function OnPlayerCaught(chaserActor)
             Log("[GameMode_Chaser] Player Pawn: " .. tostring(pawn))
 
             local success2, pawnPos = pcall(function() return pawn:GetActorLocation() end)
-            if success2 and pawnPos and chaserPos then
-                Log("[GameMode_Chaser] Player Position: (" ..
-                    string.format("%.2f", pawnPos.X) .. ", " ..
-                    string.format("%.2f", pawnPos.Y) .. ", " ..
-                    string.format("%.2f", pawnPos.Z) .. ")")
-
-                -- X축 거리 계산
-                local dx = math.abs(pawnPos.X - chaserPos.X)
-                Log("[GameMode_Chaser] X-axis Distance: " .. string.format("%.2f", dx))
-            end
+            --if success2 and pawnPos and chaserPos then
+            --    Log("[GameMode_Chaser] Player Position: (" ..
+            --        string.format("%.2f", pawnPos.X) .. ", " ..
+            --        string.format("%.2f", pawnPos.Y) .. ", " ..
+            --        string.format("%.2f", pawnPos.Z) .. ")")
+            --
+            --    -- X축 거리 계산
+            --    local dx = math.abs(pawnPos.X - chaserPos.X)
+            --    Log("[GameMode_Chaser] X-axis Distance: " .. string.format("%.2f", dx))
+            --end
         end
-    else
-        Log("[GameMode_Chaser] WARNING: Chaser actor is nil!")
+    --else
+        --Log("[GameMode_Chaser] WARNING: Chaser actor is nil!")
     end
 
-    Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║           🎮 GAME OVER 🎮             ║")
-    Log("║                                        ║")
-    Log("║     You were caught by the chaser!     ║")
-    Log("║                                        ║")
-    Log("║        Restarting game...              ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
-    Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    --Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    --Log("")
+    --Log("╔════════════════════════════════════════╗")
+    --Log("║                                        ║")
+    --Log("║           🎮 GAME OVER 🎮             ║")
+    --Log("║                                        ║")
+    --Log("║     You were caught by the chaser!     ║")
+    --Log("║                                        ║")
+    --Log("║        Restarting game...              ║")
+    --Log("║                                        ║")
+    --Log("╚════════════════════════════════════════╝")
+    --Log("")
+    --Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     -- 게임 종료 처리
-    Log("[GameMode_Chaser] Calling EndGame(false)...")
+    --Log("[GameMode_Chaser] Calling EndGame(false)...")
     local gm = GetGameMode()
     if gm then
         local success, err = pcall(function()
             gm:EndGame(false) -- false = 패배
         end)
 
-        if success then
-            Log("[GameMode_Chaser] Game ended - Player defeated")
-        else
-            Log("[GameMode_Chaser] ERROR calling EndGame: " .. tostring(err))
-        end
+        --if success then
+        --    Log("[GameMode_Chaser] Game ended - Player defeated")
+        --else
+        --    Log("[GameMode_Chaser] ERROR calling EndGame: " .. tostring(err))
+        --end
     else
-        Log("[GameMode_Chaser] ERROR: Could not get GameMode for EndGame")
+        --Log("[GameMode_Chaser] ERROR: Could not get GameMode for EndGame")
     end
 
-    -- 게임 리셋 호출 (OnGameReset 이벤트가 발행되어 카운트다운 시작됨)
-    Log("[GameMode_Chaser] Calling ResetGame()...")
+    -- 게임 상태 리셋 (PIE 재시작 없이)
+    --Log("[GameMode_Chaser] Resetting game state...")
     local success2, err2 = pcall(function()
         ResetGame()
     end)
 
-    if success2 then
-        Log("[GameMode_Chaser] ResetGame() called - waiting for OnGameReset event")
-    else
-        Log("[GameMode_Chaser] ERROR calling ResetGame: " .. tostring(err2))
-    end
+    --if success2 then
+    --    Log("[GameMode_Chaser] ResetGame() called successfully")
+    --    Log("[GameMode_Chaser] Game state has been reset to initial conditions")
+    --else
+    --    Log("[GameMode_Chaser] ERROR calling ResetGame: " .. tostring(err2))
+    --end
 end
 
 ---
