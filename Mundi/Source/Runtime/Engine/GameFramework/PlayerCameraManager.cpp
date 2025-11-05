@@ -240,7 +240,8 @@ void APlayerCameraManager::StopCameraShake(UCameraShakeBase* Shake, bool bImmedi
 	Shake->StopShake(bImmediately);
 	if (bImmediately)
 	{
-		delete *it;
+		DeleteObject(*it);
+		*it = nullptr;
 		ActiveShakes.erase(it);
 	}
 	UE_LOG("APlayerCameraManager - CameraShakeBase removed: {0}", Shake->GetName());
@@ -257,7 +258,7 @@ void APlayerCameraManager::StopAllCameraShakes(bool bImmediately)
 	{
 		for (UCameraShakeBase*& Shake : ActiveShakes)
 		{
-			delete Shake;
+			DeleteObject(Shake);
 			Shake = nullptr;
 		}
 		ActiveShakes.clear();
@@ -486,7 +487,7 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 			if (!Shake) continue;
 			if (Shake->IsFinished())
 			{
-				delete Shake;
+				DeleteObject(Shake);
 				ActiveShakes.erase(ActiveShakes.begin() + i);
 			}
 		}

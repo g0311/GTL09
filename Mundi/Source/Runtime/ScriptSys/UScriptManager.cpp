@@ -950,9 +950,9 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Shake->SetBlendInTime(0.25f);
             Shake->SetBlendOutTime(0.35f);
             Shake->SetRootPattern(Pattern, true);
-                
-            // Start shake (0.0f duration here means use shake’s Duration)
-            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+
+            // Start shake with provided Duration and Scale
+            return PCM->StartCameraShake(Shake, Scale, Duration);
         }
     );
 
@@ -986,7 +986,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Shake->SetRootPattern(Pattern, true);
                             
             // Start shake (0.0f duration here means use shake’s Duration)
-            return PCM->StartCameraShake(Shake, 1.0f, 0.0f);
+            return PCM->StartCameraShake(Shake, Scale, Duration);
         }
     ));
     // Stop a specific camera shake instance

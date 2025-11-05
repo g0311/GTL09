@@ -48,14 +48,7 @@ end
 local MinHorizontalPosition = -5.5 -- temporarily hard-code the limits in
 local MaxHorizontalPosition = 5.5
 
--- 카메라 설정
-local ShakeTime = 0.0
-local ShakeDuration = 0.20
-local ShakeMagnitude = 0.7     -- MUCH smaller scale (in meters / engine units)
-local ShakeFrequency = 25.0     -- faster shake frequency
-local ShakeSeed = 0.0
--- Use additive offset so camera keeps following player input while shaking
-local ShakeOffset = Vector(0.0, 0.0, 0.0)
+-- 카메라 설정 (카메라 쉐이크는 PlayerCameraManager가 처리)
 -- 상태 플래그
 local bIsFrozen = false        -- 플레이어가 얼어있는지 (움직일 수 없음)
 
@@ -136,16 +129,10 @@ function BeginPlay()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
 
-                -- CRITICAL: 카메라 셰이크 오프셋 제거 (위치 리셋 전에 필수!)
-                if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
-                    actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
-                    Log("[FirstPersonController] Removed shake offset: (" ..
-                        string.format("%.2f", ShakeOffset.X) .. ", " ..
-                        string.format("%.2f", ShakeOffset.Y) .. ", " ..
-                        string.format("%.2f", ShakeOffset.Z) .. ")")
-                    ShakeOffset = Vector(0.0, 0.0, 0.0)
+                -- 카메라 쉐이크 정지
+                if pcm then
+                    pcm:StopAllCameraShakes(true)
                 end
-                ShakeTime = 0.0
 
                 -- 초기 위치로 복원 (0, 0, 0으로 강제 고정)
                 local resetPosition = Vector(0, 0, 0)
@@ -270,7 +257,6 @@ function Tick(dt)
     UpdateMovement(dt, input)
 
     -- ==================== 카메라 처리 ====================
-    UpdateCameraShake(dt)
     UpdateSpeedVignette()
 end
 
@@ -342,41 +328,8 @@ function UpdateMovement(dt, input)
 end
 
 ---
---- 카메라 업데이트
+--- 카메라 업데이트 (카메라 쉐이크는 PlayerCameraManager가 자동 처리)
 ---
-function UpdateCameraShake(dt)
-    if ShakeTime > 0 then
-        ShakeTime = ShakeTime - dt
-
-        -- end shake: remove any residual offset
-        if ShakeTime <= 0 then
-            if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
-                actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
-                ShakeOffset = Vector(0.0, 0.0, 0.0)
-            end
-            return
-        end
-
-        -- time progress 0~1
-        local t = 1.0 - (ShakeTime / ShakeDuration)
-
-        -- fade-out curve (ease out)
-        local fade = (1.0 - t) * (1.0 - t)
-
-        -- sine-based directional shake (smooth, not teleport)
-        local x = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency) * ShakeMagnitude * fade
-        local y = math.cos((ShakeTime + ShakeSeed) * ShakeFrequency * 0.9) * ShakeMagnitude * fade
-        local z = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency * 1.3) * ShakeMagnitude * fade * 0.5
-
-        -- Compute new target offset and apply only the delta so base motion persists
-        local target = Vector(x, y, z)
-        local delta = target - ShakeOffset
-        if (delta.X ~= 0.0 or delta.Y ~= 0.0 or delta.Z ~= 0.0) then
-            actor:AddActorWorldLocation(delta)
-            ShakeOffset = target
-        end
-    end
-end
 
 ---
 --- 속도 기반 비네트 효과 업데이트
@@ -418,9 +371,9 @@ function OnExitFrenzyMode(payload)
 end
 
 function OnOverlap(other)
-    ShakeTime = ShakeDuration
-    ShakeSeed = math.random() * 1000
-    
+    -- 카메라 쉐이크 시작 (Perlin 노이즈 기반 - 더 자연스러운 랜덤 쉐이크)
+    StartPerlinCameraShake(0.5, 0.25)
+
     -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
     if not (bIsInFrenzyMode) then
         CurrentMaxSpeed = math.max(MinMaxSpeed, CurrentMaxSpeed - OverlapMaxSpeedPenalty)
