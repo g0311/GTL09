@@ -3,6 +3,7 @@
 #include "Actor.h"
 #include "CameraComponent.h"
 #include "ActorComponent.h"
+#include "PerlinNoiseCameraShakePattern.h"
 #include "PlayerCameraManager.h"
 #include "SinusoidalCameraShakePattern.h"
 #include "World.h"
@@ -56,14 +57,13 @@ void APlayerController::BeginPlay()
         SetViewTarget(PossessedPawn /* or some camera actor */);
     }
     
-    auto* Pattern = NewObject<USinusoidalCameraShakePattern>();
+    auto* Pattern = NewObject<UPerlinNoiseCameraShakePattern>();
     Pattern->LocationAmplitude = FVector(10, 10, 5);
     Pattern->LocationFrequency = FVector(2, 2, 1);
     Pattern->RotationAmplitudeDeg = FVector(1.5f, 1.5f, 2.0f);
     Pattern->RotationFrequency = FVector(3, 2, 1);
     Pattern->FOVAmplitude = 0.5f;
     Pattern->FOVFrequency = 1.0f;
-    Pattern->bRandomizePhase = true;
 	
     auto* Shake = NewObject<UCameraShakeBase>();
     Shake->SetBlendInTime(0.25f);
