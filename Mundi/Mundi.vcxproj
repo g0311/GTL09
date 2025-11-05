@@ -214,7 +214,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\GameFramework\CameraModifier.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
@@ -516,7 +516,7 @@
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h" />
-    <ClInclude Include="Source\Runtime\Engine\GameFramework\CameraModifier.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
@@ -527,7 +527,6 @@
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingSubsystem.h" />
-    <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h" />
     <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
     <ClInclude Include="Source\Runtime\Core\Game\YieldInstruction.h" />
@@ -686,7 +685,6 @@
     <ClInclude Include="Source\Slate\Windows\SViewportWindow.h" />
     <ClInclude Include="Source\Slate\Windows\SWindow.h" />
     <ClInclude Include="Source\Slate\Windows\UIWindow.h" />
-    <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="LuaScripts\Chaser.lua" />
