@@ -1,7 +1,9 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "GameHUDWindow.h"
 #include "ImGui/imgui.h"
 #include "Source/Slate/Widgets/GameHUDWidget.h"
+
+IMPLEMENT_CLASS(UGameHUDWindow, UUIWindow)
 
 UGameHUDWindow::UGameHUDWindow()
 {

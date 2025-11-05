@@ -8,7 +8,6 @@
 #include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
 #include "World.h"
-#include <vld.h>
 
 IMPLEMENT_CLASS(APlayerCameraManager)
 
