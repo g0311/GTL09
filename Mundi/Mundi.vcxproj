@@ -222,6 +222,7 @@
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierVignette.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SoundComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
@@ -530,6 +531,7 @@
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SoundComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
