@@ -127,6 +127,9 @@ local ActiveObstacles = {}
 local ObstaclePatternCounter = 0
 local bIsFrozen = true
 
+-- 실행 중인 코루틴 추적
+local CurrentObstacleDelayCoroutine = nil
+
 -- =====================================================
 -- [내부 변수 - 프렌지 아이템]
 -- =====================================================
@@ -857,8 +860,15 @@ function BeginPlay()
         gm:RegisterEvent("UnfreezeGame")
         gm:SubscribeEvent("UnfreezeGame", function()
             Log("[RoadGenerator] *** UnfreezeGame event received! ***")
+
+            -- 이전 코루틴이 실행 중이면 중지
+            if CurrentObstacleDelayCoroutine then
+                self:StopCoroutine(CurrentObstacleDelayCoroutine)
+                CurrentObstacleDelayCoroutine = nil
+            end
+
             -- 5초 지연 코루틴 시작
-            self:StartCoroutine(ObstacleStartDelayCoroutine)
+            CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
             Log("[RoadGenerator] Started delay coroutine")
         end)
     else
@@ -867,7 +877,7 @@ function BeginPlay()
 
     -- 초기 시작 시 5초 지연 코루틴 시작
     Log("[RoadGenerator] Starting initial delay coroutine...")
-    self:StartCoroutine(ObstacleStartDelayCoroutine)
+    CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
 end
 
 -- =====================================================
@@ -1019,9 +1029,14 @@ function ResetRoadGenerator()
     Log("[RoadGenerator] Final check - Available obstacles: " .. availableObstacles .. "/" .. #ObstaclePool)
     Log("[RoadGenerator] Final check - Active obstacles: " .. #ActiveObstacles)
 
-    -- 7. 5초 지연 코루틴 재시작 (게임 시작과 동시에 시작되도록)
+    -- 7. 이전 코루틴이 실행 중이면 중지하고 새로 시작
+    if CurrentObstacleDelayCoroutine then
+        self:StopCoroutine(CurrentObstacleDelayCoroutine)
+        CurrentObstacleDelayCoroutine = nil
+    end
+
     Log("[RoadGenerator] Starting delay coroutine for reset...")
-    self:StartCoroutine(ObstacleStartDelayCoroutine)
+    CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
 
     ObstaclePatternCounter = #RoadBlocks % (Config.ObstacleBlocksWithObstacles + Config.ObstacleBlocksEmpty)
     Log("[RoadGenerator] ========================================")
@@ -1033,6 +1048,12 @@ end
 -- [라이프사이클] EndPlay
 -- =====================================================
 function EndPlay()
+    -- 실행 중인 코루틴 중지
+    if CurrentObstacleDelayCoroutine then
+        self:StopCoroutine(CurrentObstacleDelayCoroutine)
+        CurrentObstacleDelayCoroutine = nil
+    end
+
     if OwnerActor then
         local world = OwnerActor:GetWorld()
         if world then

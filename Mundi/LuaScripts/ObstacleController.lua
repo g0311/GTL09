@@ -6,6 +6,9 @@ local projectileMovement = nil
 local rotatingMovement = nil
 local initialRotation = nil
 
+-- 실행 중인 코루틴 추적
+local CurrentHitStopCoroutine = nil
+
 -- Tunables
 local UpSpeed = 15.0            -- upward impulse on hit (units/s)
 local GravityZ = -9.8           -- Z-up world; tune to your scale
@@ -64,6 +67,12 @@ function Tick(dt)
 end
 
 function ResetState()
+    -- 실행 중인 코루틴 중지
+    if CurrentHitStopCoroutine then
+        self:StopCoroutine(CurrentHitStopCoroutine)
+        CurrentHitStopCoroutine = nil
+    end
+
     -- Ensure components exist before using them
     if projectileMovement == nil then
         projectileMovement = AddProjectileMovement(actor)
@@ -149,8 +158,14 @@ function OnOverlap(other)
         gm:FireEvent("PlayerHit", { obstacle = actor, player = other })
     end
 
+    -- 이전 코루틴이 실행 중이면 중지
+    if CurrentHitStopCoroutine then
+        self:StopCoroutine(CurrentHitStopCoroutine)
+        CurrentHitStopCoroutine = nil
+    end
+
     -- Trigger hit stop + slow motion sequence
-    self:StartCoroutine(HitStopAndSlowMotion)
+    CurrentHitStopCoroutine = self:StartCoroutine(HitStopAndSlowMotion)
 end
 
 -- Coroutine: Hit stop (100ms) → Slow motion (500ms at 50% speed)

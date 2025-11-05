@@ -9,6 +9,9 @@ local FrenzyCapSeconds = 8.0
 local bFrenzyActive = false
 local handleFrenzyPickup = nil
 
+-- 실행 중인 코루틴 추적
+local CurrentCountdownCoroutine = nil
+
 ---
 --- 게임 시작 카운트다운 코루틴 (3초)
 ---
@@ -131,8 +134,15 @@ function BeginPlay()
         return gm:SubscribeEvent("OnGameReset", function()
             Log("[GameMode_Chaser] *** 'OnGameReset' event received! ***")
             Log("[GameMode_Chaser] Starting restart countdown after reset...")
+
+            -- 이전 코루틴이 실행 중이면 중지
+            if CurrentCountdownCoroutine then
+                self:StopCoroutine(CurrentCountdownCoroutine)
+                CurrentCountdownCoroutine = nil
+            end
+
             -- 리셋 완료 후 카운트다운 시작
-            self:StartCoroutine(function() GameRestartCountdown(self) end)
+            CurrentCountdownCoroutine = self:StartCoroutine(function() GameRestartCountdown(self) end)
         end)
     end)
 
@@ -148,8 +158,8 @@ function BeginPlay()
 
     -- 게임 시작 카운트다운 코루틴 시작
     Log("[GameMode_Chaser] Starting game countdown...")
-    local countdownId = self:StartCoroutine(function() GameStartCountdown(self) end)
-    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(countdownId))
+    CurrentCountdownCoroutine = self:StartCoroutine(function() GameStartCountdown(self) end)
+    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(CurrentCountdownCoroutine))
 end
 
 ---
@@ -277,6 +287,13 @@ end
 ---
 function EndPlay()
     Log("[GameMode] Chaser Handler shutting down")
+
+    -- 실행 중인 코루틴 중지
+    if CurrentCountdownCoroutine then
+        self:StopCoroutine(CurrentCountdownCoroutine)
+        CurrentCountdownCoroutine = nil
+    end
+
     local gm = GetGameMode()
     if gm and handleFrenzyPickup then
         gm:UnsubscribeEvent("FrenzyPickup", handleFrenzyPickup)
