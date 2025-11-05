@@ -7,6 +7,7 @@
 #include "PlayerController.h"
 #include "Picking.h"
 #include "SelectionManager.h"
+#include "PlayerCameraManager.h"
 #include "Gizmo/GizmoActor.h"
 #include "RenderManager.h"
 #include "RenderSettings.h"
@@ -518,4 +519,3 @@ void FViewportClient::ExitPIEEjectMode()
 
 	UE_LOG("PIE Resumed - Game mode");
 }
-

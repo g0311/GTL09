@@ -180,6 +180,13 @@ struct FLetterBoxBufferType //b0
     FLinearColor LetterBoxColor;
 };
 
+struct FFadeBufferType //b0
+{
+    FLinearColor FadeColor;  // RGB: 페이드 색상
+    float FadeAmount;        // 0.0 (투명) ~ 1.0 (불투명)
+    float Padding[3];
+};
+
 #define CONSTANT_BUFFER_INFO(TYPE, SLOT, VS, PS) \
 constexpr uint32 TYPE##Slot = SLOT;\
 constexpr bool TYPE##IsVS = VS;\
@@ -202,7 +209,8 @@ MACRO(FTileCullingBufferType)       \
 MACRO(FPointLightShadowBufferType) \
 MACRO(FVignetteBufferType)          \
 MACRO(FGammaCorrectionBufferType)\
-MACRO(FLetterBoxBufferType)
+MACRO(FLetterBoxBufferType)\
+MACRO(FFadeBufferType)
 
 // 16 바이트 패딩 어썰트
 #define STATIC_ASSERT_CBUFFER_ALIGNMENT(Type) \
@@ -227,3 +235,4 @@ CONSTANT_BUFFER_INFO(FPointLightShadowBufferType, 12, true, true)  // b11, VS on
 CONSTANT_BUFFER_INFO(FVignetteBufferType, 0, false, true)  // b0, PS only
 CONSTANT_BUFFER_INFO(FGammaCorrectionBufferType, 0, false, true)  // b0, PS only
 CONSTANT_BUFFER_INFO(FLetterBoxBufferType, 0, false, true)  // b0, PS only
+CONSTANT_BUFFER_INFO(FFadeBufferType, 0, false, true)  // b0, PS only

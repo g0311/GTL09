@@ -114,6 +114,7 @@ private:
 	void RenderFXAAPass();
 	void RenderGammaCorrectionPass();
 	void RenderLetterBoxPass();
+	void RenderFadePass();
 
 	void RenderSceneDepthPostProcess();
 	void RenderTileCullingDebug();

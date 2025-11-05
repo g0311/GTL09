@@ -454,6 +454,12 @@
     <ClCompile Include="Source\Runtime\Engine\GameplayStatic\GameMode.cpp" />
     <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
     <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\CameraModifier.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
   </ItemGroup>
   <!-- ThirdParty/ImGui Files -->
   <!-- Source Files -->
@@ -940,6 +946,15 @@
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameplayStatic\GameMode.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\CameraModifier.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h">
+      <Filter>Source\Runtime\Core\Misc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

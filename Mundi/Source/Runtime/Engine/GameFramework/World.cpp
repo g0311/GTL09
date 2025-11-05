@@ -27,6 +27,7 @@
 #include "Level.h"
 #include "LightManager.h"
 #include "PlayerController.h"
+#include "PlayerCameraManager.h"
 #include "../GameplayStatic/GameMode.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
 
@@ -178,6 +179,7 @@ void UWorld::TickGameLogic(float GameDeltaSeconds)
 		GameMode->Tick(GameDeltaSeconds);
 	}
 
+	// 순서 바꾸면 안댐
 	if (Level)
 	{
 		for (AActor* Actor : Level->GetActors())
@@ -194,6 +196,16 @@ void UWorld::TickGameLogic(float GameDeltaSeconds)
 		if (EditorActor && (!bPie || bPIEEjected))
 		{
 			EditorActor->Tick(CurrentRealDeltaTime);
+		}
+	}
+
+	// PlayerCameraManager는 모든 액터 업데이트 후 실행 (ViewTarget 포함)
+	// ViewTarget의 최신 위치/회전을 사용하여 카메라 계산
+	if (PlayerController && bPie)
+	{
+		if (APlayerCameraManager* CameraManager = PlayerController->GetPlayerCameraManager())
+		{
+			CameraManager->Tick(GameDeltaSeconds);
 		}
 	}
 }

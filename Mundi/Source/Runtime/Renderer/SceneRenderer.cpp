@@ -45,6 +45,9 @@
 #include "LightStats.h"
 #include "ShadowStats.h"
 #include "PlatformTime.h"
+#include "PostProcessSettings.h"
+#include "PlayerController.h"
+#include "PlayerCameraManager.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, FSceneView* InView, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -116,7 +119,7 @@ void FSceneRenderer::Render()
 	//그리드와 디버그용 Primitive는 Post Processing 적용하지 않음.
 	RenderEditorPrimitivesPass();	// 빌보드, 기타 화살표 출력 (상호작용, 피킹 O)
 	RenderDebugPass();	//  그리드, 선택한 물체의 경계 출력 (상호작용, 피킹 X)
-	
+
 	// 오버레이(Overlay) Primitive 렌더링
 	RenderOverayEditorPrimitivesPass();	// 기즈모 출력
 #endif
@@ -1269,6 +1272,62 @@ void FSceneRenderer::RenderLetterBoxPass()
 	SwapGuard.Commit();
 }
 
+void FSceneRenderer::RenderFadePass()
+{
+	// PlayerCameraManager 가져오기
+	APlayerController* PC = World->GetPlayerController();
+	if (!PC) return;
+
+	APlayerCameraManager* CameraManager = PC->GetPlayerCameraManager();
+	if (!CameraManager) return;
+
+	const FPostProcessSettings& Settings = CameraManager->GetPostProcessSettings();
+
+	// Fade가 비활성화되어 있으면 건너뛰기
+	if (Settings.FadeAmount <= 0.0f) return;
+
+	FSwapGuard SwapGuard(RHIDevice, 0, 1);
+
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithoutDepth);
+
+	// Depth State: Depth Test/Write 모두 OFF
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::Always);
+	RHIDevice->OMSetBlendState(false);
+
+	ID3D11ShaderResourceView* SceneSRV = RHIDevice->GetSRV(RHI_SRV_Index::SceneColorSource);
+	ID3D11SamplerState* LinearClampSamplerState = RHIDevice->GetSamplerState(RHI_Sampler_Index::LinearClamp);
+	if (!SceneSRV || !LinearClampSamplerState)
+	{
+		UE_LOG("Fade: Scene SRV / LinearClamp Sampler is null!\n");
+		return;
+	}
+	ID3D11ShaderResourceView* srvs[1] = { SceneSRV };
+	RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, srvs);
+	ID3D11SamplerState* Samplers[1] = { LinearClampSamplerState };
+	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 1, Samplers);
+
+	UShader* VS = RESOURCE.Load<UShader>("Shaders/Utility/FullScreenTriangle_VS.hlsl");
+	UShader* PS = RESOURCE.Load<UShader>("Shaders/PostProcess/Fade_PS.hlsl");
+	if (!VS || !VS->GetVertexShader() || !PS || !PS->GetPixelShader())
+	{
+		UE_LOG("Fade용 셰이더 없음!\n");
+		return;
+	}
+	RHIDevice->PrepareShader(VS, PS);
+
+	// Update Constant Buffer
+	FFadeBufferType FadeBuffer;
+	FadeBuffer.FadeColor = Settings.FadeColor;
+	FadeBuffer.FadeAmount = Settings.FadeAmount;
+	FadeBuffer.Padding[0] = 0.0f;
+	FadeBuffer.Padding[1] = 0.0f;
+	FadeBuffer.Padding[2] = 0.0f;
+	RHIDevice->SetAndUpdateConstantBuffer(FadeBuffer);
+
+	RHIDevice->DrawFullScreenQuad();
+	SwapGuard.Commit();
+}
+
 void FSceneRenderer::RenderPostProcessingPasses()
 {
 	RenderFogPass();
@@ -1276,6 +1335,7 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	RenderFXAAPass();
 	RenderGammaCorrectionPass();
 	RenderLetterBoxPass();
+	RenderFadePass();
 
 	// CRITICAL: Depth/Stencil State 복원 (다음 프레임의 쉐도우맵 렌더링을 위해)
 	// HeightFog 렌더링에서 Always로 설정했으므로, 기본값인 LessEqual로 복원
