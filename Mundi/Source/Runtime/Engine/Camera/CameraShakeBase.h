@@ -39,7 +39,7 @@ public:
     GENERATED_REFLECTION_BODY()
 
     UCameraShakeBase();
-    virtual ~UCameraShakeBase() override = default;
+    ~UCameraShakeBase();
 
     // Lifecycle
     virtual void StartShake(APlayerCameraManager* InCameraManager, float InScale = 1.0f, float InDuration = 0.0f);
@@ -82,9 +82,18 @@ protected:
     float BlendOutTime = 0.2f;       // seconds
     float PlayScale = 1.0f;          // global scale
 
-    UCameraShakePattern* RootPattern = nullptr; // not owned
+    UCameraShakePattern* RootPattern = nullptr; // may be owned
+    bool bOwnsPattern = false;
 
 public:
-    void SetRootPattern(UCameraShakePattern* InPattern) { RootPattern = InPattern; }
+    void SetRootPattern(UCameraShakePattern* InPattern, bool bTakeOwnership = false)
+    {
+        if (RootPattern && bOwnsPattern && RootPattern != InPattern)
+        {
+            delete RootPattern;
+        }
+        RootPattern = InPattern;
+        bOwnsPattern = bTakeOwnership;
+    }
     UCameraShakePattern* GetRootPattern() const { return RootPattern; }
 };

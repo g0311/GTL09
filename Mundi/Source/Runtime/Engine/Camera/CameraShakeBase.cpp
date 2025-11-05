@@ -20,6 +20,16 @@ UCameraShakeBase::UCameraShakeBase()
     PlayScale = 1.0f;
 }
 
+UCameraShakeBase::~UCameraShakeBase()
+{
+    if (RootPattern && bOwnsPattern)
+    {
+        delete RootPattern;
+        RootPattern = nullptr;
+        bOwnsPattern = false;
+    }
+}
+
 void UCameraShakeBase::StartShake(APlayerCameraManager* InCameraManager, float InScale, float InDuration)
 {
     CameraManager = InCameraManager;
