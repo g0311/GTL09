@@ -38,10 +38,10 @@ UBillboardComponent::UBillboardComponent()
 	bHiddenInGame = true;
 }
 
-void UBillboardComponent::SetTextureName(FString TexturePath)
+void UBillboardComponent::SetTextureName(FString InTexturePath)
 {
-	TexturePath = TexturePath;
-	Texture = UResourceManager::GetInstance().Load<UTexture>(TexturePath);
+	this->TexturePath = InTexturePath;
+	Texture = UResourceManager::GetInstance().Load<UTexture>(InTexturePath);
 }
 
 UMaterialInterface* UBillboardComponent::GetMaterial(uint32 InSectionIndex) const

@@ -63,18 +63,19 @@ public:
 	/**
 	 * @brief 충돌 이벤트를 Lua로 전달
 	 * @param OtherActor 충돌한 Actor
+	 * @param ContactInfo 충돌 위치 정보
 	 */
-	void NotifyOverlap(AActor* OtherActor);
+	void NotifyOverlap(AActor* OtherActor, const struct FContactInfo& ContactInfo);
 
 	/**
 	 * @brief UPrimitiveComponent의 BeginOverlap 델리게이트에서 호출되는 핸들러
 	 */
-	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp);
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, const struct FContactInfo& ContactInfo);
 
 	/**
 	 * @brief UPrimitiveComponent의 EndOverlap 델리게이트에서 호출되는 핸들러 (옵션)
 	 */
-	void OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp);
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, const struct FContactInfo& ContactInfo);
 
 	// ==================== Serialize ====================
 	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;

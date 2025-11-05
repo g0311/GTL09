@@ -34,11 +34,13 @@ bool USoundManager::Initialize()
 		return true;
 	}
 
-	// COM 초기화
+	// COM 초기화 (main에서 이미 초기화되었을 수 있음)
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-	if (FAILED(hr))
+	if (FAILED(hr) && hr != RPC_E_CHANGED_MODE && hr != S_FALSE)
 	{
-		UE_LOG("SoundManager: CoInitialize failed!\n");
+		// RPC_E_CHANGED_MODE: 다른 스레딩 모델로 이미 초기화됨 (허용)
+		// S_FALSE: 이미 초기화됨 (허용)
+		UE_LOG("SoundManager: CoInitialize failed with unexpected error!\n");
 		return false;
 	}
 
