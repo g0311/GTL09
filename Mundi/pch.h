@@ -65,10 +65,12 @@
 #include "DirectXTK/SimpleMath.h"
 
 // ImGui
+#ifdef _EDITOR
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_internal.h"
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
+#endif
 
 // nlohmann
 #include "nlohmann/json.hpp"
@@ -108,14 +110,15 @@ extern const FString GCacheDir;
 #include "Source/Runtime/Engine/GameplayStatic/GameMode.h"
 
 //CUR ENGINE MODE
+// Build Configuration:
+// - _EDITOR: Full editor with UI (default)
+// - _GAME: Shipping build - game only, no editor UI
+// To build Shipping: Comment out _EDITOR and uncomment _GAME
 #define _EDITOR
+//#define _GAME
 
-#ifdef _EDITOR
+
 extern UEditorEngine GEngine;
-#endif
 
-#ifdef _GAME
-extern UGameEngine GEngine;
-#endif
 
 extern UWorld* GWorld;

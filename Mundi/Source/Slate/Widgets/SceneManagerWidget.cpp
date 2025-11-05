@@ -2,6 +2,7 @@
 #include "SceneManagerWidget.h"
 #include "UIManager.h"
 #include "ImGui/imgui.h"
+#include "ImGui/imgui_internal.h"
 #include "World.h"
 #include "RenderSettings.h"
 #include "CameraActor.h"

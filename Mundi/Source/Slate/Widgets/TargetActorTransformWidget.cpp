@@ -3,6 +3,7 @@
 #include "TargetActorTransformWidget.h"
 #include "UIManager.h"
 #include "ImGui/imgui.h"
+#include "ImGui/imgui_internal.h"
 #include "Vector.h"
 #include "World.h"
 #include "ResourceManager.h"
