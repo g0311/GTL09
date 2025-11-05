@@ -1,6 +1,16 @@
 #include "pch.h"
 #include "SpringArmComponent.h"
 #include "CameraComponent.h"
+#include "World.h"
+#include "Actor.h"
+#include "CollisionQueries.h"
+#include "BoundingSphere.h"
+#include "SphereComponent.h"
+#include "BoxComponent.h"
+#include "CapsuleComponent.h"
+#include "OBB.h"
+#include "AABB.h"
+#include "CollisionManager.h"
 
 IMPLEMENT_CLASS(USpringArmComponent)
 
@@ -11,6 +21,7 @@ BEGIN_PROPERTIES(USpringArmComponent)
     ADD_PROPERTY(bool, bInheritPitch, "SpringArm", true, "Pitch 상속 여부")
     ADD_PROPERTY(bool, bInheritYaw,   "SpringArm", true, "Yaw 상속 여부")
     ADD_PROPERTY(bool, bInheritRoll,  "SpringArm", true, "Roll 상속 여부")
+    ADD_PROPERTY_RANGE(float, ProbeSize, "SpringArm", 0.0f, 200.0f, true, "충돌 탐색용 프로브 반경")
     ADD_PROPERTY(bool, bEnableCameraLag,         "Lag", true, "카메라 위치 랙 사용")
     ADD_PROPERTY(bool, bEnableCameraRotationLag, "Lag", true, "카메라 회전 랙 사용")
     ADD_PROPERTY_RANGE(float, CameraLagSpeed,           "Lag", 0.0f, 1000.0f, true, "위치 랙 속도")
@@ -124,20 +135,106 @@ void USpringArmComponent::UpdateDesiredArmLocation(bool /*bDoTrace*/, bool bDoLo
 
     // Store pre-collision (unfixed)
     UnfixedCameraPosition = DesiredPos;
-    bIsCameraFixed = false; // collision test not implemented here
+    bIsCameraFixed = false;
+
+    FVector ClampedPos = DesiredPos;
+    const FVector Segment = DesiredPos - ArmOrigin;
+    const float SegLen = Segment.Size();
+    if (SegLen > 1e-3f && ProbeSize > 0.0f)
+    {
+        const FVector Dir = Segment / SegLen;
+        const int Steps = 16; // coarse steps
+        const float StepLen = SegLen / Steps;
+
+        // Use a temporary sphere component as a probe and rely on its Overlaps implementation
+        USphereComponent ProbeComp;
+        {
+            const float baseRadius = ProbeComp.GetWorldSphere().Radius; // default radius with scale 1
+            const float scaleK = (baseRadius > 0.0f) ? (ProbeSize / baseRadius) : 1.0f;
+            ProbeComp.SetWorldScale(FVector(scaleK, scaleK, scaleK));
+        }
+
+        auto OverlapsAt = [&](const FVector& Pos) -> bool
+        {
+            UWorld* W = GetWorld();
+            if (!W) return false;
+
+            ProbeComp.SetWorldLocation(Pos);
+
+            // Use collision manager's ShapeBVH to gather candidates quickly
+            TArray<UShapeComponent*> Candidates;
+            if (UCollisionManager* CM = W->GetCollisionManager())
+            {
+                CM->QueryAABB(ProbeComp.GetBroadphaseAABB(), Candidates);
+            }
+            else
+            {
+                // Fallback to iterating all actors/components
+                for (AActor* Actor : W->GetActors())
+                {
+                    if (!Actor) continue;
+                    for (USceneComponent* Comp : Actor->GetSceneComponents())
+                    {
+                        if (UShapeComponent* Shape = Cast<UShapeComponent>(Comp))
+                            Candidates.Add(Shape);
+                    }
+                }
+            }
+
+            for (UShapeComponent* Shape : Candidates)
+            {
+                if (!Shape) continue;
+                if (Shape->GetOwner() == GetOwner()) continue; // ignore self owner
+                // Rely on Overlaps to respect collision and overlap flags
+                if (ProbeComp.Overlaps(Shape))
+                    return true;
+            }
+            return false;
+        };
+
+        float hitT = 1.0f;
+        bool bHit = false;
+        for (int i = 1; i <= Steps; ++i)
+        {
+            const float t = (float)i / (float)Steps;
+            const FVector P = ArmOrigin + Dir * (t * SegLen);
+            if (OverlapsAt(P))
+            {
+                // back off to previous sample and refine via binary search
+                float t0 = (float)(i - 1) / (float)Steps;
+                float t1 = t;
+                for (int it = 0; it < 3; ++it) // 3 iterations are enough
+                {
+                    float mid = 0.5f * (t0 + t1);
+                    FVector Pm = ArmOrigin + Dir * (mid * SegLen);
+                    if (OverlapsAt(Pm))
+                        t1 = mid;
+                    else
+                        t0 = mid;
+                }
+                hitT = t0;
+                bHit = true;
+                break;
+            }
+        }
+        if (bHit)
+        {
+            ClampedPos = ArmOrigin + Dir * (hitT * SegLen);
+            bIsCameraFixed = true;
+        }
+    }
 
     // Location lag
-    FVector FinalPos = DesiredPos;
+    FVector FinalPos = ClampedPos;
     if (bFirstTick)
     {
-        PreviousDesiredLocation = DesiredPos;
+        PreviousDesiredLocation = FinalPos;
         PreviousArmOrigin = ArmOrigin;
-        FinalPos = DesiredPos;
         bFirstTick = false;
     }
     else if (bDoLocationLag)
     {
-        FinalPos = BlendLocations(PreviousDesiredLocation, DesiredPos, DeltaTime, CameraLagSpeed, CameraLagMaxDistance);
+        FinalPos = BlendLocations(PreviousDesiredLocation, ClampedPos, DeltaTime, CameraLagSpeed, CameraLagMaxDistance);
     }
 
     // Cache for next tick
@@ -183,4 +280,3 @@ void USpringArmComponent::OnSerialized()
 {
     Super::OnSerialized();
 }
-

@@ -26,6 +26,9 @@ public:
     // Process dirty shapes; budget limits number processed per frame.
     void Update(float DeltaTime, uint32 Budget = 256);
 
+    // Broadphase query: gather candidate shapes intersecting an AABB
+    void QueryAABB(const struct FAABB& QueryBox, TArray<class UShapeComponent*>& OutCandidates);
+
 private:
     // Active shape components in the world
     TSet<UShapeComponent*> ActiveShapes;
