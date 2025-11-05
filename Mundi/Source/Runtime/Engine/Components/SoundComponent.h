@@ -16,7 +16,6 @@ class USoundComponent : public UActorComponent
 public:
 	DECLARE_CLASS(USoundComponent, UActorComponent)
 	GENERATED_REFLECTION_BODY()
-	DECLARE_DUPLICATE(USoundComponent)
 
 	USoundComponent();
 
@@ -77,6 +76,13 @@ public:
 
 	bool IsPlaying() const;
 
+	// Serialization API
+	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+	void OnSerialized() override;
+
+	// ───── 복사 관련 ────────────────────────────
+	void DuplicateSubObjects() override;
+	DECLARE_DUPLICATE(USoundComponent)
 protected:
 	//================================================
 	// Properties (exposed to editor)

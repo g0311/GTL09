@@ -7,7 +7,14 @@
 // 전방 선언
 class USound;
 
-/*
+/**
+ * XAudio2 기반 사운드 엔진 관리자
+ *
+ * - 사운드 리소스는 ResourceManager가 관리 (USound)
+ * - 이 클래스는 XAudio2 엔진 초기화 및 SourceVoice 생성만 담당
+ * - 실제 재생은 SoundComponent가 SourceVoice를 소유하여 직접 제어
+ * - 싱글톤 패턴
+ */
 class USoundManager : public UObject
 {
 public:
