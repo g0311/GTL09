@@ -270,6 +270,7 @@ end
 function Tick(dt)
     local gm = GetGameMode()
     if not gm then return end
+    gm:SetPlayerSpeed(CurrentForwardSpeed)
 
     -- ==================== 이동 차단 조건 ====================
     -- 게임 오버거나 Freeze 상태면 완전 정지

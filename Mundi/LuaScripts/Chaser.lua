@@ -134,6 +134,9 @@ function Tick(dt)
     local gm = GetGameMode()
     if not gm then return end
 
+    MoveSpeed = MoveSpeed + 0.01
+    gm:SetChaserSpeed(MoveSpeed)
+
     -- 이동
     local movement = Vector(MoveSpeed * dt, 0, 0)
     actor:AddActorWorldLocation(movement)
