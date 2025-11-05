@@ -268,10 +268,12 @@ end
 --- 매 프레임 업데이트
 ---
 function Tick(dt)
-    local input = GetInput()
     local gm = GetGameMode()
-    gm:SetPlayerSpeed(CurrentForwardSpeed)
-    if (gm and gm:IsGameOver()) then
+    if not gm then return end
+
+    -- ==================== 이동 차단 조건 ====================
+    -- 게임 오버거나 Freeze 상태면 완전 정지
+    if bIsFrozen or gm:IsGameOver() then
         return
     end
 
@@ -279,10 +281,8 @@ function Tick(dt)
     CurrentMaxSpeed = math.min(CurrentMaxSpeed + MaxSpeedGrowthPerSec * dt, MaxSpeedCap)
 
     -- ==================== 이동 처리 ====================
-    UpdateMovement(dt, input)
-
-    -- ==================== 카메라 처리 ====================
-    --UpdateCameraShake(dt)
+    UpdateMovement(dt, GetInput())
+    UpdateSpeedVignette()
 
     -- ==================== Billboard 제거 처리 ====================
     if BillboardsToRemove then
@@ -302,8 +302,6 @@ function Tick(dt)
             end
         end
     end
-
-    UpdateSpeedVignette()
 end
 
 ---

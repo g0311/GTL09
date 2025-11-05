@@ -13,6 +13,8 @@ local bIsStopped = true         -- Chaser가 멈췄는지 여부 (처음엔 멈�
 local DebugLogInterval = 2.0    -- 디버그 로그 출력 간격 (초)
 local TimeSinceLastLog = 0.0    -- 마지막 로그 출력 이후 경과 시간
 local ChaserStartDelay = 5.0    -- 추격자 시작 지연 시간 (초)
+local DistanceUpdateTimer = 0.0
+local DistanceUpdateInterval = 0.2
 
 -- 게임 리셋을 위한 초기 위치 저장
 local InitialPosition = nil
@@ -128,70 +130,35 @@ end
 --- 매 프레임 업데이트
 ---
 function Tick(dt)
-    -- 디버그 로그 타이머 업데이트
-    TimeSinceLastLog = TimeSinceLastLog + dt
+    if bIsStopped then return end
+    local gm = GetGameMode()
+    if not gm then return end
 
-    -- 주기적으로 상태 출력
-    if TimeSinceLastLog >= DebugLogInterval then
-        Log("[Chaser::Tick] bIsStopped = " .. tostring(bIsStopped))
-        TimeSinceLastLog = 0.0
-    end
-
-    -- 멈춤 상태면 이동하지 않음
-    if bIsStopped then
-        return
-    end
-
-    MoveSpeed = MoveSpeed + 0.01
-    gm:SetChaserSpeed(MoveSpeed)
-
-    -- X축 방향으로 이동
+    -- 이동
     local movement = Vector(MoveSpeed * dt, 0, 0)
     actor:AddActorWorldLocation(movement)
 
-    -- 플레이어 Pawn 가져오기
+    -- 플레이어 가져오기
     local pawn = GetPlayerPawn()
-    if not pawn then
-        -- 주기적으로 경고 출력 (너무 많은 로그 방지)
-        if TimeSinceLastLog >= DebugLogInterval then
-            Log("[Chaser] WARNING: No PlayerPawn found!")
-            TimeSinceLastLog = 0.0
-        end
-        return  -- PlayerController가 없거나 Pawn이 빙의되지 않음
-    end
+    if not pawn then return end
 
-    -- 거리 계산 (X축 방향만)
     local myPos = actor:GetActorLocation()
     local playerPos = pawn:GetActorLocation()
+    local dx = playerPos.X - myPos.X
+    local distanceX = math.abs(dx)
 
-    local dx = playerPos.X - myPos.X  -- 양수: 플레이어가 앞, 음수: Chaser가 플레이어를 지나침
-    local distanceX = math.abs(dx)  -- X 방향 거리만 사용 (HUD 표시용)
-
-    -- 거리 정보를 GameMode 이벤트로 브로드캐스트 (플레이어가 사용 가능)
-    local gm = GetGameMode()
-    if gm then
-        gm:FireEvent("OnChaserDistanceUpdate", distanceX)
+    -- 일정 주기마다 거리 이벤트 갱신 (너무 자주 호출 방지)
+    DistanceUpdateTimer = DistanceUpdateTimer + dt
+    if DistanceUpdateTimer >= DistanceUpdateInterval then
+        DistanceUpdateTimer = 0.0
+        local intDistance = math.floor(distanceX)
+        gm:FireEvent("OnChaserDistanceUpdate", intDistance)
     end
 
-    -- 주기적으로 거리 정보 출력 (디버그용)
-    --if TimeSinceLastLog >= DebugLogInterval then
-    --    Log("[Chaser] X-axis distance to player: " .. string.format("%.2f", distanceX) .. " units (Catch distance: " .. CatchDistance .. ")")
-    --    Log("[Chaser] My X position: " .. string.format("%.2f", myPos.X))
-    --    Log("[Chaser] Player X position: " .. string.format("%.2f", playerPos.X))
-    --    Log("[Chaser] Delta X: " .. string.format("%.2f", dx))
-    --    TimeSinceLastLog = 0.0
-    --end
-
-    -- 거리 체크 및 이벤트 발생
-    -- CRITICAL: dx <= CatchDistance로 체크 (음수/양수 구분)
-    -- Chaser가 플레이어를 지나치거나 도달하면 게임 오버
-    if dx <= CatchDistance then
-        -- 플레이어를 잡음 (한 번만 발생)
-        if not bPlayerCaught then
-            bPlayerCaught = true
-            --Log("[Chaser] *** PLAYER CAUGHT! (dx = " .. string.format("%.2f", dx) .. ") ***")
-            OnPlayerCaught(pawn, distanceX)
-        end
+    -- 잡힘 판정
+    if dx <= CatchDistance and not bPlayerCaught then
+        bPlayerCaught = true
+        OnPlayerCaught(pawn, distanceX)
     end
 end
 

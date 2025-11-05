@@ -17,52 +17,47 @@ local CurrentCountdownCoroutine = nil
 local CountdownUIActive = false
 local CountdownUITimer = 0.0
 local CountdownUIDuration = 4.0 -- 3s numbers + 1s "Start!"
+local bCountdownStarted = false
 
 local function StartCountdownUI()
     CountdownUIActive = true
     CountdownUITimer = 0.0
 end
 
+local function StopCountdownUI()
+    CountdownUIActive = false
+    CountdownUITimer = 0.0
+end
+
 local function UpdateAndDrawCountdownUI(dt)
     if not CountdownUIActive then return end
 
-    -- advance timer
     CountdownUITimer = CountdownUITimer + dt
-
-    -- choose label by elapsed time
     local t = CountdownUITimer
     local label
     local r, g, b = 1.0, 1.0, 1.0
+
     if t < 2.0 then
         label = "Ready..."
     elseif t < 3.0 then
         label = "3..."
-        r, g, b = 1.0, 0.3, 0.3 -- reddish
+        r, g, b = 1.0, 0.3, 0.3
     elseif t < 4.0 then
         label = "2..."
-        r, g, b = 1.0, 0.6, 0.2 -- orange
+        r, g, b = 1.0, 0.6, 0.2
     elseif t < 5.0 then
         label = "1..."
-        r, g, b = 1.0, 0.9, 0.2 -- yellow
+        r, g, b = 1.0, 0.9, 0.2
     elseif t < 6.0 then
         label = "Start!"
-        r, g, b = 0.3, 1.0, 0.4 -- greenish
+        r, g, b = 0.3, 1.0, 0.4
     else
-        CountdownUIActive = false
+        StopCountdownUI()
+        bCountdownRunning = false -- 🔸 카운트다운 종료
         return
     end
 
-    -- Draw big text near top-center-ish (fixed layout)
-    -- Adjust these numbers if needed for your resolution
-    local x = 780.0  -- left position in pixels
-    local y = 480.0   -- top position in pixels
-    local size = 100.0
-    local a = 1.0
-    local bgAlpha = 0.0
-    local width = 560.0
-    local height = 120.0
-    -- font/locale optional; keep defaults or set explicitly
-    DrawText(label, x, y, size, r, g, b, a, "Segoe UI", "en-us", bgAlpha, width, height)
+    DrawText(label, 780.0, 480.0, 100.0, r, g, b, 1.0, "Segoe UI", "en-us", 0.0, 560.0, 120.0)
 end
 
 ---
@@ -95,30 +90,26 @@ end
 --- 게임 재시작 카운트다운 코루틴 (3초) - 리셋 완료 후 실행
 ---
 function GameRestartCountdown(component)
-    -- Find the RoadGenerator actor and its script component
-    local roadGeneratorActor = GetWorld():FindActorByTag("RoadGenerator")
-    local roadGeneratorScript = nil
-    if roadGeneratorActor then
-        roadGeneratorScript = roadGeneratorActor:GetScriptComponent()
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+        Log("[GameMode_Chaser] FreezeGame event fired (countdown start)")
     end
 
-    local gm = GetGameMode()
+    StartCountdownUI()
 
     coroutine.yield(component:WaitForSeconds(1.0))
-    Log("                   3                    ")
-
+    Log("3...")
     coroutine.yield(component:WaitForSeconds(1.0))
-    Log("                   2                    ")
-
+    Log("2...")
     coroutine.yield(component:WaitForSeconds(1.0))
-    Log("                   1                    ")
-
+    Log("1...")
     coroutine.yield(component:WaitForSeconds(1.0))
+    Log("START!")
 
-    -- Start vehicle movement
     if gm then
         gm:FireEvent("UnfreezeGame")
-        Log("[GameMode_Chaser] UnfreezeGame event fired (restart movement)")
+        Log("[GameMode_Chaser] UnfreezeGame fired after countdown")
     end
 end
 
@@ -126,11 +117,6 @@ end
 --- 게임 시작 시 초기화
 ---
 function BeginPlay()
-    Log("==============================================")
-    Log("[GameMode_Chaser] BeginPlay() called!")
-    Log("[GameMode_Chaser] Chaser Handler Initialized")
-    Log("==============================================")
-
     Log("[GameMode_Chaser] Attempting to get GameMode...")
     local gm = GetGameMode()
     if not gm then
@@ -203,10 +189,6 @@ function BeginPlay()
         Log("[GameMode_Chaser] ERROR subscribing to 'OnGameReset': " .. tostring(handle2))
     end
 
-    Log("[GameMode_Chaser] Event subscription complete")
-    Log("[GameMode_Chaser] Ready to receive chaser notifications")
-    Log("==============================================")
-
     -- 게임 시작 카운트다운 코루틴 시작
     Log("[GameMode_Chaser] Starting game countdown...")
     -- Kick off simple UI countdown overlay as well
@@ -223,57 +205,24 @@ function OnPlayerCaught(chaserActor)
     Log("[GameMode_Chaser] ALERT - Player Caught by Chaser!")
     Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    -- CRITICAL: 모든 것 멈춤 (플레이어, 장애물, Chaser)
     local gm = GetGameMode()
     if gm then
         gm:FireEvent("FreezeGame")
         Log("[GameMode_Chaser] FreezeGame event fired - ALL movement stopped")
     end
 
-    -- Player 멈춤 (이미 FreezeGame에서 처리됨)
     local pawn = GetPlayerPawn()
     if pawn then
         Log("[GameMode_Chaser] Player movement stopped via FreezeGame")
     end
 
-    if chaserActor then
-        -- GetActorLocation도 pcall로 감싸기
-        local success, chaserPos = pcall(function() return chaserActor:GetActorLocation() end)
-        if success and chaserPos then
-            Log("[GameMode_Chaser] Chaser Position: (" ..
-                string.format("%.2f", chaserPos.X) .. ", " ..
-                string.format("%.2f", chaserPos.Y) .. ", " ..
-                string.format("%.2f", chaserPos.Z) .. ")")
-        end
-
-        -- 플레이어 정보도 출력
-        if pawn then
-            Log("[GameMode_Chaser] Player Pawn: " .. tostring(pawn))
-            local success2, pawnPos = pcall(function() return pawn:GetActorLocation() end)
-        end
-    end
-
     -- 게임 종료 처리
     if gm then
-        local success, err = pcall(function()
-            gm:EndGame(false) -- false = 패배
-        end)
+        pcall(function() gm:EndGame(false) end)
     end
 
-    -- 게임 상태 리셋 (PIE 재시작 없이)
-    local success2, err2 = pcall(function()
-        ResetGame()
-    end)
-
-    local gm = GetGameMode()
-    if gm then
-        Log("[GameMode_Chaser] Scheduling restart countdown after reset...")
-        self:StartCoroutine(function()
-            coroutine.yield(self:WaitForSeconds(4.0))
-            gm:FireEvent("UnfreezeGame")
-            Log("[GameMode_Chaser] UnfreezeGame fired after reset delay")
-        end)
-    end
+    -- 게임 리셋만 수행 (카운트다운은 OnGameReset에서 수행)
+    pcall(function() ResetGame() end)
 end
 
 ---
