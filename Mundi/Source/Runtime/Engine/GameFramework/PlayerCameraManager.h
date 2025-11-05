@@ -66,6 +66,17 @@ public:
 	void SetVignetteIntensity(float Intensity);
 	void SetVignetteSmoothness(float Smoothness);
 
+	// Gamma Correction (UGammaCorrectionModifier에 위임)
+	void EnableGammaCorrection(float Gamma = 2.2f, bool bImmediate = true);
+	void DisableGammaCorrection(bool bImmediate = true);
+	void SetGamma(float Gamma);
+
+	// Letterbox (ULetterboxModifier에 위임)
+	void EnableLetterbox(float Height = 0.1f, FLinearColor Color = FLinearColor(0, 0, 0, 1), bool bImmediate = true);
+	void DisableLetterbox(bool bImmediate = true);
+	void SetLetterboxHeight(float Height);
+	void SetLetterboxColor(const FLinearColor& Color);
+
 	UCameraModifier* AddCameraModifier(UCameraModifier* ModifierClass);
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
