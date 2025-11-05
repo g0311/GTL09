@@ -342,9 +342,9 @@ function UpdateMovement(dt, input)
 
     -- 경계에서 바깥 방향 속도 차단 (Y 축)
     local pos = actor:GetActorLocation()
-    if pos.Y >= MaxHorizontalPosition and CurrentRightSpeed > 0 then
+    if pos.Y >= InitialPosition.Y + MaxHorizontalPosition and CurrentRightSpeed > 0 then
         CurrentRightSpeed = 0
-    elseif pos.Y <= MinHorizontalPosition and CurrentRightSpeed < 0 then
+    elseif pos.Y <= InitialPosition.Y + MinHorizontalPosition and CurrentRightSpeed < 0 then
         CurrentRightSpeed = 0
     end
 
