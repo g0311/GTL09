@@ -296,6 +296,47 @@ void APlayerCameraManager::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 	Super::Serialize(bInIsLoading, InOutHandle);
 }
 
+void APlayerCameraManager::InitializeModifiers()
+{
+	UE_LOG("=== PlayerCameraManager: Initializing Modifiers ===");
+
+	// 1. Fade Modifier 추가
+	UFadeModifier* FadeModifier = NewObject<UFadeModifier>();
+	if (FadeModifier)
+	{
+		AddCameraModifier(FadeModifier);
+		FadeModifier->DisableModifier(true);
+		UE_LOG("  [OK] FadeModifier added");
+	}
+
+	// 2. Vignette Modifier 추가
+	UVignetteModifier* VignetteModifier = NewObject<UVignetteModifier>();
+	if (VignetteModifier)
+	{
+		AddCameraModifier(VignetteModifier);
+		VignetteModifier->DisableModifier(true);
+		UE_LOG("  [OK] VignetteModifier added");
+	}
+
+	// 3. Gamma Correction Modifier 추가
+	UGammaCorrectionModifier* GammaModifier = NewObject<UGammaCorrectionModifier>();
+	if (GammaModifier)
+	{
+		AddCameraModifier(GammaModifier);
+		GammaModifier->DisableModifier(true);
+		UE_LOG("  [OK] GammaCorrectionModifier added");
+	}
+
+	// 4. Letterbox Modifier 추가
+	ULetterboxModifier* LetterboxModifier = NewObject<ULetterboxModifier>();
+	if (LetterboxModifier)
+	{
+		AddCameraModifier(LetterboxModifier);
+		LetterboxModifier->DisableModifier(true);
+		UE_LOG("  [OK] LetterboxModifier added");
+	}
+}
+
 void APlayerCameraManager::UpdateCamera(float DeltaTime)
 {
 	// 1. ViewTarget의 카메라 컴포넌트에서 기본 값 가져오기
