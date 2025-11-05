@@ -122,8 +122,10 @@ bool SViewportWindow::Initialize(float StartX, float StartY, float Width, float 
 
 void SViewportWindow::OnRender()
 {
+#ifdef _EDITOR
 	// Slate(UI)만 처리하고 렌더는 FViewport에 위임
 	RenderToolbar();
+#endif
 
 	if (Viewport)
 		Viewport->Render();

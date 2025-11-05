@@ -3,6 +3,8 @@
 #include "ImGui/imgui.h"
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
 
+IMPLEMENT_CLASS(UGameHUDWidget)
+
 void UGameHUDWidget::RenderWidget()
 {
     UWorld* World = UUIManager::GetInstance().GetWorld();
