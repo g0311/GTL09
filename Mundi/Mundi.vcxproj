@@ -214,6 +214,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <ClCompile Include="Source\Runtime\AssetManagement\Sound.cpp" />
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierFade.cpp" />
@@ -222,10 +223,12 @@
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierVignette.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SoundComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Sound\USoundManager.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Spatial\ShapeBVH.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingContext.cpp" />
     <ClCompile Include="Source\Runtime\InputCore\InputMappingSubsystem.cpp" />
@@ -519,6 +522,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Runtime\AssetManagement\Sound.h" />
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h" />
@@ -528,10 +532,12 @@
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SoundComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
+    <ClInclude Include="Source\Runtime\Engine\Sound\USoundManager.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\ShapeBVH.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />

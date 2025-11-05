@@ -9,6 +9,7 @@
 #pragma comment(lib, "user32")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "d3dcompiler")
+#pragma comment(lib, "xaudio2.lib")
 
 // DirectXTK
 #pragma comment(lib, "DirectXTK.lib")
@@ -45,6 +46,8 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 #include <cassert>
+#include <xaudio2.h>
+
 
 // Core Project Headers
 #include "VertexData.h"
@@ -83,6 +86,7 @@
 #include "UIManager.h"
 #include "ResourceManager.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
+#include "Source/Runtime/Engine/Sound/USoundManager.h"
 
 #include "JsonSerializer.h"
 
@@ -92,6 +96,7 @@
 #define RENDER URenderManager::GetInstance()
 #define SLATE USlateManager::GetInstance()
 #define SCRIPT UScriptManager::GetInstance()
+#define SOUND USoundManager::GetInstance()
 
 //(월드 별 소유)
 //#define PARTITION UWorldPartitionManager::GetInstance()
