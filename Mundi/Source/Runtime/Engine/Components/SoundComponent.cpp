@@ -20,13 +20,20 @@ USoundComponent::USoundComponent()
 	, bAutoPlay(false)
 	, bLoop(false)
 	, Volume(1.0f)
-	, bIsCurrentlyPlaying(false)
+	, SourceVoice(nullptr)
 {
 	bCanEverTick = false; // Sound component doesn't need to tick
 }
 
 USoundComponent::~USoundComponent()
 {
+	// Clean up source voice
+	if (SourceVoice)
+	{
+		SourceVoice->Stop(0);
+		SourceVoice->DestroyVoice();
+		SourceVoice = nullptr;
+	}
 }
 
 void USoundComponent::BeginPlay()
@@ -42,11 +49,8 @@ void USoundComponent::BeginPlay()
 
 void USoundComponent::EndPlay(EEndPlayReason Reason)
 {
-	// Stop the sound when component is being destroyed
-	if (bIsCurrentlyPlaying)
-	{
-		Stop();
-	}
+	// Stop and cleanup source voice
+	Stop();
 
 	Super::EndPlay(Reason);
 }
@@ -59,57 +63,78 @@ void USoundComponent::Play()
 		return;
 	}
 
-	const FString& SoundFilePath = Sound->GetFilePath();
-	if (SoundFilePath.empty())
-	{
-		UE_LOG("USoundComponent::Play: Sound file path is empty!\n");
-		return;
-	}
+	// Stop existing playback first
+	Stop();
 
 	USoundManager& SoundManager = USoundManager::GetInstance();
 
-	if (SoundManager.PlaySound(SoundFilePath, bLoop, Volume))
+	// Create source voice
+	SourceVoice = SoundManager.CreateSourceVoice(Sound);
+	if (!SourceVoice)
 	{
-		bIsCurrentlyPlaying = true;
+		UE_LOG("USoundComponent::Play: Failed to create source voice!\n");
+		return;
+	}
+
+	// Setup buffer
+	XAUDIO2_BUFFER Buffer = Sound->GetBuffer();
+	if (bLoop)
+	{
+		Buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 	}
 	else
 	{
-		UE_LOG("USoundComponent::Play: Failed to play sound: %s\n", SoundFilePath.c_str());
+		Buffer.LoopCount = 0;
+	}
+
+	// Submit buffer
+	HRESULT hr = SourceVoice->SubmitSourceBuffer(&Buffer);
+	if (FAILED(hr))
+	{
+		SourceVoice->DestroyVoice();
+		SourceVoice = nullptr;
+		UE_LOG("USoundComponent::Play: Failed to submit source buffer!\n");
+		return;
+	}
+
+	// Set volume
+	SourceVoice->SetVolume(Volume * SoundManager.GetMasterVolume());
+
+	// Start playback
+	hr = SourceVoice->Start(0);
+	if (FAILED(hr))
+	{
+		SourceVoice->DestroyVoice();
+		SourceVoice = nullptr;
+		UE_LOG("USoundComponent::Play: Failed to start playback!\n");
+		return;
 	}
 }
 
 void USoundComponent::Stop()
 {
-	if (!bIsCurrentlyPlaying || !Sound)
+	if (SourceVoice)
 	{
-		return;
+		SourceVoice->Stop(0);
+		SourceVoice->DestroyVoice();
+		SourceVoice = nullptr;
 	}
-
-	USoundManager& SoundManager = USoundManager::GetInstance();
-	SoundManager.StopSound(Sound->GetFilePath());
-	bIsCurrentlyPlaying = false;
 }
 
 void USoundComponent::Pause()
 {
-	if (!bIsCurrentlyPlaying || !Sound)
+	if (SourceVoice)
 	{
-		return;
+		SourceVoice->Stop(0);
 	}
-
-	USoundManager& SoundManager = USoundManager::GetInstance();
-	SoundManager.PauseSound(Sound->GetFilePath());
 }
 
 void USoundComponent::Resume()
 {
-	if (!bIsCurrentlyPlaying || !Sound)
+	if (SourceVoice)
 	{
-		return;
+		SourceVoice->Start(0);
 	}
-
-	USoundManager& SoundManager = USoundManager::GetInstance();
-	SoundManager.ResumeSound(Sound->GetFilePath());
 }
 
 void USoundComponent::SetVolume(float InVolume)
@@ -117,20 +142,21 @@ void USoundComponent::SetVolume(float InVolume)
 	Volume = FMath::Clamp(InVolume, 0.0f, 1.0f);
 
 	// Update volume if currently playing
-	if (bIsCurrentlyPlaying && Sound)
+	if (SourceVoice)
 	{
 		USoundManager& SoundManager = USoundManager::GetInstance();
-		SoundManager.SetSoundVolume(Sound->GetFilePath(), Volume);
+		SourceVoice->SetVolume(Volume * SoundManager.GetMasterVolume());
 	}
 }
 
 bool USoundComponent::IsPlaying() const
 {
-	if (!bIsCurrentlyPlaying || !Sound)
+	if (!SourceVoice)
 	{
 		return false;
 	}
 
-	USoundManager& SoundManager = USoundManager::GetInstance();
-	return SoundManager.IsSoundPlaying(Sound->GetFilePath());
+	XAUDIO2_VOICE_STATE State;
+	SourceVoice->GetState(&State);
+	return State.BuffersQueued > 0;
 }

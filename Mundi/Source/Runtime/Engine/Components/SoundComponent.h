@@ -1,12 +1,14 @@
 #pragma once
 #include "ActorComponent.h"
+#include <xaudio2.h>
 
 // Forward declarations
 class USound;
 
 /**
  * USoundComponent
- * Plays sound using USoundManager
+ * Plays sound using XAudio2 directly
+ * Each component owns its own SourceVoice for independent playback
  * Supports auto-play, looping, and volume control
  */
 class USoundComponent : public UActorComponent
@@ -93,6 +95,6 @@ protected:
 	float Volume;
 
 private:
-	/** Track if we are currently managing a sound */
-	bool bIsCurrentlyPlaying;
+	/** XAudio2 source voice for playback (owned by this component) */
+	IXAudio2SourceVoice* SourceVoice;
 };
