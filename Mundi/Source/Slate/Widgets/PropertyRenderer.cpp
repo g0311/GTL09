@@ -9,9 +9,11 @@
 #include "StaticMesh.h"
 #include "Material.h"
 #include "Sound.h"
+#include "SoundComponent.h"
 #include "BillboardComponent.h"
 #include "DecalComponent.h"
 #include "StaticMeshComponent.h"
+#include "Source/Runtime/Engine/Sound/USoundManager.h"
 #include "LightComponentBase.h"
 #include "LightComponent.h"
 #include "PointLightComponent.h"
@@ -990,6 +992,8 @@ bool UPropertyRenderer::RenderSoundProperty(const FProperty& Prop, void* Instanc
 		}
 	}
 
+	bool bChanged = false;
+
 	ImGui::SetNextItemWidth(240);
 	if (ImGui::Combo(Prop.Name, &SelectedIdx, CachedSoundItems.data(), static_cast<int>(CachedSoundItems.size())))
 	{
@@ -1004,7 +1008,7 @@ bool UPropertyRenderer::RenderSoundProperty(const FProperty& Prop, void* Instanc
 			{
 				*SoundPtr = UResourceManager::GetInstance().Load<USound>(SelectedPath);
 			}
-			return true;
+			bChanged = true;
 		}
 	}
 
@@ -1016,7 +1020,53 @@ bool UPropertyRenderer::RenderSoundProperty(const FProperty& Prop, void* Instanc
 		ImGui::EndTooltip();
 	}
 
-	return false;
+	// SoundComponent용 Play/Stop 버튼
+	UObject* Obj = static_cast<UObject*>(Instance);
+	if (USoundComponent* SoundComp = Cast<USoundComponent>(Obj))
+	{
+		ImGui::Indent();
+
+		ImGui::BeginDisabled(!SoundComp->GetSound());
+
+		if (ImGui::Button("Play", ImVec2(80, 0)))
+		{
+			SoundComp->Play();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Stop", ImVec2(80, 0)))
+		{
+			SoundComp->Stop();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Pause", ImVec2(80, 0)))
+		{
+			SoundComp->Pause();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Resume", ImVec2(80, 0)))
+		{
+			SoundComp->Resume();
+		}
+
+		ImGui::EndDisabled();
+
+		// 재생 상태 표시
+		if (SoundComp->IsPlaying())
+		{
+			ImGui::SameLine();
+			ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[Playing]");
+		}
+
+		ImGui::Unindent();
+	}
+
+	return bChanged;
 }
 
 // ===== 텍스처 선택 헬퍼 함수 =====
