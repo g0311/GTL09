@@ -144,14 +144,14 @@ function ResetState()
     end
 end
 
-function OnOverlap(other)
+function OnOverlap(other, contactInfo)
     if not other then return end
-    
+
     -- Only react to the player; ignore other obstacles to prevent chain reactions
     if not IsPlayerActor(other) then
         return
     end
-    
+
     -- Knockback direction: from other to self on XY plane
     local selfPos = actor:GetActorLocation()
     local otherPos = other:GetActorLocation()

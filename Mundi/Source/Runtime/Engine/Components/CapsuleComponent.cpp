@@ -149,7 +149,7 @@ void UCapsuleComponent::DebugDraw() const
     Renderer->AddLines(Starts, Ends, Colors);
 }
 
-bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
+bool UCapsuleComponent::Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo) const
 {
     // Respect collision/overlap flags on both shapes
     if (!IsCollisionEnabled() || !GetGenerateOverlapEvents())
@@ -161,15 +161,15 @@ bool UCapsuleComponent::Overlaps(const UShapeComponent* Other) const
     {
     case ECollisionShapeType::Sphere:
         if (const USphereComponent* S = Cast<USphereComponent>(Other))
-            return Collision::OverlapCapsuleSphere(This, S->GetWorldSphere());
+            return Collision::OverlapCapsuleSphere(This, S->GetWorldSphere(), OutContactInfo);
         break;
     case ECollisionShapeType::OBB:
         if (const UBoxComponent* B = Cast<UBoxComponent>(Other))
-            return Collision::OverlapOBBCapsule(B->GetWorldOBB(), This);
+            return Collision::OverlapOBBCapsule(B->GetWorldOBB(), This, OutContactInfo);
         break;
     case ECollisionShapeType::Capsule:
         if (const UCapsuleComponent* C = Cast<UCapsuleComponent>(Other))
-            return Collision::OverlapCapsuleCapsule(This, C->GetWorldCapsule());
+            return Collision::OverlapCapsuleCapsule(This, C->GetWorldCapsule(), OutContactInfo);
         break;
     default:
         break;

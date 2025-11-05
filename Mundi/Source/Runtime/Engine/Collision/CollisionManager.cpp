@@ -81,9 +81,10 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
                 // Remove from other side
                 TArray<FOverlapInfo>& OtherList = const_cast<TArray<FOverlapInfo>&>(OtherComp->GetOverlapInfos());
                 OtherList.Remove(Info);
-                // Fire end events on both sides
-                Shape->BroadcastEndOverlap(Info.OtherActor, OtherComp);
-                OtherComp->BroadcastEndOverlap(Shape->GetOwner(), Shape);
+                // Fire end events on both sides (no contact info for end overlap)
+                FContactInfo EmptyContactInfo;
+                Shape->BroadcastEndOverlap(Info.OtherActor, OtherComp, EmptyContactInfo);
+                OtherComp->BroadcastEndOverlap(Shape->GetOwner(), Shape, EmptyContactInfo);
             }
         }
         // Clear own list
@@ -108,6 +109,7 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
 
     // Compute new overlaps via BVH candidates
     TSet<UShapeComponent*> NewSet;
+    TMap<UShapeComponent*, FContactInfo> ContactInfos; // Store contact info for each overlap
     TArray<UShapeComponent*> Candidates;
     if (ShapeBVH)
     {
@@ -123,7 +125,14 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
     {
         if (!Other || Other == Shape) continue;
         if (!Other->IsCollisionEnabled() || !Other->GetGenerateOverlapEvents()) continue;
-        if (Shape->Overlaps(Other)) NewSet.insert(Other);
+
+        // Calculate contact info during overlap test
+        FContactInfo ContactInfo;
+        if (Shape->Overlaps(Other, &ContactInfo))
+        {
+            NewSet.insert(Other);
+            ContactInfos.Add(Other, ContactInfo);
+        }
     }
 
     // Compute begins (New - Old)
@@ -141,9 +150,14 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
             TArray<FOverlapInfo>& BList = const_cast<TArray<FOverlapInfo>&>(Other->GetOverlapInfos());
             if (!BList.Contains(InfoBA)) BList.Add(InfoBA);
 
-            // Fire begin events on both sides
-            Shape->BroadcastBeginOverlap(Other->GetOwner(), Other);
-            Other->BroadcastBeginOverlap(Shape->GetOwner(), Shape);
+            // Fire begin events on both sides with contact info
+            const FContactInfo& ContactInfo = ContactInfos[Other];
+            Shape->BroadcastBeginOverlap(Other->GetOwner(), Other, ContactInfo);
+
+            // Reverse contact normal for the other side
+            FContactInfo ReversedContactInfo = ContactInfo;
+            ReversedContactInfo.ContactNormal = -ContactInfo.ContactNormal;
+            Other->BroadcastBeginOverlap(Shape->GetOwner(), Shape, ReversedContactInfo);
         }
     }
 
@@ -163,9 +177,10 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
             TArray<FOverlapInfo>& BList = const_cast<TArray<FOverlapInfo>&>(OtherShape->GetOverlapInfos());
             BList.Remove(InfoBA);
 
-            // Fire end events on both sides
-            Shape->BroadcastEndOverlap(OtherShape->GetOwner(), OtherShape);
-            OtherShape->BroadcastEndOverlap(Shape->GetOwner(), Shape);
+            // Fire end events on both sides (no contact info for end overlap)
+            FContactInfo EmptyContactInfo;
+            Shape->BroadcastEndOverlap(OtherShape->GetOwner(), OtherShape, EmptyContactInfo);
+            OtherShape->BroadcastEndOverlap(Shape->GetOwner(), Shape, EmptyContactInfo);
         }
     }
 }

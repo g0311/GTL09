@@ -249,7 +249,7 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
 
     try
     {
-        std::filesystem::path scenePath = std::filesystem::current_path() / "Scene" / "test_real.Scene";
+        std::filesystem::path scenePath = std::filesystem::current_path() / "Scene" / "Car_Crash.Scene";
 
         if (std::filesystem::exists(scenePath))
         {

@@ -362,13 +362,13 @@ UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
 	UCameraComponent* CameraComp = QueryTarget->GetComponent<UCameraComponent>();
 	if (!CameraComp)
 	{
-		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - CameraComponent not found on ViewTarget: %c", 
-			QueryTarget->GetName());
+		//UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - CameraComponent not found on ViewTarget: %c", 
+		//	QueryTarget->GetName());
 	}
 	else
 	{
-		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - Found CameraComponent on ViewTarget: %c", 
-			QueryTarget->GetName());
+		//UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - Found CameraComponent on ViewTarget: %c", 
+		//	QueryTarget->GetName());
 	}
 
     return CameraComp;

@@ -19,7 +19,7 @@ public:
     void CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View) override;
 
     // Setup
-    void SetTextureName( FString TexturePath);
+    void SetTextureName(FString InTexturePath);
 
     UQuad* GetStaticMesh() const { return Quad; }
     FString& GetFilePath() { return TexturePath; }
