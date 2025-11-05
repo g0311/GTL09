@@ -8,16 +8,16 @@ class UCameraShakePattern;
 struct FCameraShakeStartParams;
 struct FPostProcessSettings;
 
-enum class ECameraBlendType : uint8
-{
-	Linear,
-	/* 필요하다면 추가할 것 */
-};
-
 struct FViewTarget
 {
-	AActor* Target = nullptr; 	//타겟 액터 (카메라) 
-	/* 필요하다면 추가할 것(Transform, FOV) */
+	AActor* Target = nullptr; // 타겟 액터 (카메라)
+};
+
+struct FViewTargetTransitionParams
+{
+	float BlendTime = 0.0f;
+	ECameraBlendType BlendFunc = ECameraBlendType::Linear;
+	bool bLockOutgoing = false; // 필요시 사용 (현재는 미사용)
 };
 
 struct FCameraCache
@@ -68,18 +68,21 @@ public:
 	void DisableVignette(bool bImmediate = true);
 	void SetVignetteIntensity(float Intensity);
 	void SetVignetteSmoothness(float Smoothness);
+	void SetVignetteFadeTime(float InTime, float OutTime);
 
 	// Gamma Correction (UGammaCorrectionModifier에 위임)
 	void EnableGammaCorrection(float Gamma = 2.2f, bool bImmediate = true);
 	void DisableGammaCorrection(bool bImmediate = true);
 	void SetGamma(float Gamma);
+	void SetGammaFadeTime(float InTime, float OutTime);
 
 	// Letterbox (ULetterboxModifier에 위임)
 	void EnableLetterbox(float Height = 0.1f, FLinearColor Color = FLinearColor(0, 0, 0, 1), bool bImmediate = true);
 	void DisableLetterbox(bool bImmediate = true);
 	void SetLetterboxHeight(float Height);
 	void SetLetterboxColor(const FLinearColor& Color);
-
+	void SetLetterboxFadeTime(float InTime, float OutTime);
+	
     UCameraShakeBase* StartCameraShake(UCameraShakeBase* Shake, float Scale = 1.0f, float Duration = 0.0f);
 	void StopCameraShake(UCameraShakeBase* Shake, bool bImmediately = false);
 	void StopAllCameraShakes(bool bImmediately = false);
@@ -88,6 +91,7 @@ public:
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
 	void SetViewTarget(AActor* NewViewTarget, float BlendTime = 0.0f, ECameraBlendType BlendFunc = ECameraBlendType::Linear);
+	void SetViewTarget(AActor* NewViewTarget, const FViewTargetTransitionParams& TransitionParams);
 	AActor* GetViewTarget() const { return ViewTarget.Target; }
 
 	UCameraComponent* GetViewTargetCameraComponent() const;
@@ -116,6 +120,8 @@ private:
 
 	void UpdateCamera(float DeltaTime);
 
+	void UpdateViewTarget(float DeltaTime);
+
 	/**
 	 * @brief 특정 타입의 CameraModifier를 찾습니다
 	 * @return 찾은 모디파이어, 없으면 nullptr
@@ -133,7 +139,14 @@ private:
 		return nullptr;
 	}
 
+	// 현재 뷰타겟과 보류 중(블렌딩 대상)인 뷰타겟
 	FViewTarget ViewTarget;
+	FViewTarget PendingViewTarget;
+
+	// 블렌딩 상태
+	FViewTargetTransitionParams TransitionParams;
+	float BlendElapsed = 0.0f;
+	bool bIsBlending = false;
 	FCameraCache ViewCache;
 
 	TArray<UCameraModifier*> ModifierList;

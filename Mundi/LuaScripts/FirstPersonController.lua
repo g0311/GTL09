@@ -48,14 +48,7 @@ end
 local MinHorizontalPosition = -5.5 -- temporarily hard-code the limits in
 local MaxHorizontalPosition = 5.5
 
--- 카메라 설정
-local ShakeTime = 0.0
-local ShakeDuration = 0.20
-local ShakeMagnitude = 0.7     -- MUCH smaller scale (in meters / engine units)
-local ShakeFrequency = 25.0     -- faster shake frequency
-local ShakeSeed = 0.0
--- Use additive offset so camera keeps following player input while shaking
-local ShakeOffset = Vector(0.0, 0.0, 0.0)
+-- 카메라 설정 (카메라 쉐이크는 PlayerCameraManager가 처리)
 -- 상태 플래그
 local bIsFrozen = false        -- 플레이어가 얼어있는지 (움직일 수 없음)
 
@@ -66,6 +59,8 @@ local InitialRotation = nil
 -- Chaser와의 거리 (카메라 셰이크 팩터 계산용)
 local ChaserDistance = 999.0   -- 초기값: 매우 먼 거리
 
+-- PlayerCameraManager (전역 접근용)
+local pcm = nil
 
 -- Event subscription handles
 local handleFrenzyEnter = nil
@@ -110,56 +105,34 @@ function BeginPlay()
     InputContext:MapAxisKey("MoveRight", Keys.D,  1.0)
     InputContext:MapAxisKey("MoveRight", Keys.A, -1.0)
 
+    -- ==================== 카메라 설정 ====================
+    pcm = pc:GetPlayerCameraManager()  -- 전역 변수에 할당
+    if pcm then
+        pcm:SetGammaFadeTime(0, 5.0)
+        pcm:SetLetterboxFadeTime(0, 5.0)
+
+        pcm:EnableLetterbox()
+        pcm:EnableGammaCorrection(3.0)
+        
+        pcm:DisableLetterbox(false)
+        pcm:DisableGammaCorrection(false)
+        Log("[FirstPersonController] Camera effects enabled (initial state)")
+    end
+
     -- ==================== 게임 이벤트 구독 ====================
     local gm = GetGameMode()
     if gm then
         Log("[FirstPersonController] Subscribing to game events...")
-
-        -- FreezePlayer 이벤트 구독 (플레이어 얼리기)
-        local success1, handle1 = pcall(function()
-            return gm:SubscribeEvent("FreezePlayer", function()
-                Log("[FirstPersonController] *** FreezePlayer event received! ***")
-                bIsFrozen = true
-                Log("[FirstPersonController] Player FROZEN - movement disabled")
-            end)
-        end)
-
-        if success1 then
-            Log("[FirstPersonController] Subscribed to 'FreezePlayer' with handle: " .. tostring(handle1))
-        else
-            Log("[FirstPersonController] ERROR subscribing to 'FreezePlayer': " .. tostring(handle1))
-        end
-
-        -- UnfreezePlayer 이벤트 구독 (플레이어 얼림 해제)
-        local success2, handle2 = pcall(function()
-            return gm:SubscribeEvent("UnfreezePlayer", function()
-                Log("[FirstPersonController] *** UnfreezePlayer event received! ***")
-                bIsFrozen = false
-                Log("[FirstPersonController] Player UNFROZEN - movement enabled")
-            end)
-        end)
-
-        if success2 then
-            Log("[FirstPersonController] Subscribed to 'UnfreezePlayer' with handle: " .. tostring(handle2))
-        else
-            Log("[FirstPersonController] ERROR subscribing to 'UnfreezePlayer': " .. tostring(handle2))
-        end
 
         -- OnGameReset 이벤트 구독 (위치 및 속도 복원)
         local success3, handle3 = pcall(function()
             return gm:SubscribeEvent("OnGameReset", function()
                 Log("[FirstPersonController] *** OnGameReset event received! ***")
 
-                -- CRITICAL: 카메라 셰이크 오프셋 제거 (위치 리셋 전에 필수!)
-                if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
-                    actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
-                    Log("[FirstPersonController] Removed shake offset: (" ..
-                        string.format("%.2f", ShakeOffset.X) .. ", " ..
-                        string.format("%.2f", ShakeOffset.Y) .. ", " ..
-                        string.format("%.2f", ShakeOffset.Z) .. ")")
-                    ShakeOffset = Vector(0.0, 0.0, 0.0)
+                -- 카메라 쉐이크 정지
+                if pcm then
+                    pcm:StopAllCameraShakes(true)
                 end
-                ShakeTime = 0.0
 
                 -- 초기 위치로 복원 (0, 0, 0으로 강제 고정)
                 local resetPosition = Vector(0, 0, 0)
@@ -177,6 +150,15 @@ function BeginPlay()
                 Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
                     string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
                 Log("[FirstPersonController] ChaserDistance reset to 999.0")
+
+                if pcm then
+                    pcm:EnableLetterbox()
+                    pcm:EnableGammaCorrection(3.0)
+
+                    pcm:DisableLetterbox(false)
+                    pcm:DisableGammaCorrection(false)
+                    Log("[FirstPersonController] Camera effects enabled (initial state)")
+                end
             end)
         end)
 
@@ -201,19 +183,24 @@ function BeginPlay()
             Log("[FirstPersonController] ERROR subscribing to 'OnChaserDistanceUpdate': " .. tostring(handle4))
         end
 
-        -- FreezeGame/UnfreezeGame subscriptions (for countdown)
+        -- FreezeGame/UnfreezeGame subscriptions (for countdown + caught)
         gm:RegisterEvent("FreezeGame")
         gm:SubscribeEvent("FreezeGame", function()
             Log("[FirstPersonController] *** FreezeGame event received! ***")
             bIsFrozen = true
-            Log("[FirstPersonController] Player FROZEN for countdown")
+            Log("[FirstPersonController] Player FROZEN")
+            -- 카메라 효과는 이미 켜져있음 (BeginPlay에서 켬)
         end)
 
         gm:RegisterEvent("UnfreezeGame")
         gm:SubscribeEvent("UnfreezeGame", function()
             Log("[FirstPersonController] *** UnfreezeGame event received! ***")
             bIsFrozen = false
-            Log("[FirstPersonController] Player UNFROZEN after countdown")
+            Log("[FirstPersonController] Player UNFROZEN")
+            if pcm then
+
+                Log("[FirstPersonController] Disable Camera Post Process (gameplay state)")
+            end
         end)
 
         -- Frenzy mode subscriptions
@@ -262,7 +249,7 @@ function Tick(dt)
     if (gm and gm:IsGameOver()) then
         return
     end
-    
+
     -- 시간 경과에 따라 전진 최고 속도를 서서히 증가
     CurrentMaxSpeed = math.min(CurrentMaxSpeed + MaxSpeedGrowthPerSec * dt, MaxSpeedCap)
 
@@ -290,6 +277,8 @@ function Tick(dt)
             end
         end
     end
+end
+    UpdateSpeedVignette()
 end
 
 ---
@@ -360,40 +349,37 @@ function UpdateMovement(dt, input)
 end
 
 ---
---- 카메라 업데이트
+--- 카메라 업데이트 (카메라 쉐이크는 PlayerCameraManager가 자동 처리)
 ---
-function UpdateCameraShake(dt)
-    if ShakeTime > 0 then
-        ShakeTime = ShakeTime - dt
 
-        -- end shake: remove any residual offset
-        if ShakeTime <= 0 then
-            if ShakeOffset.X ~= 0.0 or ShakeOffset.Y ~= 0.0 or ShakeOffset.Z ~= 0.0 then
-                actor:AddActorWorldLocation(Vector(-ShakeOffset.X, -ShakeOffset.Y, -ShakeOffset.Z))
-                ShakeOffset = Vector(0.0, 0.0, 0.0)
-            end
-            return
-        end
+---
+--- 속도 기반 비네트 효과 업데이트
+---
+function UpdateSpeedVignette()
+    if not pcm then return end
+    if bIsFrozen then return end
 
-        -- time progress 0~1
-        local t = 1.0 - (ShakeTime / ShakeDuration)
+    -- 비네트용 속도 최대값 (실제 MaxSpeedCap보다 높게 설정)
+    local vignetteSpeedMax = 80.0  -- 80까지를 최대로 간주
 
-        -- fade-out curve (ease out)
-        local fade = (1.0 - t) * (1.0 - t)
+    -- 속도를 0~1 범위로 정규화
+    local speedNormalized = math.min(CurrentForwardSpeed / vignetteSpeedMax, 1.0)
 
-        -- sine-based directional shake (smooth, not teleport)
-        local x = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency) * ShakeMagnitude * fade
-        local y = math.cos((ShakeTime + ShakeSeed) * ShakeFrequency * 0.9) * ShakeMagnitude * fade
-        local z = math.sin((ShakeTime + ShakeSeed) * ShakeFrequency * 1.3) * ShakeMagnitude * fade * 0.5
+    -- 임계값: 이 속도 이하에서는 비네트 없음
+    local speedThreshold = 0.4  -- 40% 이하 속도에서는 비네트 없음
 
-        -- Compute new target offset and apply only the delta so base motion persists
-        local target = Vector(x, y, z)
-        local delta = target - ShakeOffset
-        if (delta.X ~= 0.0 or delta.Y ~= 0.0 or delta.Z ~= 0.0) then
-            actor:AddActorWorldLocation(delta)
-            ShakeOffset = target
-        end
+    local vignetteIntensity = 0.0
+    if speedNormalized > speedThreshold then
+        -- 임계값 이상일 때만 비네트 적용
+        local adjustedSpeed = (speedNormalized - speedThreshold) / (1.0 - speedThreshold)
+        -- 선형 커브: 부드럽게 증가
+        local maxVignetteIntensity = 0.8
+        vignetteIntensity = adjustedSpeed * maxVignetteIntensity
     end
+
+    -- 비네트 강도 설정 (매 프레임 업데이트)
+    pcm:EnableVignette(vignetteIntensity, 0.5, true)
+    pcm:SetVignetteIntensity(vignetteIntensity)
 end
 
 function OnEnterFrenzyMode(payload)
@@ -405,9 +391,9 @@ function OnExitFrenzyMode(payload)
     bIsInFrenzyMode = false
 end
 
-function OnOverlap(other, contactInfo)
-    ShakeTime = ShakeDuration
-    ShakeSeed = math.random() * 1000
+function OnOverlap(other)
+    -- 카메라 쉐이크 시작 (Perlin 노이즈 기반 - 더 자연스러운 랜덤 쉐이크)
+    StartPerlinCameraShake(0.5, 0.25)
 
     -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
     if not (bIsInFrenzyMode) then

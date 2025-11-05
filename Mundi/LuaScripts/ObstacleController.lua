@@ -5,11 +5,16 @@
 local projectileMovement = nil
 local rotatingMovement = nil
 local initialRotation = nil
+local collisionSound = nil
+local collisionSounds = {}  -- Array of loaded sounds
+
+-- 실행 중인 코루틴 추적
+local CurrentHitStopCoroutine = nil
 
 -- Tunables
 local UpSpeed = 15.0            -- upward impulse on hit (units/s)
 local GravityZ = -9.8           -- Z-up world; tune to your scale
-local KnockbackSpeed = 45.0      -- horizontal knockback speed magnitude
+local KnockbackSpeed = 60.0      -- horizontal knockback speed magnitude
 
 -- Random rotational speed range
 local RotSpeedMin = 90.0
@@ -45,6 +50,40 @@ function BeginPlay()
 
     -- Cache initial rotation to restore on reset
     initialRotation = actor:GetActorRotation()
+
+    -- Create collision sound component
+    collisionSound = AddSoundComponent(actor)
+    if collisionSound then
+        collisionSound:SetVolume(1.0)
+        collisionSound:SetLoop(false)
+        collisionSound:SetAutoPlay(false)
+
+        -- Load multiple collision sounds
+        local soundPaths = {
+            "Sound/Crash1.wav",
+            "Sound/Crash2.wav",
+            "Sound/Crash3.wav",
+            "Sound/Crash4.wav",
+        }
+
+        for i, path in ipairs(soundPaths) do
+            local sound = LoadSound(path)
+            if sound then
+                table.insert(collisionSounds, sound)
+                Log("[ObstacleController] Loaded collision sound: " .. path)
+            else
+                LogWarning("[ObstacleController] Failed to load: " .. path)
+            end
+        end
+
+        if #collisionSounds > 0 then
+            Log("[ObstacleController] Loaded " .. #collisionSounds .. " collision sounds")
+        else
+            LogError("[ObstacleController] No collision sounds loaded!")
+        end
+    else
+        LogError("[ObstacleController] Failed to create SoundComponent!")
+    end
 end
 
 -- Identify the player pawn to avoid obstacle-obstacle reactions
@@ -64,6 +103,12 @@ function Tick(dt)
 end
 
 function ResetState()
+    -- 실행 중인 코루틴 중지
+    if CurrentHitStopCoroutine then
+        self:StopCoroutine(CurrentHitStopCoroutine)
+        CurrentHitStopCoroutine = nil
+    end
+
     -- Ensure components exist before using them
     if projectileMovement == nil then
         projectileMovement = AddProjectileMovement(actor)
@@ -143,14 +188,28 @@ function OnOverlap(other, contactInfo)
     local rate = axis * rotationalSpeed
     rotatingMovement:SetRotationRate(rate)
 
+    -- Play random collision sound
+    if collisionSound and #collisionSounds > 0 then
+        local randomIndex = math.random(1, #collisionSounds)
+        local randomSound = collisionSounds[randomIndex]
+        collisionSound:SetSound(randomSound)
+        collisionSound:Play()
+    end
+
     -- Fire gameplay event for scoring/UI directly via GameMode (independent of Lua module state)
     local gm = GetGameMode and GetGameMode() or nil
     if gm and gm.FireEvent then
         gm:FireEvent("PlayerHit", { obstacle = actor, player = other })
     end
 
+    -- 이전 코루틴이 실행 중이면 중지
+    if CurrentHitStopCoroutine then
+        self:StopCoroutine(CurrentHitStopCoroutine)
+        CurrentHitStopCoroutine = nil
+    end
+
     -- Trigger hit stop + slow motion sequence
-    self:StartCoroutine(HitStopAndSlowMotion)
+    CurrentHitStopCoroutine = self:StartCoroutine(HitStopAndSlowMotion)
 end
 
 -- Coroutine: Hit stop (100ms) → Slow motion (500ms at 50% speed)

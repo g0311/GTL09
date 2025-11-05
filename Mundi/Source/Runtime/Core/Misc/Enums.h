@@ -499,4 +499,12 @@ enum class ECollisionShapeType : uint8
     Capsule
 };
 
+enum class ECameraBlendType : uint8
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
 // EAxis moved to Axis.h to avoid circular includes with Vector.h
