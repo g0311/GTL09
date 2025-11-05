@@ -195,6 +195,33 @@ void APlayerCameraManager::SetLetterboxColor(const FLinearColor& Color)
 	}
 }
 
+void APlayerCameraManager::SetLetterboxFadeTime(float InTime, float OutTime)
+{
+	if (ULetterboxModifier* LetterboxModifier = FindModifier<ULetterboxModifier>())
+	{
+		LetterboxModifier->SetAlphaInTime(InTime);
+		LetterboxModifier->SetAlphaOutTime(OutTime);
+	}
+}
+
+void APlayerCameraManager::SetVignetteFadeTime(float InTime, float OutTime)
+{
+	if (UVignetteModifier* VignetteModifier = FindModifier<UVignetteModifier>())
+	{
+		VignetteModifier->SetAlphaInTime(InTime);
+		VignetteModifier->SetAlphaOutTime(OutTime);
+	}
+}
+
+void APlayerCameraManager::SetGammaFadeTime(float InTime, float OutTime)
+{
+	if (UGammaCorrectionModifier* GammaModifier = FindModifier<UGammaCorrectionModifier>())
+	{
+		GammaModifier->SetAlphaInTime(InTime);
+		GammaModifier->SetAlphaOutTime(OutTime);
+	}
+}
+
 UCameraShakeBase* APlayerCameraManager::StartCameraShake(UCameraShakeBase* Shake, float Scale, float Duration)
 {
 	if (!Shake) return nullptr;

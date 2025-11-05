@@ -200,11 +200,11 @@ function OnPlayerCaught(chaserActor)
     local pawn = GetPlayerPawn()
     if pawn then
         Log("[GameMode_Chaser] Stopping player movement...")
-        -- Player의 이동을 멈추기 위해 FreezePlayer 이벤트 발행
+        -- Player의 이동을 멈추기 위해 FreezeGame 이벤트 발행
         local gm = GetGameMode()
         if gm then
             local success, err = pcall(function()
-                gm:FireEvent("FreezePlayer", pawn)
+                gm:FireEvent("FreezeGame", pawn)
             end)
             --if success then
             --    Log("[GameMode_Chaser] Player FROZEN")

@@ -68,18 +68,21 @@ public:
 	void DisableVignette(bool bImmediate = true);
 	void SetVignetteIntensity(float Intensity);
 	void SetVignetteSmoothness(float Smoothness);
+	void SetVignetteFadeTime(float InTime, float OutTime);
 
 	// Gamma Correction (UGammaCorrectionModifier에 위임)
 	void EnableGammaCorrection(float Gamma = 2.2f, bool bImmediate = true);
 	void DisableGammaCorrection(bool bImmediate = true);
 	void SetGamma(float Gamma);
+	void SetGammaFadeTime(float InTime, float OutTime);
 
 	// Letterbox (ULetterboxModifier에 위임)
 	void EnableLetterbox(float Height = 0.1f, FLinearColor Color = FLinearColor(0, 0, 0, 1), bool bImmediate = true);
 	void DisableLetterbox(bool bImmediate = true);
 	void SetLetterboxHeight(float Height);
 	void SetLetterboxColor(const FLinearColor& Color);
-
+	void SetLetterboxFadeTime(float InTime, float OutTime);
+	
     UCameraShakeBase* StartCameraShake(UCameraShakeBase* Shake, float Scale = 1.0f, float Duration = 0.0f);
 	void StopCameraShake(UCameraShakeBase* Shake, bool bImmediately = false);
 	void StopAllCameraShakes(bool bImmediately = false);

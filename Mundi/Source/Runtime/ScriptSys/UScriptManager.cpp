@@ -1454,6 +1454,9 @@ void UScriptManager::RegisterPlayerCameraManager(sol::state* state)
         usertype["SetLetterboxColor"] = [](APlayerCameraManager* pcm, float r, float g, float b, float a) {
             if (pcm) pcm->SetLetterboxColor(FLinearColor(r, g, b, a));
         };
+        ADD_LUA_FUNCTION("SetLetterboxFadeTime", &APlayerCameraManager::SetLetterboxFadeTime)
+        ADD_LUA_FUNCTION("SetVignetteFadeTime", &APlayerCameraManager::SetVignetteFadeTime)
+        ADD_LUA_FUNCTION("SetGammaFadeTime", &APlayerCameraManager::SetGammaFadeTime)
 
         // Camera shake
         ADD_LUA_FUNCTION("StartCameraShake", &APlayerCameraManager::StartCameraShake)
