@@ -9,48 +9,32 @@ local FrenzyCapSeconds = 8.0
 local bFrenzyActive = false
 local handleFrenzyPickup = nil
 
+-- 실행 중인 코루틴 추적
+local CurrentCountdownCoroutine = nil
+
 ---
 --- 게임 시작 카운트다운 코루틴 (3초)
 ---
 function GameStartCountdown(component)
-    -- 게임 일시정지
-    Log("[GameMode_Chaser] Freezing game for countdown...")
     local gm = GetGameMode()
     if gm then
         gm:FireEvent("FreezeGame")
+        Log("[GameMode_Chaser] FreezeGame event fired (player & obstacles frozen)")
     end
-
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║          GAME STARTING IN...           ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
 
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   3                    ")
-
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   2                    ")
-
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   1                    ")
 
     coroutine.yield(component:WaitForSeconds(1.0))
+    Log("                   GO!                    ")
 
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║                 GO!                    ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
-
-    -- 게임 재개
-    Log("[GameMode_Chaser] Unfreezing game...")
     if gm then
         gm:FireEvent("UnfreezeGame")
+        Log("[GameMode_Chaser] UnfreezeGame event fired (start movement)")
     end
 end
 
@@ -58,20 +42,14 @@ end
 --- 게임 재시작 카운트다운 코루틴 (3초) - 리셋 완료 후 실행
 ---
 function GameRestartCountdown(component)
-    -- 게임 일시정지 (이미 멈춰있지만 명시적으로 호출)
-    Log("[GameMode_Chaser] Freezing game for restart countdown...")
-    local gm = GetGameMode()
-    if gm then
-        gm:FireEvent("FreezeGame")
+    -- Find the RoadGenerator actor and its script component
+    local roadGeneratorActor = GetWorld():FindActorByTag("RoadGenerator")
+    local roadGeneratorScript = nil
+    if roadGeneratorActor then
+        roadGeneratorScript = roadGeneratorActor:GetScriptComponent()
     end
 
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║        RESTARTING GAME IN...           ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
+    local gm = GetGameMode()
 
     coroutine.yield(component:WaitForSeconds(1.0))
     Log("                   3                    ")
@@ -84,18 +62,10 @@ function GameRestartCountdown(component)
 
     coroutine.yield(component:WaitForSeconds(1.0))
 
-    Log("")
-    Log("╔════════════════════════════════════════╗")
-    Log("║                                        ║")
-    Log("║                 GO!                    ║")
-    Log("║                                        ║")
-    Log("╚════════════════════════════════════════╝")
-    Log("")
-
-    -- 게임 재개
-    Log("[GameMode_Chaser] Unfreezing game...")
+    -- Start vehicle movement
     if gm then
         gm:FireEvent("UnfreezeGame")
+        Log("[GameMode_Chaser] UnfreezeGame event fired (restart movement)")
     end
 end
 
@@ -167,8 +137,15 @@ function BeginPlay()
         return gm:SubscribeEvent("OnGameReset", function()
             Log("[GameMode_Chaser] *** 'OnGameReset' event received! ***")
             Log("[GameMode_Chaser] Starting restart countdown after reset...")
+
+            -- 이전 코루틴이 실행 중이면 중지
+            if CurrentCountdownCoroutine then
+                self:StopCoroutine(CurrentCountdownCoroutine)
+                CurrentCountdownCoroutine = nil
+            end
+
             -- 리셋 완료 후 카운트다운 시작
-            self:StartCoroutine(function() GameRestartCountdown(self) end)
+            CurrentCountdownCoroutine = self:StartCoroutine(function() GameRestartCountdown(self) end)
         end)
     end)
 
@@ -184,8 +161,8 @@ function BeginPlay()
 
     -- 게임 시작 카운트다운 코루틴 시작
     Log("[GameMode_Chaser] Starting game countdown...")
-    local countdownId = self:StartCoroutine(function() GameStartCountdown(self) end)
-    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(countdownId))
+    CurrentCountdownCoroutine = self:StartCoroutine(function() GameStartCountdown(self) end)
+    Log("[GameMode_Chaser] Game countdown coroutine started with ID: " .. tostring(CurrentCountdownCoroutine))
 end
 
 ---
@@ -196,22 +173,17 @@ function OnPlayerCaught(chaserActor)
     Log("[GameMode_Chaser] ALERT - Player Caught by Chaser!")
     Log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    -- Player 멈춤
+    -- CRITICAL: 모든 것 멈춤 (플레이어, 장애물, Chaser)
+    local gm = GetGameMode()
+    if gm then
+        gm:FireEvent("FreezeGame")
+        Log("[GameMode_Chaser] FreezeGame event fired - ALL movement stopped")
+    end
+
+    -- Player 멈춤 (이미 FreezeGame에서 처리됨)
     local pawn = GetPlayerPawn()
     if pawn then
-        Log("[GameMode_Chaser] Stopping player movement...")
-        -- Player의 이동을 멈추기 위해 FreezeGame 이벤트 발행
-        local gm = GetGameMode()
-        if gm then
-            local success, err = pcall(function()
-                gm:FireEvent("FreezeGame", pawn)
-            end)
-            --if success then
-            --    Log("[GameMode_Chaser] Player FROZEN")
-            --else
-            --    Log("[GameMode_Chaser] ERROR freezing player: " .. tostring(err))
-            --end
-        end
+        Log("[GameMode_Chaser] Player movement stopped via FreezeGame")
     end
 
     if chaserActor then
@@ -263,7 +235,6 @@ function OnPlayerCaught(chaserActor)
 
     -- 게임 종료 처리
     --Log("[GameMode_Chaser] Calling EndGame(false)...")
-    local gm = GetGameMode()
     if gm then
         local success, err = pcall(function()
             gm:EndGame(false) -- false = 패배
@@ -313,6 +284,13 @@ end
 ---
 function EndPlay()
     Log("[GameMode] Chaser Handler shutting down")
+
+    -- 실행 중인 코루틴 중지
+    if CurrentCountdownCoroutine then
+        self:StopCoroutine(CurrentCountdownCoroutine)
+        CurrentCountdownCoroutine = nil
+    end
+
     local gm = GetGameMode()
     if gm and handleFrenzyPickup then
         gm:UnsubscribeEvent("FrenzyPickup", handleFrenzyPickup)
