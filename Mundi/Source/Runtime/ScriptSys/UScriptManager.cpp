@@ -1537,7 +1537,7 @@ void UScriptManager::RegisterPlayerCameraManager(sol::state* state)
         ADD_LUA_FUNCTION("GetCameraRotation", &APlayerCameraManager::GetCameraRotation)
         ADD_LUA_FUNCTION("GetFOV", &APlayerCameraManager::GetFOV)
         ADD_LUA_FUNCTION("GetViewTarget", &APlayerCameraManager::GetViewTarget)
-        ADD_LUA_FUNCTION("SetViewTarget", &APlayerCameraManager::SetViewTarget)
+        //ADD_LUA_FUNCTION("SetViewTarget", &APlayerCameraManager::SetViewTarget)
     END_LUA_TYPE()
 }
 
