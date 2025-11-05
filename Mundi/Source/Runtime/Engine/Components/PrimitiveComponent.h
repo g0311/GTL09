@@ -21,6 +21,18 @@ struct FOverlapInfo
     }
 };
 
+// 충돌 지점 정보 (Billboard 이펙트 등에 사용)
+struct FContactInfo
+{
+    FVector ContactPoint = FVector::Zero();  // 충돌 위치
+    FVector ContactNormal = FVector::Zero(); // 충돌 방향 (첫 번째 물체 기준)
+    float PenetrationDepth = 0.0f;               // 관통 깊이 (optional)
+
+    FContactInfo() = default;
+    FContactInfo(const FVector& Point, const FVector& Normal, float Depth = 0.0f)
+        : ContactPoint(Point), ContactNormal(Normal), PenetrationDepth(Depth) {}
+};
+
 class UPrimitiveComponent :public USceneComponent
 {
 public:
@@ -86,7 +98,7 @@ public:
     void RefreshOverlapInfos(uint32 mask = ~0u);
 
     // Overlap events (begin/end). Users can register handlers.
-    DECLARE_DELEGATE(FOnOverlapSignature, UPrimitiveComponent*, AActor*, UPrimitiveComponent*);
+    DECLARE_DELEGATE(FOnOverlapSignature, UPrimitiveComponent*, AActor*, UPrimitiveComponent*, const FContactInfo&);
 
     FDelegateHandle AddOnBeginOverlap(const FOnOverlapSignature::HandlerType& Handler)
     {
@@ -99,13 +111,13 @@ public:
     }
 
     template<typename T>
-    FDelegateHandle AddOnBeginOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*))
+    FDelegateHandle AddOnBeginOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*, const FContactInfo&))
     {
         return OnBeginOverlapDelegate.AddDynamic(Instance, Func);
     }
 
     template<typename T>
-    FDelegateHandle AddOnEndOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*))
+    FDelegateHandle AddOnEndOverlapDynamic(T* Instance, void (T::*Func)(UPrimitiveComponent*, AActor*, UPrimitiveComponent*, const FContactInfo&))
     {
         return OnEndOverlapDelegate.AddDynamic(Instance, Func);
     }
@@ -125,14 +137,14 @@ public:
     bool RemoveOnEndOverlap(FDelegateHandle Handle) { return OnEndOverlapDelegate.Remove(Handle); }
 
     // Broadcasting is intended for the collision manager
-    void BroadcastBeginOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
+    void BroadcastBeginOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo)
     {
-        OnBeginOverlapDelegate.Broadcast(this, OtherActor, OtherComp);
+        OnBeginOverlapDelegate.Broadcast(this, OtherActor, OtherComp, ContactInfo);
     }
 
-    void BroadcastEndOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp)
+    void BroadcastEndOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo)
     {
-        OnEndOverlapDelegate.Broadcast(this, OtherActor, OtherComp);
+        OnEndOverlapDelegate.Broadcast(this, OtherActor, OtherComp, ContactInfo);
     }
 
     FOnOverlapSignature OnBeginOverlapDelegate;

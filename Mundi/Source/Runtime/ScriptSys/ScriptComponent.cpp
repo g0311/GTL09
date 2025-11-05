@@ -350,7 +350,7 @@ void UScriptComponent::CheckHotReload(float DeltaTime)
 }
 
 // ==================== Lua Events ====================
-void UScriptComponent::NotifyOverlap(AActor* OtherActor)
+void UScriptComponent::NotifyOverlap(AActor* OtherActor, const FContactInfo& ContactInfo)
 {
     if (!bScriptLoaded)
     {
@@ -371,10 +371,26 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor)
     }
 
     UE_LOG("[Overlap] Calling Lua OnOverlap function...\n");
-    CallLuaFunction("OnOverlap", OtherActor);
+
+    // FContactInfo를 Lua 테이블로 변환
+    sol::state* GlobalLua = SCRIPT.GetGlobalLuaState();
+    if (GlobalLua)
+    {
+        sol::table contactInfoTable = GlobalLua->create_table();
+        contactInfoTable["ContactPoint"] = ContactInfo.ContactPoint;
+        contactInfoTable["ContactNormal"] = ContactInfo.ContactNormal;
+        contactInfoTable["PenetrationDepth"] = ContactInfo.PenetrationDepth;
+
+        CallLuaFunction("OnOverlap", OtherActor, contactInfoTable);
+    }
+    else
+    {
+        // Fallback: 충돌 정보 없이 호출
+        CallLuaFunction("OnOverlap", OtherActor);
+    }
 }
 
-void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
+void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/, const FContactInfo& ContactInfo)
 {
 	// Debug: 충돌 감지 확인
 	if (OtherActor && GetOwner())
@@ -386,17 +402,32 @@ void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, A
 	}
 
 	// Forward to Lua handler
-	NotifyOverlap(OtherActor);
+	NotifyOverlap(OtherActor, ContactInfo);
 }
 
-void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/)
+void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/, const FContactInfo& ContactInfo)
 {
 	// Optional: call Lua if function exists
 	if (!bScriptLoaded || !OtherActor)
 	{
 		return;
 	}
-	CallLuaFunction("OnEndOverlap", OtherActor);
+
+	// FContactInfo를 Lua 테이블로 변환 (OnEndOverlap도 정보 제공)
+	sol::state* GlobalLua = SCRIPT.GetGlobalLuaState();
+	if (GlobalLua)
+	{
+		sol::table contactInfoTable = GlobalLua->create_table();
+		contactInfoTable["ContactPoint"] = ContactInfo.ContactPoint;
+		contactInfoTable["ContactNormal"] = ContactInfo.ContactNormal;
+		contactInfoTable["PenetrationDepth"] = ContactInfo.PenetrationDepth;
+
+		CallLuaFunction("OnEndOverlap", OtherActor, contactInfoTable);
+	}
+	else
+	{
+		CallLuaFunction("OnEndOverlap", OtherActor);
+	}
 }
 
 // ==================== HUD Bridge ====================

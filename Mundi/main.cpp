@@ -17,7 +17,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     _CrtSetBreakAlloc(0);
 #endif
 
-    // @note lua 헤더가 잘 연결되었는지 확인용 코드 
+    // COM 초기화 (WIC, XAudio2 등 COM 기반 컴포넌트용)
+    // COINIT_APARTMENTTHREADED: WIC에 필요
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+    {
+        // 이미 초기화되었을 수 있음 (S_FALSE)
+        if (hr != RPC_E_CHANGED_MODE && hr != S_FALSE)
+        {
+            return -1;
+        }
+    }
+
+    // @note lua 헤더가 잘 연결되었는지 확인용 코드
     // @note 프로그램 실행한 뒤 출력란에서 "Lua is running!"이 있는지 확인하면 됩니다.
     // @note 잘 작동한다면 해당 코드를 지우면 됩니다. (25.10.31 PYB)
     //sol::state lua;
@@ -30,10 +42,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     //lua.script("print('Lua is running!')");
 
     if (!GEngine.Startup(hInstance))
+    {
+        CoUninitialize();
         return -1;
+    }
 
     GEngine.MainLoop();
     GEngine.Shutdown();
+
+    CoUninitialize();
 
     return 0;
 }

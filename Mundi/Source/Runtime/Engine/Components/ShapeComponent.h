@@ -23,7 +23,7 @@ public:
     virtual void RenderDebugVolume(class URenderer* Renderer) const override;
 
     // Virtual shape-vs-shape overlap dispatch
-    virtual bool Overlaps(const UShapeComponent* Other) const { return false; }
+    virtual bool Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo = nullptr) const { return false; }
     ECollisionShapeType GetCollisionShapeType() const { return CollisionShape; }
 
     // Mark overlaps dirty when transform changes (central manager will recompute)

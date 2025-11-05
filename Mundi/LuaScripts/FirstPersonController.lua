@@ -68,6 +68,15 @@ local handleFrenzyExit = nil
 local bIsInFrenzyMode = false
 local OverlapMaxSpeedReward = 2.0
 
+-- Collision
+local contactInfo = nil  -- 충돌 정보 (OnOverlap에서 사용)
+local BillboardsToRemove = {}  -- 제거 대기 중인 Billboard 목록
+
+-- Distance-based camera shake
+local DistanceShakeThreshold = 30.0  -- 이 거리 이하에서 쉐이크 시작
+local ShakeCooldown = 0.0  -- 쉐이크 쿨다운 타이머
+local ShakeCooldownDuration = 0.5  -- 쉐이크 간격 (초)
+
 ---
 --- 게임 시작 시 초기화
 ---
@@ -119,6 +128,20 @@ function BeginPlay()
         Log("[FirstPersonController] Camera effects enabled (initial state)")
     end
 
+    -- ==================== 충돌 이벤트 바인딩 ====================
+    local boxComp = actor:GetBoxComponent()
+    if boxComp then
+        boxComp:SetCollisionEnabled(true)
+        boxComp:SetGenerateOverlapEvents(true)
+        local handle = boxComp:BindOnBeginOverlap(function(self, other, otherComp, info)
+            contactInfo = info  -- 전역 변수에 저장 (OnOverlap에서 사용)
+            OnOverlap(other)
+        end)
+        Log("[FirstPersonController] Collision event bound to BoxComponent, handle: " .. tostring(handle))
+    else
+        Log("[FirstPersonController] WARNING: BoxComponent not found! Collision detection will not work.")
+    end
+
     -- ==================== 게임 이벤트 구독 ====================
     local gm = GetGameMode()
     if gm then
@@ -147,6 +170,7 @@ function BeginPlay()
                 CurrentRightSpeed = 0.0
                 CurrentMaxSpeed = MoveSpeed  -- 최고 속도를 기본값으로 복원
                 ChaserDistance = 999.0       -- Chaser 거리 초기화
+                ShakeCooldown = 0.0          -- 카메라 쉐이크 쿨다운 초기화
                 Log("[FirstPersonController] Speed reset - CurrentMaxSpeed: " ..
                     string.format("%.1f", CurrentMaxSpeed) .. " (default: " .. MoveSpeed .. ")")
                 Log("[FirstPersonController] ChaserDistance reset to 999.0")
@@ -258,6 +282,27 @@ function Tick(dt)
     UpdateMovement(dt, input)
 
     -- ==================== 카메라 처리 ====================
+    --UpdateCameraShake(dt)
+
+    -- ==================== Billboard 제거 처리 ====================
+    if BillboardsToRemove then
+        local i = 1
+        while i <= #BillboardsToRemove do
+            local entry = BillboardsToRemove[i]
+            entry.lifetime = entry.lifetime - dt
+
+            if entry.lifetime <= 0 then
+                if entry.billboard and actor then
+                    actor:RemoveOwnedComponent(entry.billboard)
+                    entry.billboard:SetHiddenInGame(true)
+                end
+                table.remove(BillboardsToRemove, i)
+            else
+                i = i + 1
+            end
+        end
+    end
+
     UpdateSpeedVignette()
 end
 
@@ -329,8 +374,45 @@ function UpdateMovement(dt, input)
 end
 
 ---
---- 카메라 업데이트 (카메라 쉐이크는 PlayerCameraManager가 자동 처리)
+--- 카메라 쉐이크 업데이트 (거리 기반)
 ---
+function UpdateCameraShake(dt)
+    if not pcm then return end
+    if bIsFrozen then return end
+
+    -- 쿨다운 타이머 감소
+    if ShakeCooldown > 0 then
+        ShakeCooldown = ShakeCooldown - dt
+        return
+    end
+
+    -- Chaser가 임계 거리 안에 있으면 쉐이크 시작
+    if ChaserDistance < DistanceShakeThreshold then
+        -- 거리 기반 쉐이크 강도 계산 (0~1)
+        -- 거리가 가까울수록 강함
+        local shakeFactor = 1.0 - (ChaserDistance / DistanceShakeThreshold)
+
+        -- 최소 임계값: 너무 약한 쉐이크는 무시
+        if shakeFactor > 0.2 then
+            -- 쉐이크 강도 범위: 0.1 ~ 0.6
+            local shakeScale = 0.1 + (shakeFactor * 0.5)
+
+            -- 쉐이크 지속 시간: 거리가 가까울수록 길게
+            local shakeDuration = 0.2 + (shakeFactor * 0.3)
+
+            -- Perlin 노이즈 카메라 쉐이크 시작
+            StartPerlinCameraShake(shakeDuration, shakeScale)
+
+            -- 쿨다운 설정 (거리가 가까울수록 자주 발동)
+            ShakeCooldownDuration = 0.8 - (shakeFactor * 0.5)  -- 0.3 ~ 0.8초
+            ShakeCooldown = ShakeCooldownDuration
+
+            -- 디버그 로그
+            -- Log(string.format("[UpdateCameraShake] Distance: %.1f, Factor: %.2f, Scale: %.2f",
+            --     ChaserDistance, shakeFactor, shakeScale))
+        end
+    end
+end
 
 ---
 --- 속도 기반 비네트 효과 업데이트
@@ -381,8 +463,43 @@ function OnOverlap(other)
     else
         CurrentMaxSpeed = math.min(MaxSpeedCap, CurrentMaxSpeed + OverlapMaxSpeedReward)
     end
-    
+
     if CurrentForwardSpeed > CurrentMaxSpeed then
         CurrentForwardSpeed = CurrentMaxSpeed
     end
-end 
+
+    -- 충돌 이펙트 생성
+    if contactInfo and contactInfo.ContactPoint then
+        local playerPos = actor:GetActorLocation()
+        local localOffset = contactInfo.ContactPoint - playerPos
+
+        -- Player Actor에 Billboard Component 추가
+        local billboard = actor:AddBillboardComponent()
+        if billboard then
+            billboard:SetTextureName("Data/Billboard/explosion_trans.png")
+            billboard:SetRelativeScale(Vector(2.5, 2.5, 2.5))
+            billboard:SetHiddenInGame(false)
+
+            -- Billboard를 Player의 RootComponent에 부착
+            local rootComp = actor:GetRootComponent()
+            if rootComp then
+                billboard:SetupAttachment(rootComp)
+            end
+
+            billboard:SetRelativeLocation(localOffset + Vector(1.0, 0.0, 1.0))
+
+            -- World에 등록
+            local world = actor:GetWorld()
+            if world then
+                billboard:RegisterComponent(world)
+                billboard:InitializeComponent()
+            end
+
+            -- Billboard 제거 목록에 추가
+            if not BillboardsToRemove then
+                BillboardsToRemove = {}
+            end
+            table.insert(BillboardsToRemove, {billboard = billboard, lifetime = 0.2})
+        end
+    end
+end
