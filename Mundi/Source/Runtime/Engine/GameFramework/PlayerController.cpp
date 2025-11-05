@@ -133,6 +133,25 @@ void APlayerController::SetViewTarget(AActor* NewViewTarget, float BlendTime)
     PlayerCameraManager->SetViewTarget(NewViewTarget, BlendTime);
 }
 
+void APlayerController::SetViewTargetWithBlend(AActor* NewViewTarget, float BlendTime, ECameraBlendType BlendFunc)
+{
+    if (!PlayerCameraManager)
+    {
+        if (GetWorld())
+        {
+            PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+            UE_LOG("APlayerController::SetViewTargetWithBlend - PlayerCameraManager created on-demand");
+        }
+        else
+        {
+            UE_LOG("APlayerController::SetViewTargetWithBlend - Cannot create PlayerCameraManager (World is null)");
+            return;
+        }
+    }
+
+    PlayerCameraManager->SetViewTarget(NewViewTarget, BlendTime, BlendFunc);
+}
+
 AActor* APlayerController::GetViewTarget() const
 {
     if (!PlayerCameraManager)

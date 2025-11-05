@@ -69,7 +69,7 @@ function BeginPlay()
         Log("[ThirdPersonCamera] Component[" .. tostring(i) .. "]: " .. tostring(cname))
     end
     
-    StartPerlinCameraShake(2.0, 1.0)
+    --StartPerlinCameraShake(2.0, 1.0)
 end
 
 function EndPlay()

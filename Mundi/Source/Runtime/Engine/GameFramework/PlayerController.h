@@ -47,6 +47,11 @@ public:
     void SetViewTarget(AActor* NewViewTarget, float BlendTime = 0.0f);
 
     /**
+     * @brief 뷰타겟을 블렌드 파라미터와 함께 설정
+     */
+    void SetViewTargetWithBlend(AActor* NewViewTarget, float BlendTime, ECameraBlendType BlendFunc = ECameraBlendType::Linear);
+
+    /**
      * @brief 현재 ViewTarget을 반환
      * @return 현재 ViewTarget 액터 포인터 (PlayerCameraManager에서 가져옴)
      */

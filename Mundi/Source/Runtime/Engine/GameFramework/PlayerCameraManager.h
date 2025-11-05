@@ -8,16 +8,16 @@ class UCameraShakePattern;
 struct FCameraShakeStartParams;
 struct FPostProcessSettings;
 
-enum class ECameraBlendType : uint8
-{
-	Linear,
-	/* 필요하다면 추가할 것 */
-};
-
 struct FViewTarget
 {
-	AActor* Target = nullptr; 	//타겟 액터 (카메라) 
-	/* 필요하다면 추가할 것(Transform, FOV) */
+	AActor* Target = nullptr; // 타겟 액터 (카메라)
+};
+
+struct FViewTargetTransitionParams
+{
+	float BlendTime = 0.0f;
+	ECameraBlendType BlendFunc = ECameraBlendType::Linear;
+	bool bLockOutgoing = false; // 필요시 사용 (현재는 미사용)
 };
 
 struct FCameraCache
@@ -88,6 +88,7 @@ public:
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
 	void SetViewTarget(AActor* NewViewTarget, float BlendTime = 0.0f, ECameraBlendType BlendFunc = ECameraBlendType::Linear);
+	void SetViewTarget(AActor* NewViewTarget, const FViewTargetTransitionParams& TransitionParams);
 	AActor* GetViewTarget() const { return ViewTarget.Target; }
 
 	UCameraComponent* GetViewTargetCameraComponent() const;
@@ -116,6 +117,8 @@ private:
 
 	void UpdateCamera(float DeltaTime);
 
+	void UpdateViewTarget(float DeltaTime);
+
 	/**
 	 * @brief 특정 타입의 CameraModifier를 찾습니다
 	 * @return 찾은 모디파이어, 없으면 nullptr
@@ -133,7 +136,14 @@ private:
 		return nullptr;
 	}
 
+	// 현재 뷰타겟과 보류 중(블렌딩 대상)인 뷰타겟
 	FViewTarget ViewTarget;
+	FViewTarget PendingViewTarget;
+
+	// 블렌딩 상태
+	FViewTargetTransitionParams TransitionParams;
+	float BlendElapsed = 0.0f;
+	bool bIsBlending = false;
 	FCameraCache ViewCache;
 
 	TArray<UCameraModifier*> ModifierList;
