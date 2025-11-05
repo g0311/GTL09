@@ -34,15 +34,26 @@ APlayerController::~APlayerController()
         InputContext = nullptr;
     }
 
-    // PlayerCameraManager는 World의 Actor로 관리되므로 World에서 제거됨
+	// PlayerCameraManager 파괴
+	if(PlayerCameraManager && !PlayerCameraManager->IsPendingDestroy())
+	{
+		GetWorld()->DestroyActor(PlayerCameraManager);
+		PlayerCameraManager = nullptr;
+	}
 }
 
 void APlayerController::BeginPlay()
 {
-    Super::BeginPlay();
+	Super::BeginPlay();
 
-    // 입력 컨텍스트 설정
-    SetupInputContext();
+	// PlayerCameraManager 스폰
+	if (GetWorld() && !PlayerCameraManager)
+	{
+		PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+	}
+
+	// 입력 컨텍스트 설정
+	SetupInputContext();
 }
 
 void APlayerController::Tick(float DeltaSeconds)
