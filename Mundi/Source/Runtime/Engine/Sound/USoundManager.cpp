@@ -177,6 +177,9 @@ bool USoundManager::PlaySound(const FString& FilePath, bool bLoop, float Volume)
 		return false;
 	}
 
+	// 완료된 사운드 정리 (메모리 누수 방지)
+	CleanupFinishedSounds();
+
 	// ResourceManager에서 사운드 로드 (없으면 자동 로드, 있으면 캐시 반환)
 	USound* Sound = UResourceManager::GetInstance().Load<USound>(FilePath);
 	if (!Sound)

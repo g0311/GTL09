@@ -1,6 +1,9 @@
 #pragma once
 #include "ActorComponent.h"
 
+// Forward declarations
+class USound;
+
 /**
  * USoundComponent
  * Plays sound using USoundManager
@@ -54,8 +57,8 @@ public:
 	// Settings
 	//================================================
 
-	void SetSoundFilePath(const FString& InFilePath) { SoundFilePath = InFilePath; }
-	const FString& GetSoundFilePath() const { return SoundFilePath; }
+	void SetSound(USound* InSound) { Sound = InSound; }
+	USound* GetSound() const { return Sound; }
 
 	void SetAutoPlay(bool bInAutoPlay) { bAutoPlay = bInAutoPlay; }
 	bool GetAutoPlay() const { return bAutoPlay; }
@@ -77,8 +80,8 @@ protected:
 	// Properties (exposed to editor)
 	//================================================
 
-	/** Path to the sound file to play */
-	FString SoundFilePath;
+	/** Sound resource to play */
+	USound* Sound;
 
 	/** Whether to automatically play on BeginPlay */
 	bool bAutoPlay;
