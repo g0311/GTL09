@@ -18,6 +18,9 @@ local ChaserStartDelay = 5.0    -- 추격자 시작 지연 시간 (초)
 local InitialPosition = nil
 local InitialRotation = nil
 
+-- 실행 중인 코루틴 추적
+local CurrentDelayCoroutine = nil
+
 ---
 --- 추격자 시작 지연 코루틴 (5초)
 ---
@@ -78,8 +81,14 @@ function BeginPlay()
                 end
                 --Log("[Chaser] Position FORCED to (-50.00, 0.00, 0.00)")
 
+                -- 이전 코루틴이 실행 중이면 중지
+                if CurrentDelayCoroutine then
+                    self:StopCoroutine(CurrentDelayCoroutine)
+                    CurrentDelayCoroutine = nil
+                end
+
                 -- 5초 지연 코루틴 시작 (리셋 후에도 5초 대기)
-                self:StartCoroutine(ChaserStartDelayCoroutine)
+                CurrentDelayCoroutine = self:StartCoroutine(ChaserStartDelayCoroutine)
             end)
         end)
 
@@ -110,7 +119,7 @@ function BeginPlay()
 
     -- 초기 시작 시 5초 지연 코루틴 시작
     Log("[Chaser] Starting initial delay coroutine...")
-    self:StartCoroutine(ChaserStartDelayCoroutine)
+    CurrentDelayCoroutine = self:StartCoroutine(ChaserStartDelayCoroutine)
 end
 
 ---
@@ -227,4 +236,10 @@ end
 ---
 function EndPlay()
     --Log("[Chaser] Cleaning up")
+
+    -- 실행 중인 코루틴 중지
+    if CurrentDelayCoroutine then
+        self:StopCoroutine(CurrentDelayCoroutine)
+        CurrentDelayCoroutine = nil
+    end
 end

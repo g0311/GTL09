@@ -20,7 +20,7 @@ local Config = {
     BlockCount = 30,
 
     -- 재활용 거리
-    RecycleDistance = 25.0,
+    RecycleDistance = 50.0,
     SpawnAheadDistance = 60.0,
 
     -- 도로 외형
@@ -64,11 +64,23 @@ local Config = {
     -- 장애물 높이
     ObstacleHeight = 0,
 
+    -- 장애물 속도
+    ObstacleSpeed = -10.0,
+
     -- 장애물 풀 크기
-    InitialObstaclePoolSize = 50,
+    InitialObstaclePoolSize = 75,
 
     -- 장애물 스크립트 경로
     ObstacleScriptPath = "ObstacleController.lua",
+
+    -- 차선별 속도 (단위: m/s)
+    LaneSpeeds = {
+        -5.0,  -- 1번 차선
+        -2.0,  -- 2번 차선
+        -10.0, -- 3번 차선
+        -16.0,  -- 4번 차선
+        -8.0   -- 5번 차선
+    },
 
     -- ===== 도로 블록 간 장애물 배치 패턴 (Y축 방향) =====
     -- 패턴: N개 블록에 장애물 배치 -> M개 블록은 비움 -> 반복
@@ -113,6 +125,10 @@ local ObstaclePool = {}
 local ActiveObstacles = {}
  -- 블록 패턴 카운터 (Y축 간격용)
 local ObstaclePatternCounter = 0
+local bIsFrozen = true
+
+-- 실행 중인 코루틴 추적
+local CurrentObstacleDelayCoroutine = nil
 
 -- =====================================================
 -- [내부 변수 - 프렌지 아이템]
@@ -181,9 +197,16 @@ local function InitializeObstaclePool()
                 -- BeginPlay는 장애물이 실제로 배치될 때 호출
             end
 
+            -- 4. 프로젝타일 무브먼트 컴포넌트 추가
+            local moveComp = AddProjectileMovement(obstacleActor)
+            if moveComp then
+                moveComp:SetGravity(0) -- 중력 비활성화
+            end
+
             table.insert(ObstaclePool, {
                 Actor = obstacleActor,
                 ScriptComponent = scriptComp,
+                MovementComponent = moveComp, -- 컴포넌트 저장
                 ModelIndex = modelIndex,
                 IsActive = false,
                 Scale = scale,
@@ -279,6 +302,11 @@ local function ReturnObstacleToPool(obstacle)
         obstacle.ScriptComponent:CallLuaFunction("ResetState")
     end
 
+    -- 이동 멈춤
+    if obstacle.MovementComponent then
+        obstacle.MovementComponent:StopMovement()
+    end
+
     obstacle.IsActive = false
 
     -- 화면 밖으로 이동
@@ -292,6 +320,52 @@ local function ReturnObstacleToPool(obstacle)
             break
         end
     end
+end
+
+-- =====================================================
+-- [함수] 장애물 Y 위치로부터 차선 인덱스 계산
+-- =====================================================
+local function GetLaneIndexFromY(yPosition)
+    local yOffset = yPosition - InitialYPosition
+    local laneIndex = math.floor((yOffset / Config.LaneSpacing) + (Config.LanesPerBlock + 1) / 2 + 0.5)
+    -- 범위 제한
+    if laneIndex < 1 then laneIndex = 1 end
+    if laneIndex > Config.LanesPerBlock then laneIndex = Config.LanesPerBlock end
+    return laneIndex
+end
+
+-- =====================================================
+-- [함수] 모든 활성 장애물의 속도 업데이트
+-- =====================================================
+local function UpdateAllObstacleSpeeds()
+    for _, obstacle in ipairs(ActiveObstacles) do
+        if obstacle and obstacle.Actor and obstacle.MovementComponent then
+            local pos = obstacle.Actor:GetActorLocation()
+            local laneIndex = GetLaneIndexFromY(pos.Y)
+            local speed = Config.LaneSpeeds[laneIndex] or Config.ObstacleSpeed
+
+            if bIsFrozen then
+                obstacle.MovementComponent:SetVelocity(Vector(0, 0, 0))
+            else
+                obstacle.MovementComponent:SetVelocity(Vector(speed, 0, 0))
+            end
+        end
+    end
+end
+
+-- =====================================================
+-- [함수] 차량 시작 지연 코루틴 
+-- =====================================================
+function ObstacleStartDelayCoroutine()
+    Log("[RoadGenerator] ObstacleStartDelayCoroutine START - waiting 3 seconds...")
+
+    local waitObj = self:WaitForSeconds(3.0)
+    coroutine.yield(waitObj)
+
+    Log("[RoadGenerator] Coroutine resumed! Starting obstacles...")
+    bIsFrozen = false
+    UpdateAllObstacleSpeeds()
+    Log("[RoadGenerator] Obstacles START! bIsFrozen = false")
 end
 
 -- =====================================================
@@ -538,6 +612,16 @@ local function SpawnObstaclesOnRoadBlock(block, blockXPosition, laneYPositions)
                 local finalX = blockXPosition + xOffset
                 obstacle.Actor:SetActorLocation(Vector(finalX, laneY, Config.ObstacleHeight))
 
+                -- 차선 인덱스에 따라 속도 설정
+                local speed = Config.LaneSpeeds[laneIndex] or Config.ObstacleSpeed
+                if obstacle.MovementComponent then
+                    if bIsFrozen then
+                        obstacle.MovementComponent:SetVelocity(Vector(0, 0, 0))
+                    else
+                        obstacle.MovementComponent:SetVelocity(Vector(speed, 0, 0))
+                    end
+                end
+
                 table.insert(placed, obstacle)
                 table.insert(blocked, laneIndex)
             end
@@ -762,11 +846,38 @@ function BeginPlay()
         else
             Log("[RoadGenerator] ERROR subscribing to 'OnGameReset': " .. tostring(handle))
         end
+
+        -- FreezeGame 이벤트 구독 (카운트다운 동안 차량 멈춤)
+        gm:RegisterEvent("FreezeGame")
+        gm:SubscribeEvent("FreezeGame", function()
+            Log("[RoadGenerator] *** FreezeGame event received! ***")
+            bIsFrozen = true
+            UpdateAllObstacleSpeeds()
+            Log("[RoadGenerator] All obstacles STOPPED")
+        end)
+
+        -- UnfreezeGame 이벤트 구독 (5초 지연 후 차량 시작)
+        gm:RegisterEvent("UnfreezeGame")
+        gm:SubscribeEvent("UnfreezeGame", function()
+            Log("[RoadGenerator] *** UnfreezeGame event received! ***")
+
+            -- 이전 코루틴이 실행 중이면 중지
+            if CurrentObstacleDelayCoroutine then
+                self:StopCoroutine(CurrentObstacleDelayCoroutine)
+                CurrentObstacleDelayCoroutine = nil
+            end
+
+            -- 5초 지연 코루틴 시작
+            CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
+            Log("[RoadGenerator] Started delay coroutine")
+        end)
     else
         Log("[RoadGenerator] WARNING: No GameMode found for event subscription")
     end
 
-    Log("[RoadGenerator] Initialization complete - " .. #RoadBlocks .. " blocks created")
+    -- 초기 시작 시 5초 지연 코루틴 시작
+    Log("[RoadGenerator] Starting initial delay coroutine...")
+    CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
 end
 
 -- =====================================================
@@ -800,7 +911,7 @@ function Tick(dt)
         local obs = ActiveObstacles[i]
         if obs and obs.Actor then
             local obsPos = obs.Actor:GetActorLocation()
-            if (ownerX - obsPos.X) > (Config.RecycleDistance * 2) then
+            if (ownerX - obsPos.X) > (Config.RecycleDistance * 6) then
                 ReturnObstacleToPool(obs)
             end
         end
@@ -832,15 +943,20 @@ function ResetRoadGenerator()
     Log("[RoadGenerator] ========================================")
 
     -- 1. 장애물 풀 강제 초기화 (모든 장애물을 사용 가능 상태로)
+    bIsFrozen = true  -- 리셋 후에는 멈춤 상태로 시작
     local inactiveCount = 0
     for _, obstacle in ipairs(ObstaclePool) do
         obstacle.IsActive = false  -- 강제로 false
         if obstacle.Actor then
             obstacle.Actor:SetActorLocation(Vector(-10000, -10000, -10000))
         end
+        if obstacle.MovementComponent then
+            obstacle.MovementComponent:StopMovement()
+        end
         inactiveCount = inactiveCount + 1
     end
     ActiveObstacles = {}  -- 배열 완전 비우기
+    Log("[RoadGenerator] bIsFrozen set to true")
     Log("[RoadGenerator] Forced " .. inactiveCount .. " obstacles to inactive state")
     Log("[RoadGenerator] ActiveObstacles cleared: " .. #ActiveObstacles)
 
@@ -913,6 +1029,16 @@ function ResetRoadGenerator()
     Log("[RoadGenerator] Final check - Available obstacles: " .. availableObstacles .. "/" .. #ObstaclePool)
     Log("[RoadGenerator] Final check - Active obstacles: " .. #ActiveObstacles)
 
+    -- 7. 이전 코루틴이 실행 중이면 중지하고 새로 시작
+    if CurrentObstacleDelayCoroutine then
+        self:StopCoroutine(CurrentObstacleDelayCoroutine)
+        CurrentObstacleDelayCoroutine = nil
+    end
+
+    Log("[RoadGenerator] Starting delay coroutine for reset...")
+    CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
+
+    ObstaclePatternCounter = #RoadBlocks % (Config.ObstacleBlocksWithObstacles + Config.ObstacleBlocksEmpty)
     Log("[RoadGenerator] ========================================")
     Log("[RoadGenerator] Reset complete! Ready for new game")
     Log("[RoadGenerator] ========================================")
@@ -922,6 +1048,12 @@ end
 -- [라이프사이클] EndPlay
 -- =====================================================
 function EndPlay()
+    -- 실행 중인 코루틴 중지
+    if CurrentObstacleDelayCoroutine then
+        self:StopCoroutine(CurrentObstacleDelayCoroutine)
+        CurrentObstacleDelayCoroutine = nil
+    end
+
     if OwnerActor then
         local world = OwnerActor:GetWorld()
         if world then
