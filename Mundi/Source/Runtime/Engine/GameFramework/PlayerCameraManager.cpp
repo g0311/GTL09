@@ -8,6 +8,7 @@
 #include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
 #include "World.h"
+#include <vld.h>
 
 IMPLEMENT_CLASS(APlayerCameraManager)
 
@@ -28,12 +29,6 @@ APlayerCameraManager::APlayerCameraManager()
 
 APlayerCameraManager::~APlayerCameraManager()
 {
-	for (UCameraModifier*& Modifier : ModifierList)
-	{
-		delete Modifier;
-		Modifier = nullptr;
-	}
-
 	ModifierList.clear();
 }
 
