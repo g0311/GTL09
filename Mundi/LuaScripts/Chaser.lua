@@ -76,6 +76,8 @@ function BeginPlay()
                 --Log("[Chaser] Resetting bPlayerCaught and bIsStopped flags")
                 bPlayerCaught = false
                 bIsStopped = true  -- 리셋 후에도 멈춤 상태로 시작
+                MoveSpeed = 20.0
+                gm:SetChaserSpeed(MoveSpeed)
 
                 -- 위치 강제 복원 (-50, 0, 0으로 고정)
                 local chaserPos = Vector(-50, 0, 0)
