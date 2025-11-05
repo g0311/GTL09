@@ -31,7 +31,11 @@ UInputMappingContext::~UInputMappingContext()
     // 3. 멤버 변수들은 이제 비어있으므로 자동 소멸 시 안전
     // 소멸 시 InputMappingSubsystem에서 즉시 제거 (dangling pointer 방지)
     // 소멸자이므로 Pending이 아닌 즉시 제거 사용
-    UInputMappingSubsystem::Get().RemoveMappingContextImmediate(this);
+    // CRITICAL: Shutdown 중에는 Get()이 새 인스턴스를 생성하므로 IsValid() 체크 필수
+    if (UInputMappingSubsystem::IsValid())
+    {
+        UInputMappingSubsystem::Get().RemoveMappingContextImmediate(this);
+    }
 }
 
 void UInputMappingContext::MapAction(const FString& ActionName, int KeyCode, bool bCtrl, bool bAlt, bool bShift, bool bConsume)

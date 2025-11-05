@@ -90,6 +90,11 @@ public:
 
 	virtual void Cleanup()
 	{
+		// Clear widget references
+		// NOTE: Widgets created with NewObject<>() are managed by ObjectFactory
+		// and will be automatically deleted by ObjectFactory::DeleteAll()
+		// Do NOT delete here to avoid double-deletion crashes
+		Widgets.clear();
 	}
 
 	virtual void OnFocusGained()

@@ -99,6 +99,7 @@ private:
     void RegisterPlayerController(sol::state* state);
     void RegisterPlayerCameraManager(sol::state* state);
     void RegisterGameMode(sol::state* state);
+    void RegisterCameraEnums(sol::state* state);
 
     // Collision components
     void RegisterPrimitiveComponent(sol::state* state);

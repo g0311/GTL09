@@ -71,13 +71,26 @@ USlateManager::~USlateManager()
 
 void USlateManager::Initialize(ID3D11Device* InDevice, UWorld* InWorld, const FRect& InRect)
 {
+#ifdef _EDITOR
     // MainToolbar 생성
     MainToolbar = NewObject<UMainToolbarWidget>();
     MainToolbar->Initialize();
+#endif
 
     Device = InDevice;
     World = InWorld;
     Rect = InRect;
+
+#ifdef _GAME
+    // _GAME 모드: 단일 전체화면 뷰포트만 생성
+    MainViewport = new SViewportWindow();
+    MainViewport->Initialize(0, 0, Rect.GetWidth(), Rect.GetHeight(),
+        World, Device, EViewportType::Perspective);
+
+    World->SetCameraActor(MainViewport->GetViewportClient()->GetCamera());
+    CurrentMode = EViewportLayoutMode::SingleMain;
+    return;  // 여기서 종료 (UI 패널 생성 안함)
+#endif
 
     // === 전체 화면: 좌(4뷰포트) + 우(Control + Details) ===
     TopPanel = new SSplitterH();  // 수평 분할 (좌우)
@@ -184,12 +197,23 @@ void USlateManager::SwitchPanel(SWindow* SwitchPanel)
 
 void USlateManager::Render()
 {
+#ifdef _GAME
+    // _GAME 모드: 메인 뷰포트만 렌더링
+    if (MainViewport)
+    {
+        MainViewport->OnRender();
+    }
+    return;
+#endif
+
+#ifdef _EDITOR
     // 메인 툴바 렌더링 (항상 최상단에)
     MainToolbar->RenderWidget();
     if (TopPanel)
     {
         TopPanel->OnRender();
     }
+#endif
 
     // 콘솔 오버레이 렌더링 (모든 것 위에 표시)
     if (ConsoleWindow && ConsoleAnimationProgress > 0.0f)
@@ -272,6 +296,18 @@ void USlateManager::Render()
 void USlateManager::Update(float DeltaSeconds)
 {
     ProcessInput();
+
+#ifdef _GAME
+    // _GAME 모드: 메인 뷰포트만 업데이트
+    if (MainViewport)
+    {
+        MainViewport->Rect = FRect(0, 0, CLIENTWIDTH, CLIENTHEIGHT);  // 전체 화면
+        MainViewport->OnUpdate(DeltaSeconds);
+    }
+    return;
+#endif
+
+#ifdef _EDITOR
     // MainToolbar 업데이트
     MainToolbar->Update();
 
@@ -282,6 +318,7 @@ void USlateManager::Update(float DeltaSeconds)
         TopPanel->Rect = FRect(0, toolbarHeight, CLIENTWIDTH, CLIENTHEIGHT);
         TopPanel->OnUpdate(DeltaSeconds);
     }
+#endif
 
     // 콘솔 애니메이션 업데이트
     if (bIsConsoleAnimating)
@@ -440,8 +477,10 @@ void USlateManager::OnShutdown()
 
 void USlateManager::Shutdown()
 {
+#ifdef _EDITOR
     // 레이아웃/설정 저장
     SaveSplitterConfig();
+#endif
 
     // 콘솔 윈도우 삭제
     if (ConsoleWindow)
@@ -451,6 +490,10 @@ void USlateManager::Shutdown()
         UE_LOG("USlateManager: ConsoleWindow destroyed");
     }
 
+#ifdef _GAME
+    // _GAME 모드: MainViewport만 삭제
+    if (MainViewport) { delete MainViewport; MainViewport = nullptr; }
+#else
     // D3D 컨텍스트를 해제하기 위해 UI 패널과 뷰포트를 명시적으로 삭제
     if (TopPanel) { delete TopPanel; TopPanel = nullptr; }
     if (LeftTop) { delete LeftTop; LeftTop = nullptr; }
@@ -466,6 +509,7 @@ void USlateManager::Shutdown()
         if (Viewports[i]) { delete Viewports[i]; Viewports[i] = nullptr; }
     }
     MainViewport = nullptr;
+#endif
     ActiveViewport = nullptr;
 }
 
@@ -473,6 +517,13 @@ void USlateManager::SetWorld(UWorld* InWorld)
 {
     World = InWorld;
 
+#ifdef _GAME
+    // _GAME 모드: MainViewport에만 설정
+    if (MainViewport)
+    {
+        MainViewport->SetVClientWorld(InWorld);
+    }
+#else
     // 모든 뷰포트에 World 전파
     for (int i = 0; i < 4; ++i)
     {
@@ -481,6 +532,7 @@ void USlateManager::SetWorld(UWorld* InWorld)
             Viewports[i]->SetVClientWorld(InWorld);
         }
     }
+#endif
 
     // PIE 종료 시 모든 뷰포트의 커서 해제
     if (InWorld && !InWorld->bPie)

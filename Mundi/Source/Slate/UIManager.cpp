@@ -89,10 +89,10 @@ void UUIManager::Shutdown()
 	// 모든 UI 윈도우 정리
 	for (auto* Window : UIWindows)
 	{
-		if (Window && !Window->IsSingleton())
+		if (Window)
 		{
 			Window->Cleanup();
-			delete Window;
+			DeleteObject(Window);  // ObjectFactory를 통해 안전하게 삭제 (Double free 방지)
 		}
 	}
 
