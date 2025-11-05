@@ -924,7 +924,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
 
     // Global helper: start a Perlin-noise camera shake with simple/default params
     state->set_function("StartPerlinCameraShake",
-        [](float Duration, float Scale) -> UCameraShakeBase*
+        [](float Duration, float Scale, int32 Seed = 1337) -> UCameraShakeBase*
         {
             if (!GWorld) return nullptr;
             APlayerController* PC = GWorld->GetPlayerController();
@@ -945,7 +945,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Pattern->Octaves = 3;
             Pattern->Lacunarity = 2.0f;
             Pattern->Persistence = 0.5f;
-            Pattern->Seed = 1337;
+            Pattern->Seed = Seed;
 
             auto* Shake = NewObject<UCameraShakeBase>();
             Shake->SetBlendInTime(0.25f);
@@ -962,7 +962,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
         [](const FVector& LocAmp, const FVector& LocFreq,
            const FVector& RotAmpDeg, const FVector& RotFreq,
            float FovAmp, float FovFreq,
-           float Duration, float BlendIn, float BlendOut, float Scale) -> UCameraShakeBase*
+           float Duration, float Scale) -> UCameraShakeBase*
         {
             if (!GWorld) return nullptr;
             APlayerController* PC = GWorld->GetPlayerController();

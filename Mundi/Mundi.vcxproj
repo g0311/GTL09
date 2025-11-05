@@ -725,7 +725,9 @@ if %ERRORLEVEL% LEQ 7 exit 0</Command>
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptComponent.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\ScriptUtils.h" />
     <ClInclude Include="Source\Runtime\ScriptSys\UScriptManager.h" />
+    <ClInclude Include="Source\Slate\Widgets\GameHUDWidget.h" />
     <ClInclude Include="Source\Slate\Widgets\PropertyRenderer.h" />
+    <ClInclude Include="Source\Slate\Windows\GameHUDWindow.h" />
     <ClInclude Include="ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="ThirdParty\ImGui\imgui.h" />
     <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h" />
