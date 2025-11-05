@@ -92,7 +92,7 @@ void UUIManager::Shutdown()
 		if (Window)
 		{
 			Window->Cleanup();
-			delete Window;  // Singleton 포함 모든 윈도우 삭제 (메모리 누수 방지)
+			DeleteObject(Window);  // ObjectFactory를 통해 안전하게 삭제 (Double free 방지)
 		}
 	}
 

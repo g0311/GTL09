@@ -111,11 +111,12 @@ extern const FString GCacheDir;
 
 //CUR ENGINE MODE
 // Build Configuration:
-// - _EDITOR: Full editor with UI (default)
-// - _GAME: Shipping build - game only, no editor UI
-// To build Shipping: Comment out _EDITOR and uncomment _GAME
-#define _EDITOR
-//#define _GAME
+// - _EDITOR: Full editor with UI (Debug and Release builds)
+// - _GAME: Shipping build - game only, no editor UI (Release_StandAlone build)
+// The macro is automatically set based on the build configuration
+#if !defined(_GAME)
+    #define _EDITOR
+#endif
 
 
 extern UEditorEngine GEngine;

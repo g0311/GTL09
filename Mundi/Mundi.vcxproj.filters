@@ -514,6 +514,10 @@
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp">
       <Filter>Source\Runtime\Engine\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierFade.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierVignette.cpp" />
   </ItemGroup>
   <!-- ThirdParty/ImGui Files -->
   <!-- Source Files -->
@@ -1047,6 +1051,10 @@
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h">
       <Filter>Source\Runtime\Engine\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierFade.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
