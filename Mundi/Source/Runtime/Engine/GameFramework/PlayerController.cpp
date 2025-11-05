@@ -46,10 +46,15 @@ void APlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// PlayerCameraManager 스폰
+	// PlayerCameraManager 스폰 (이미 SetViewTarget에서 생성되었을 수 있음)
 	if (GetWorld() && !PlayerCameraManager)
 	{
 		PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+		UE_LOG("APlayerController::BeginPlay - PlayerCameraManager created");
+	}
+	else if (PlayerCameraManager)
+	{
+		UE_LOG("APlayerController::BeginPlay - PlayerCameraManager already exists");
 	}
 
 	// 입력 컨텍스트 설정
@@ -113,10 +118,19 @@ void APlayerController::UnPossess()
 
 void APlayerController::SetViewTarget(AActor* NewViewTarget, float BlendTime)
 {
+    // PlayerCameraManager가 없으면 생성 (BeginPlay보다 먼저 호출될 수 있음)
     if (!PlayerCameraManager)
     {
-        UE_LOG("APlayerController::SetViewTarget - PlayerCameraManager is null");
-        return;
+        if (GetWorld())
+        {
+            PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+            UE_LOG("APlayerController::SetViewTarget - PlayerCameraManager created on-demand");
+        }
+        else
+        {
+            UE_LOG("APlayerController::SetViewTarget - Cannot create PlayerCameraManager (World is null)");
+            return;
+        }
     }
 
     // PlayerCameraManager에 위임
