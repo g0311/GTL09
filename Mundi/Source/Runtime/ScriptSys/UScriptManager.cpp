@@ -38,6 +38,7 @@
 #include "Source/Runtime/Engine/Camera/CameraShakeBase.h"
 #include "Source/Runtime/Engine/Camera/PerlinNoiseCameraShakePattern.h"
 #include "Source/Runtime/Engine/Camera/SinusoidalCameraShakePattern.h"
+#include "TextOverlayD2D.h"
 
 // ==================== 초기화 ====================
 IMPLEMENT_CLASS(UScriptManager)
@@ -685,6 +686,31 @@ void UScriptManager::RegisterWorld(sol::state* state)
 
             return gameMode->SpawnActorFromLua(className, location);
             });
+
+        // Global DrawText helper to render UI text via D2D overlay
+        state->set_function("DrawText", [](const std::string& utf8, float x, float y, float size,
+            float r, float g, float b, float a,
+            sol::optional<std::string> fontOpt, sol::optional<std::string> localeOpt,
+            sol::optional<float> bgAlphaOpt, sol::optional<float> widthOpt, sol::optional<float> heightOpt)
+        {
+            std::wstring wtext = UScriptManager::FStringToWideString(utf8);
+            std::wstring wfont = fontOpt ? UScriptManager::FStringToWideString(*fontOpt) : L"";
+            std::wstring wloc  = localeOpt ? UScriptManager::FStringToWideString(*localeOpt) : L"";
+            float bgAlpha = bgAlphaOpt.value_or(0.0f);
+            float width   = widthOpt.value_or(400.0f);
+            float height  = heightOpt.value_or(40.0f);
+
+            UTextOverlayD2D::Get().EnqueueText(
+                wtext,
+                x, y,
+                size,
+                r, g, b, a,
+                wfont,
+                wloc,
+                bgAlpha,
+                width,
+                height);
+        });
 }
 
 void UScriptManager::RegisterActor(sol::state* state)
@@ -1016,7 +1042,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
 
     // Global helper: start a Perlin-noise camera shake with simple/default params
     state->set_function("StartPerlinCameraShake",
-        [](float Duration, float Scale) -> UCameraShakeBase*
+        [](float Duration, float Scale, int32 Seed = 1337) -> UCameraShakeBase*
         {
             if (!GWorld) return nullptr;
             APlayerController* PC = GWorld->GetPlayerController();
@@ -1037,7 +1063,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
             Pattern->Octaves = 3;
             Pattern->Lacunarity = 2.0f;
             Pattern->Persistence = 0.5f;
-            Pattern->Seed = 1337;
+            Pattern->Seed = Seed;
 
             auto* Shake = NewObject<UCameraShakeBase>();
             Shake->SetBlendInTime(0.25f);
@@ -1054,7 +1080,7 @@ void UScriptManager::RegisterCameraComponent(sol::state* state)
         [](const FVector& LocAmp, const FVector& LocFreq,
            const FVector& RotAmpDeg, const FVector& RotFreq,
            float FovAmp, float FovFreq,
-           float Duration, float BlendIn, float BlendOut, float Scale) -> UCameraShakeBase*
+           float Duration, float Scale) -> UCameraShakeBase*
         {
             if (!GWorld) return nullptr;
             APlayerController* PC = GWorld->GetPlayerController();
@@ -1366,6 +1392,8 @@ void UScriptManager::RegisterGameMode(sol::state* state)
         ADD_LUA_FUNCTION("GetGameTime", &AGameModeBase::GetGameTime)
         ADD_LUA_FUNCTION("GetChaserDistance", &AGameModeBase::GetChaserDistance)
         ADD_LUA_FUNCTION("SetChaserDistance", &AGameModeBase::SetChaserDistance)
+        ADD_LUA_FUNCTION("SetChaserSpeed", &AGameModeBase::SetChaserSpeed)
+        ADD_LUA_FUNCTION("SetPlayerSpeed", &AGameModeBase::SetPlayerSpeed)
         ADD_LUA_FUNCTION("IsGameOver", &AGameModeBase::IsGameOver)
         ADD_LUA_FUNCTION("EndGame", &AGameModeBase::EndGame)
 

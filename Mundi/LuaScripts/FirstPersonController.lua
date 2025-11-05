@@ -270,6 +270,7 @@ end
 function Tick(dt)
     local input = GetInput()
     local gm = GetGameMode()
+    gm:SetPlayerSpeed(CurrentForwardSpeed)
     if (gm and gm:IsGameOver()) then
         return
     end
@@ -454,7 +455,7 @@ end
 
 function OnOverlap(other)
     -- 카메라 쉐이크 시작 (Perlin 노이즈 기반 - 더 자연스러운 랜덤 쉐이크)
-    StartPerlinCameraShake(0.5, 0.25)
+    StartPerlinCameraShake(0.5, 0.25, math.random(-1000000, 1000000))
 
     -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
     if not (bIsInFrenzyMode) then
