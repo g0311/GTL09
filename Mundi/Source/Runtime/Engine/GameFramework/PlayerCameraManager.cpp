@@ -28,7 +28,13 @@ APlayerCameraManager::APlayerCameraManager()
 
 APlayerCameraManager::~APlayerCameraManager()
 {
+	for (UCameraModifier*& Modifier : ModifierList)
+	{
+		delete Modifier;
+		Modifier = nullptr;
+	}
 
+	ModifierList.clear();
 }
 
 void APlayerCameraManager::BeginPlay()

@@ -41,19 +41,6 @@ void APlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    // PlayerCameraManager 생성
-    if (UWorld* World = GetWorld())
-    {
-        PlayerCameraManager = World->SpawnActor<APlayerCameraManager>();
-        if (PlayerCameraManager)
-        {
-            UE_LOG("APlayerController - PlayerCameraManager spawned");
-
-            // 게임 시작 시 2초 동안 검은색에서 페이드 인
-            StartCameraFade(2.0f, FLinearColor::Black, false); // false는 페이드 인을 의미
-        }
-    }
-
     // 입력 컨텍스트 설정
     SetupInputContext();
 }

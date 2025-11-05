@@ -1208,7 +1208,7 @@ void UScriptManager::RegisterPlayerController(sol::state* state)
 
 void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
 {
-    // ==================== UPrimitiveComponent 등록 ====================
+    // ==================== UPrimitiveComponent 등록a ====================
     BEGIN_LUA_TYPE_NO_CTOR(state, UPrimitiveComponent, "PrimitiveComponent")
         // Collision settings
         ADD_LUA_FUNCTION("SetCollisionEnabled", &UPrimitiveComponent::SetCollisionEnabled)
