@@ -248,10 +248,11 @@ UCameraModifier* APlayerCameraManager::AddCameraModifier(UCameraModifier* Modifi
 	// 1. 모디파이어 리스트에 추가
 	ModifierList.Add(Modifier);
 
-	// 2. 우선 순위 정렬
-	ModifierList.Sort([](const UCameraModifier* A, const UCameraModifier* B) {
-		return A->Priority < B->Priority;
-		});
+    // 2. 우선 순위 정렬
+    ModifierList.Sort([](const UCameraModifier* A, const UCameraModifier* B)
+    {
+        return A->Priority < B->Priority;
+    });
 
 	// 3. 소유자 설정
 	Modifier->CameraOwner = this;
@@ -277,31 +278,72 @@ void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, float BlendTime,
 		return;
 	}
 
-	ViewTarget.Target = NewViewTarget;
-	UE_LOG("APlayerCameraManager - ViewTarget set to: {0}", NewViewTarget->GetName());
+    FViewTargetTransitionParams Params;
+    Params.BlendTime = BlendTime;
+    Params.BlendFunc = BlendFunc;
+    SetViewTarget(NewViewTarget, Params);
+}
+
+void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, const FViewTargetTransitionParams& Transition)
+{
+    if (!NewViewTarget)
+    {
+        UE_LOG("APlayerCameraManager::SetViewTarget(params) - NewViewTarget is null");
+        return;
+    }
+
+    // 즉시 전환
+    if (Transition.BlendTime <= 0.0f || ViewTarget.Target == nullptr)
+    {
+        ViewTarget.Target = NewViewTarget;
+        PendingViewTarget.Target = nullptr;
+        bIsBlending = false;
+        BlendElapsed = 0.0f;
+
+        if (UCameraComponent* CameraComp = GetViewTargetCameraComponent())
+        {
+            ViewCache.Location = CameraComp->GetWorldLocation();
+            ViewCache.Rotation = CameraComp->GetWorldRotation();
+            ViewCache.FOV = CameraComp->GetFOV();
+        }
+        UE_LOG("APlayerCameraManager - ViewTarget set instantly to: {0}", NewViewTarget->GetName());
+        return;
+    }
+
+    // 블렌딩 설정
+    PendingViewTarget.Target = NewViewTarget;
+    TransitionParams = Transition;
+    BlendElapsed = 0.0f;
+    bIsBlending = true;
+
+    UE_LOG("APlayerCameraManager - ViewTarget blending to: {0}, time: {1}", NewViewTarget->GetName(),
+           TransitionParams.BlendTime);
 }
 
 UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
 {
-	if (!ViewTarget.Target)
+	// 블렌딩 중에는 도착지 타겟의 프로젝션 사용을 우선
+	AActor* QueryTarget = bIsBlending && PendingViewTarget.Target ? PendingViewTarget.Target : ViewTarget.Target;
+
+	if (!QueryTarget)
 	{
 		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - ViewTarget.Target is null");
 		return nullptr;
 	}
 
-	UCameraComponent* CameraComp = ViewTarget.Target->GetComponent<UCameraComponent>();
+	UCameraComponent* CameraComp = QueryTarget->GetComponent<UCameraComponent>();
 	if (!CameraComp)
 	{
 		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - CameraComponent not found on ViewTarget: %c", 
-			ViewTarget.Target->GetName());
+			QueryTarget->GetName());
 	}
 	else
 	{
 		UE_LOG("APlayerCameraManager::GetViewTargetCameraComponent - Found CameraComponent on ViewTarget: %c", 
-			ViewTarget.Target->GetName());
+			QueryTarget->GetName());
 	}
 
-	return CameraComp;
+    return CameraComp;
 }
 
 FPostProcessSettings APlayerCameraManager::GetPostProcessSettings() const
@@ -392,13 +434,8 @@ void APlayerCameraManager::InitializeModifiers()
 
 void APlayerCameraManager::UpdateCamera(float DeltaTime)
 {
-	// 1. ViewTarget의 카메라 컴포넌트에서 기본 값 가져오기
-	if (UCameraComponent* CameraComp = GetViewTargetCameraComponent())
-	{
-		ViewCache.Location = CameraComp->GetWorldLocation();
-		ViewCache.Rotation = CameraComp->GetWorldRotation();
-		ViewCache.FOV = CameraComp->GetFOV();
-	}
+    // 0. ViewTarget / Blending 업데이트
+    UpdateViewTarget(DeltaTime);
 
 	// 2. 모든 모디파이어의 Alpha 및 상태 업데이트
 	// ViewTarget이 없어도 모디파이어 업데이트는 진행 (Fade 등)
@@ -407,7 +444,7 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 		if (Modifier)
 		{
 			// Fade 모디파이어는 별도로 UpdateFade() 호출
-			if (UFadeModifier* FadeModifier = dynamic_cast<UFadeModifier*>(Modifier))
+			if (UFadeModifier* FadeModifier = Cast<UFadeModifier>(Modifier))
 			{
 				FadeModifier->UpdateFade(DeltaTime);
 			}
@@ -464,4 +501,100 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 			}
 		}
 	}
+}
+
+static float EvalBlendAlpha(float T, ECameraBlendType Type)
+{
+    T = FMath::Clamp(T, 0.0f, 1.0f);
+    switch (Type)
+    {
+    case ECameraBlendType::EaseIn:
+        // Quadratic ease-in: t^2
+        return T * T;
+    case ECameraBlendType::EaseOut:
+        // Quadratic ease-out: 1 - (1-t)^2
+        return 1.0f - (1.0f - T) * (1.0f - T);
+    case ECameraBlendType::EaseInOut:
+        // Smoothstep: t^2(3 - 2t)
+        return T * T * (3.0f - 2.0f * T);
+    case ECameraBlendType::Linear:
+    default:
+        return T;
+    }
+}
+
+void APlayerCameraManager::UpdateViewTarget(float DeltaTime)
+{
+    // 기본값: 현재 또는 보류 중인 타겟의 카메라 컴포넌트를 조회해 ViewCache 설정
+    if (!bIsBlending)
+    {
+        if (UCameraComponent* CameraComp = GetViewTargetCameraComponent())
+        {
+            ViewCache.Location = CameraComp->GetWorldLocation();
+            ViewCache.Rotation = CameraComp->GetWorldRotation();
+            ViewCache.FOV = CameraComp->GetFOV();
+        }
+        return;
+    }
+
+    // 블렌딩 진행
+    BlendElapsed += DeltaTime;
+    float Alpha = TransitionParams.BlendTime > 0.0f ? (BlendElapsed / TransitionParams.BlendTime) : 1.0f;
+    if (Alpha >= 1.0f)
+    {
+        // 블렌딩 완료
+        ViewTarget = PendingViewTarget;
+        PendingViewTarget.Target = nullptr;
+        bIsBlending = false;
+        BlendElapsed = 0.0f;
+
+        if (UCameraComponent* CameraComp = GetViewTargetCameraComponent())
+        {
+            ViewCache.Location = CameraComp->GetWorldLocation();
+            ViewCache.Rotation = CameraComp->GetWorldRotation();
+            ViewCache.FOV = CameraComp->GetFOV();
+        }
+        return;
+    }
+
+    Alpha = EvalBlendAlpha(Alpha, TransitionParams.BlendFunc);
+
+    // 출발/도착 카메라 컴포넌트 조회 (매 프레임 샘플링하여 움직임 반영)
+    UCameraComponent* FromCam = ViewTarget.Target ? ViewTarget.Target->GetComponent<UCameraComponent>() : nullptr;
+    UCameraComponent* ToCam = PendingViewTarget.Target
+                                  ? PendingViewTarget.Target->GetComponent<UCameraComponent>()
+                                  : nullptr;
+
+    if (!FromCam && ToCam)
+    {
+        // 출발지가 없으면 도착지만 사용
+        ViewCache.Location = ToCam->GetWorldLocation();
+        ViewCache.Rotation = ToCam->GetWorldRotation();
+        ViewCache.FOV = ToCam->GetFOV();
+        return;
+    }
+    if (!ToCam && FromCam)
+    {
+        // 도착지가 없으면 출발지만 사용
+        ViewCache.Location = FromCam->GetWorldLocation();
+        ViewCache.Rotation = FromCam->GetWorldRotation();
+        ViewCache.FOV = FromCam->GetFOV();
+        return;
+    }
+    if (!FromCam && !ToCam)
+    {
+        return;
+    }
+
+    const FVector FromLoc = FromCam->GetWorldLocation();
+    const FQuat FromRot = FromCam->GetWorldRotation();
+    const float FromFOV = FromCam->GetFOV();
+
+    const FVector ToLoc = ToCam->GetWorldLocation();
+    const FQuat ToRot = ToCam->GetWorldRotation();
+    const float ToFOV = ToCam->GetFOV();
+
+    ViewCache.Location = FVector::Lerp(FromLoc, ToLoc, Alpha);
+    ViewCache.Rotation = FQuat::Slerp(FromRot, ToRot, Alpha).GetNormalized();
+    ViewCache.FOV = FMath::Lerp(FromFOV, ToFOV, Alpha);
 }

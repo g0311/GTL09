@@ -237,6 +237,7 @@ void UScriptManager::RegisterTypesToState(sol::state* state)
     RegisterScriptComponent(state);
     RegisterPlayerController(state);
     RegisterGameMode(state);
+    RegisterCameraEnums(state);
 
     // Collision components
     RegisterPrimitiveComponent(state);
@@ -1333,6 +1334,7 @@ void UScriptManager::RegisterPlayerController(sol::state* state)
 
         // ViewTarget API
         ADD_LUA_FUNCTION("SetViewTarget", &APlayerController::SetViewTarget)
+        ADD_LUA_FUNCTION("SetViewTargetWithBlend", &APlayerController::SetViewTargetWithBlend)
         ADD_LUA_FUNCTION("GetViewTarget", &APlayerController::GetViewTarget)
 
         // Camera API
@@ -1649,4 +1651,13 @@ void UScriptManager::RegisterRotatingMovement(sol::state* state)
             return Comp;
         }
     ));
+}
+void UScriptManager::RegisterCameraEnums(sol::state* state)
+{
+    // Expose camera blend types as a table for Lua
+    auto blend = state->create_table("ECameraBlendType");
+    blend["Linear"]    = static_cast<int>(ECameraBlendType::Linear);
+    blend["EaseIn"]    = static_cast<int>(ECameraBlendType::EaseIn);
+    blend["EaseOut"]   = static_cast<int>(ECameraBlendType::EaseOut);
+    blend["EaseInOut"] = static_cast<int>(ECameraBlendType::EaseInOut);
 }
