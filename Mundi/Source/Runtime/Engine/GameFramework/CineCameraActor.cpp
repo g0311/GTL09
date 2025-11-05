@@ -3,6 +3,8 @@
 #include "CameraComponent.h"
 #include "SceneComponent.h"
 #include "ObjectFactory.h"
+#include "RenderManager.h"
+#include "Renderer.h"
 
 IMPLEMENT_CLASS(ACineCameraActor)
 
@@ -11,6 +13,7 @@ BEGIN_PROPERTIES(ACineCameraActor)
     ADD_PROPERTY_RANGE(float, Duration, "CineCamera", 0.0f, 1000.0f, true, "전체 재생 시간 (초)")
     ADD_PROPERTY_RANGE(float, PlaybackSpeed, "CineCamera", 0.0f, 10.0f, true, "재생 속도 배율")
     ADD_PROPERTY(bool, bLoop, "CineCamera", true, "재생 완료 후 루프")
+    ADD_PROPERTY(bool, bShowPath, "CineCamera", true, "경로 시각화 표시")
 END_PROPERTIES()
 
 ACineCameraActor::ACineCameraActor()
@@ -19,6 +22,8 @@ ACineCameraActor::ACineCameraActor()
     , PlaybackSpeed(1.0f)
     , bPlaying(false)
     , bLoop(false)
+    , bShowPath(true)
+    , bPathLinesDirty(true)
 {
     Name = "CineCameraActor";
 
@@ -28,6 +33,8 @@ ACineCameraActor::ACineCameraActor()
     // Camera component
     CameraComponent = CreateDefaultSubobject<UCameraComponent>("CameraComponent");
     CameraComponent->SetupAttachment(RootComponent);
+
+    bTickInEditor = true;
 }
 
 ACineCameraActor::~ACineCameraActor()
@@ -39,46 +46,137 @@ void ACineCameraActor::BeginPlay()
     Super::BeginPlay();
 }
 
-void ACineCameraActor::Tick(float DeltaSeconds)
+void ACineCameraActor::CollectPathPointsRecursive(USceneComponent* Parent)
 {
-    Super::Tick(DeltaSeconds);
+    if (!Parent) return;
 
-    if (!bPlaying || PathPoints.size() < 2)
+    const TArray<USceneComponent*>& Children = Parent->GetAttachChildren();
+    for (USceneComponent* Child : Children)
+    {
+        if (!Child) continue;
+
+        // CameraComponent는 제외
+        if (Child == CameraComponent) continue;
+
+        // 현재 자식을 PathPoints에 추가
+        PathPoints.Add(Child);
+
+        // 재귀적으로 자손들도 추가
+        CollectPathPointsRecursive(Child);
+    }
+
+    // PathPoints가 변경되었으므로 캐시 무효화
+    bPathLinesDirty = true;
+}
+
+void ACineCameraActor::RenderDebugVolume(URenderer* Renderer) const
+{
+    if (!Renderer) return;
+
+    // bShowPath가 false이거나 PathPoints가 부족하면 렌더링하지 않음
+    if (!bShowPath || PathPoints.size() < 2)
     {
         return;
     }
 
-    // 시간 업데이트
-    PlaybackTime += DeltaSeconds * PlaybackSpeed;
-
-    // 루프 처리
-    if (PlaybackTime >= Duration)
+    // PathPoints가 변경되었을 때만 재계산
+    if (bPathLinesDirty)
     {
-        if (bLoop)
+        CachedStartPoints.clear();
+        CachedEndPoints.clear();
+        CachedColors.clear();
+
+        const FVector4 PathColor = FVector4(0.0f, 1.0f, 1.0f, 1.0f); // 청록색
+        const FVector4 PointColor = FVector4(1.0f, 0.5f, 0.0f, 1.0f); // 주황색
+
+        // 베지어 곡선 샘플링 (100개 세그먼트)
+        const int NumSamples = 100;
+        for (int i = 0; i < NumSamples; ++i)
         {
-            PlaybackTime = fmodf(PlaybackTime, Duration);
+            float t1 = (float)i / (float)NumSamples;
+            float t2 = (float)(i + 1) / (float)NumSamples;
+
+            FVector Loc1, Loc2;
+            FQuat Rot1, Rot2;
+            const_cast<ACineCameraActor*>(this)->EvaluatePath(t1, Loc1, Rot1);
+            const_cast<ACineCameraActor*>(this)->EvaluatePath(t2, Loc2, Rot2);
+
+            CachedStartPoints.Add(Loc1);
+            CachedEndPoints.Add(Loc2);
+            CachedColors.Add(PathColor);
         }
-        else
+
+        // PathPoint 위치에 작은 십자가 그리기
+        for (USceneComponent* Point : PathPoints)
         {
-            PlaybackTime = Duration;
-            bPlaying = false;
+            if (Point)
+            {
+                FVector Pos = Point->GetWorldLocation();
+                float Size = 2.0f; // 십자가 크기
+
+                // X축
+                CachedStartPoints.Add(Pos + FVector(-Size, 0, 0));
+                CachedEndPoints.Add(Pos + FVector(Size, 0, 0));
+                CachedColors.Add(FVector4(1.f, 0.f, 0.f, 1.f));
+
+                // Y축
+                CachedStartPoints.Add(Pos + FVector(0, -Size, 0));
+                CachedEndPoints.Add(Pos + FVector(0, Size, 0));
+                CachedColors.Add(FVector4(0.f, 1.f, 0.f, 1.f));
+
+                // Z축
+                CachedStartPoints.Add(Pos + FVector(0, 0, -Size));
+                CachedEndPoints.Add(Pos + FVector(0, 0, Size));
+                CachedColors.Add(FVector4(0.f, 0.f, 1.f, 1.f));
+            }
         }
+
+        bPathLinesDirty = false;
     }
 
-    // 정규화된 시간 (0~1)
-    float t = Duration > 0.0f ? (PlaybackTime / Duration) : 0.0f;
-    t = FMath::Clamp(t, 0.0f, 1.0f);
+    // 캐시된 라인 데이터 렌더링
+    Renderer->AddLines(CachedStartPoints, CachedEndPoints, CachedColors);
+}
 
-    // 경로 평가
-    FVector Location;
-    FQuat Rotation;
-    EvaluatePath(t, Location, Rotation);
+void ACineCameraActor::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
 
-    // 카메라 업데이트
-    if (CameraComponent)
+    // 재생 중일 때만 카메라 업데이트
+    if (bPlaying && PathPoints.size() >= 2)
     {
-        CameraComponent->SetWorldLocation(Location);
-        CameraComponent->SetWorldRotation(Rotation);
+        // 시간 업데이트
+        PlaybackTime += DeltaSeconds * PlaybackSpeed;
+
+        // 루프 처리
+        if (PlaybackTime >= Duration)
+        {
+            if (bLoop)
+            {
+                PlaybackTime = fmodf(PlaybackTime, Duration);
+            }
+            else
+            {
+                PlaybackTime = Duration;
+                bPlaying = false;
+            }
+        }
+
+        // 정규화된 시간 (0~1)
+        float t = Duration > 0.0f ? (PlaybackTime / Duration) : 0.0f;
+        t = FMath::Clamp(t, 0.0f, 1.0f);
+
+        // 경로 평가
+        FVector Location;
+        FQuat Rotation;
+        EvaluatePath(t, Location, Rotation);
+
+        // 카메라 업데이트
+        if (CameraComponent)
+        {
+            CameraComponent->SetWorldLocation(Location);
+            CameraComponent->SetWorldRotation(Rotation);
+        }
     }
 }
 
@@ -122,6 +220,18 @@ USceneComponent* ACineCameraActor::GetPathPoint(int Index) const
 
 void ACineCameraActor::Play()
 {
+    // RootComponent의 모든 자손 SceneComponent를 재귀적으로 찾아서 PathPoints에 추가
+    if (RootComponent)
+    {
+        PathPoints.clear();
+        CollectPathPointsRecursive(RootComponent);
+
+        if (PathPoints.size() > 0)
+        {
+            UE_LOG("[CineCameraActor] Found %d path points", PathPoints.size());
+        }
+    }
+    
     bPlaying = true;
 }
 
@@ -355,12 +465,34 @@ FQuat ACineCameraActor::CalculateControlRotation(int Index, bool bIsFirst)
 }
 
 //================================================
+// Duplication
+//================================================
+
+void ACineCameraActor::DuplicateSubObjects()
+{
+    Super::DuplicateSubObjects();
+
+    // 복제된 컴포넌트로 포인터 갱신
+    CameraComponent = FindComponentByClass<UCameraComponent>();
+
+    if (RootComponent)
+    {
+        PathPoints.clear();
+        CollectPathPointsRecursive(RootComponent);
+    }
+}
+
+//================================================
 // Serialization
 //================================================
 
 void ACineCameraActor::OnSerialized()
 {
     Super::OnSerialized();
+
+    // 네이티브 컴포넌트는 직렬화되지 않으므로 매번 다시 찾기
+    CameraComponent = FindComponentByClass<UCameraComponent>();
+    CollectPathPointsRecursive(RootComponent);
 }
 
 void ACineCameraActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)

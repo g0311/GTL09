@@ -22,6 +22,9 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
 
+    // Debug rendering
+    void RenderDebugVolume(class URenderer* Renderer) const;
+
     //================================================
     // 경로 포인트 관리
     //================================================
@@ -79,6 +82,10 @@ public:
     void SetLoop(bool bInLoop) { bLoop = bInLoop; }
     bool IsLooping() const { return bLoop; }
 
+    /** 경로 시각화 표시 설정 */
+    void SetShowPath(bool bInShow) { bShowPath = bInShow; bPathLinesDirty = true; }
+    bool IsShowingPath() const { return bShowPath; }
+
     /** 현재 재생 시간 반환 */
     float GetPlaybackTime() const { return PlaybackTime; }
 
@@ -95,10 +102,17 @@ public:
     virtual void OnSerialized() override;
     virtual void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
+    // Duplication
+    virtual void DuplicateSubObjects() override;
+    DECLARE_DUPLICATE(ACineCameraActor)
+
 private:
     //================================================
     // 베지어 곡선 계산
     //================================================
+
+    /** RootComponent의 자손들을 재귀적으로 수집하여 PathPoints에 추가 */
+    void CollectPathPointsRecursive(USceneComponent* Parent);
 
     /** t (0~1) 값에 따른 위치와 회전 계산 */
     void EvaluatePath(float t, FVector& OutLocation, FQuat& OutRotation);
@@ -132,4 +146,11 @@ private:
     float PlaybackSpeed;     // 재생 속도 배율
     bool bPlaying;           // 재생 중인지
     bool bLoop;              // 루프 여부
+    bool bShowPath;          // 경로 시각화 표시 여부
+
+    // 경로 라인 캐시 (RenderDebugVolume 성능 최적화)
+    mutable bool bPathLinesDirty;
+    mutable TArray<FVector> CachedStartPoints;
+    mutable TArray<FVector> CachedEndPoints;
+    mutable TArray<FVector4> CachedColors;
 };

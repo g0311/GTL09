@@ -57,6 +57,7 @@ private:
 
 	// 액터 타입별 커스텀 렌더링 헬퍼 함수들
 	static void RenderGameModeProperties(class AGameModeBase* GameMode);
+	static void RenderCineCameraActorProperties(class ACineCameraActor* CineCamera);
 
 private:
 	// 렌더링 중 캐시되는 리소스 목록

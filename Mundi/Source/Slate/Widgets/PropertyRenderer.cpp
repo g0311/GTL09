@@ -21,6 +21,7 @@
 #include "Source/Runtime/ScriptSys/ScriptComponent.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
 #include "GameModeBase.h"
+#include "CineCameraActor.h"
 #include "Actor.h"
 #include "World.h"
 #include <commdlg.h>
@@ -1563,19 +1564,42 @@ void UPropertyRenderer::RenderCustomActorProperties(AActor* Actor)
 {
 	if (!Actor) return;
 
-	// GameMode 타입 체크
+	// GameMode 타입 체크 (커스텀 렌더링)
 	if (AGameModeBase* GameMode = Cast<AGameModeBase>(Actor))
 	{
 		RenderGameModeProperties(GameMode);
 		return;
 	}
 
-	// 여기에 다른 액터 타입 추가 가능
-	// if (ASomeOtherActor* OtherActor = Cast<ASomeOtherActor>(Actor))
-	// {
-	//     RenderSomeOtherActorProperties(OtherActor);
-	//     return;
-	// }
+	// CineCameraActor 타입 체크 (커스텀 렌더링)
+	if (ACineCameraActor* CineCamera = Cast<ACineCameraActor>(Actor))
+	{
+		RenderCineCameraActorProperties(CineCamera);
+		return;
+	}
+
+	// 일반 액터: reflection 기반 프로퍼티 렌더링
+	const UClass* ActorClass = Actor->GetClass();
+	if (!ActorClass) return;
+
+	const TArray<FProperty>& Properties = ActorClass->GetProperties();
+	if (Properties.empty()) return;
+
+	ImGui::Separator();
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f)); // 하늘색
+	ImGui::Text("[%s Properties]", ActorClass->Name);
+	ImGui::PopStyleColor();
+	ImGui::Spacing();
+
+	// 각 프로퍼티 렌더링
+	for (const FProperty& Prop : Properties)
+	{
+		if (RenderProperty(Prop, Actor))
+		{
+			// 프로퍼티가 변경되면 액터에 알림 (필요시)
+			// Actor->OnPropertyChanged(Prop.Name);
+		}
+	}
 }
 
 void UPropertyRenderer::RenderGameModeProperties(AGameModeBase* GameMode)
@@ -1635,4 +1659,100 @@ void UPropertyRenderer::RenderGameModeProperties(AGameModeBase* GameMode)
 
 	ImGui::Spacing();
 	ImGui::Separator();
+}
+
+void UPropertyRenderer::RenderCineCameraActorProperties(ACineCameraActor* CineCamera)
+{
+	if (!CineCamera) return;
+
+	ImGui::Separator();
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.6f, 0.2f, 1.0f)); // 주황색
+	ImGui::Text("[Cine Camera Controls]");
+	ImGui::PopStyleColor();
+	ImGui::Spacing();
+
+	// ==================== Playback Controls ====================
+	ImGui::Text("Playback:");
+	ImGui::SameLine();
+
+	// Play 버튼
+	if (ImGui::Button("Play"))
+	{
+		CineCamera->Play();
+	}
+	ImGui::SameLine();
+
+	// Pause 버튼
+	if (ImGui::Button("Pause"))
+	{
+		CineCamera->Pause();
+	}
+	ImGui::SameLine();
+
+	// Stop 버튼
+	if (ImGui::Button("Stop"))
+	{
+		CineCamera->Stop();
+	}
+
+	ImGui::Spacing();
+
+	// ==================== Settings ====================
+	ImGui::Text("Settings:");
+
+	float duration = CineCamera->GetDuration();
+	ImGui::SetNextItemWidth(-1);
+	if (ImGui::DragFloat("Duration (s)", &duration, 0.1f, 0.0f, 1000.0f, "%.2f"))
+	{
+		CineCamera->SetDuration(duration);
+	}
+
+	float playbackSpeed = CineCamera->GetPlaybackSpeed();
+	ImGui::SetNextItemWidth(-1);
+	if (ImGui::DragFloat("Playback Speed", &playbackSpeed, 0.01f, 0.0f, 10.0f, "%.2f"))
+	{
+		CineCamera->SetPlaybackSpeed(playbackSpeed);
+	}
+
+	bool bLoop = CineCamera->IsLooping();
+	if (ImGui::Checkbox("Loop", &bLoop))
+	{
+		CineCamera->SetLoop(bLoop);
+	}
+	ImGui::SameLine();
+
+	bool bShowPath = CineCamera->IsShowingPath();
+	if (ImGui::Checkbox("Show Path", &bShowPath))
+	{
+		CineCamera->SetShowPath(bShowPath);
+	}
+
+	ImGui::Spacing();
+
+	// ==================== Timeline Slider ====================
+	float currentTime = CineCamera->GetPlaybackTime();
+
+	ImGui::Text("Timeline:");
+	ImGui::SetNextItemWidth(-1); // 전체 너비 사용
+	if (ImGui::SliderFloat("##Timeline", &currentTime, 0.0f, duration, "%.2f s"))
+	{
+		CineCamera->SetPlaybackTime(currentTime);
+	}
+
+	// Progress bar
+	float progress = duration > 0.0f ? (currentTime / duration) : 0.0f;
+	ImGui::ProgressBar(progress, ImVec2(-1, 0), "");
+
+	ImGui::Spacing();
+
+	// ==================== Info ====================
+	ImGui::Text("Status: %s", CineCamera->IsPlaying() ? "Playing" : "Stopped");
+	ImGui::Text("Path Points: %d", CineCamera->GetPathPointCount());
+	ImGui::Text("Time: %.2f / %.2f s", currentTime, duration);
+
+	ImGui::Spacing();
+	ImGui::Separator();
+
+	// ==================== 리플렉션 프로퍼티 렌더링 ====================
+	RenderAllPropertiesWithInheritance(CineCamera);
 }

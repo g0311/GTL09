@@ -28,6 +28,9 @@ public:
     virtual void EndPlay(EEndPlayReason Reason);
     virtual void Destroy();
 
+    // 디버그 렌더링
+    virtual void RenderDebugVolume(class URenderer* Renderer) const {}
+
     // 이름
     void SetName(const FString& InName) { Name = InName; }
     const FName& GetName() { return Name; }

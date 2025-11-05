@@ -1479,6 +1479,13 @@ void FSceneRenderer::RenderDebugPass()
     const TArray<AActor*>& Selected = World->GetSelectionManager()->GetSelectedActors();
     for (AActor* SelectedActor : Selected)
     {
+        // Actor 레벨의 RenderDebugVolume 호출 (CineCameraActor 등)
+        if (SelectedActor)
+        {
+            SelectedActor->RenderDebugVolume(OwnerRenderer);
+        }
+
+        // Component 레벨의 RenderDebugVolume 호출
         for (USceneComponent* Component : SelectedActor->GetSceneComponents())
         {
             // 모든 컴포넌트에서 RenderDebugVolume 호출
