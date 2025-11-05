@@ -357,9 +357,7 @@ end
 -- [함수] 차량 시작 지연 코루틴 
 -- =====================================================
 function ObstacleStartDelayCoroutine()
-    Log("[RoadGenerator] ObstacleStartDelayCoroutine START - waiting 3 seconds...")
-
-    local waitObj = self:WaitForSeconds(3.0)
+    local waitObj = self:WaitForSeconds(2.0)
     coroutine.yield(waitObj)
 
     Log("[RoadGenerator] Coroutine resumed! Starting obstacles...")
@@ -874,10 +872,6 @@ function BeginPlay()
     else
         Log("[RoadGenerator] WARNING: No GameMode found for event subscription")
     end
-
-    -- 초기 시작 시 5초 지연 코루틴 시작
-    Log("[RoadGenerator] Starting initial delay coroutine...")
-    CurrentObstacleDelayCoroutine = self:StartCoroutine(ObstacleStartDelayCoroutine)
 end
 
 -- =====================================================
