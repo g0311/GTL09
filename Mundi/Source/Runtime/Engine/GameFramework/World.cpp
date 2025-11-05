@@ -28,6 +28,7 @@
 #include "LightManager.h"
 #include "PlayerController.h"
 #include "PlayerCameraManager.h"
+#include "PostProcessSettings.h"
 #include "../GameplayStatic/GameMode.h"
 #include "Source/Runtime/ScriptSys/UScriptManager.h"
 
@@ -527,4 +528,19 @@ ACameraActor* UWorld::GetActiveCamera() const
 
 	// 에디터 모드이거나 PlayerController가 없으면 MainCameraActor 반환
 	return MainCameraActor;
+}
+
+FPostProcessSettings UWorld::GetPostProcessSettings() const
+{
+	// PlayerController가 있으면 PlayerCameraManager로부터 가져옴
+	if (PlayerController)
+	{
+		if (APlayerCameraManager* CameraManager = PlayerController->GetPlayerCameraManager())
+		{
+			return CameraManager->GetPostProcessSettings();
+		}
+	}
+
+	// PlayerController가 없거나 CameraManager가 없으면 빈 설정 반환
+	return FPostProcessSettings();
 }

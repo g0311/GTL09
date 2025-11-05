@@ -34,6 +34,7 @@ class APlayerController;
 class APlayerCameraManager;
 class AGameModeBase;
 class AGameMode;
+struct FPostProcessSettings;
 
 class UWorld final : public UObject
 {
@@ -124,6 +125,9 @@ public:
     // Per-world render settings
     URenderSettings& GetRenderSettings() { return RenderSettings; }
     const URenderSettings& GetRenderSettings() const { return RenderSettings; }
+
+    // 포스트 프로세스 설정 (PlayerCameraManager로부터 가져옴)
+    FPostProcessSettings GetPostProcessSettings() const;
 
     // Per-world SelectionManager accessor
     USelectionManager* GetSelectionManager() { return SelectionMgr.get(); }
