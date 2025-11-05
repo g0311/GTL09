@@ -169,3 +169,16 @@ void UCollisionManager::ProcessShape(UShapeComponent* Shape)
         }
     }
 }
+
+void UCollisionManager::QueryAABB(const FAABB& QueryBox, TArray<UShapeComponent*>& OutCandidates)
+{
+    OutCandidates.Empty();
+    if (ShapeBVH)
+    {
+        ShapeBVH->Query(QueryBox, OutCandidates);
+    }
+    else
+    {
+        for (UShapeComponent* S : ActiveShapes) OutCandidates.Add(S);
+    }
+}

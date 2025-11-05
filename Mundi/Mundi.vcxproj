@@ -211,6 +211,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.cpp" />
@@ -508,6 +510,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkyDomeActor.h" />
@@ -689,6 +693,7 @@
     <Content Include="LuaScripts\teasd1.lua" />
     <Content Include="LuaScripts\TEST_moveforward.lua" />
     <Content Include="LuaScripts\TEST_MultiCoroutine.lua" />
+    <Content Include="LuaScripts\ThirdPersonCameraController.lua" />
     <Content Include="Source\Runtime\ScriptSys\template.lua" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
