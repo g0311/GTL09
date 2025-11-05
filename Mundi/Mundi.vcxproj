@@ -421,6 +421,8 @@
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\GameHUDWindow.cpp" />
     <ClCompile Include="Source\Slate\Widgets\GameHUDWidget.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakePattern.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
@@ -525,8 +527,10 @@
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierGammaCorrection.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierLetterbox.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierVignette.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakePattern.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\SinusoidalCameraShakePattern.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
@@ -701,7 +705,6 @@
     <Content Include="LuaScripts\ObstacleController.lua" />
     <Content Include="LuaScripts\FirstPersonController.lua" />
     <Content Include="LuaScripts\FrenzyItem.lua" />
-    <Content Include="LuaScripts\GameEvents.lua" />
     <Content Include="LuaScripts\GameScore.lua" />
     <Content Include="LuaScripts\RoadGenerator.lua" />
     <Content Include="LuaScripts\teasd1.lua" />

@@ -7,7 +7,8 @@
 #include "CameraModifierGammaCorrection.h"
 #include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
-#include "World.h"
+#include "CameraShakeBase.h"
+#include "CameraShakePattern.h"
 
 IMPLEMENT_CLASS(APlayerCameraManager)
 
@@ -33,6 +34,13 @@ APlayerCameraManager::~APlayerCameraManager()
 	}
 
 	ModifierList.clear();
+
+	for (UCameraShakeBase*& Shake : ActiveShakes)
+	{
+		delete Shake;
+		Shake = nullptr;
+	}
+	ActiveShakes.clear();
 }
 
 void APlayerCameraManager::BeginPlay()
@@ -201,6 +209,71 @@ void APlayerCameraManager::SetLetterboxColor(const FLinearColor& Color)
 	}
 }
 
+UCameraShakeBase* APlayerCameraManager::StartCameraShake(UCameraShakeBase* Shake, float Scale, float Duration)
+{
+	if (!Shake) return nullptr;
+	if (ActiveShakes.Contains(Shake)) return Shake;
+	Shake->StartShake(this, Scale, Duration);
+	ActiveShakes.Add(Shake);
+	UE_LOG("APlayerCameraManager - CameraShakeBase added: {0}", Shake->GetName());
+	return Shake;
+}
+
+UCameraShakeBase* APlayerCameraManager::StartCameraShakePattern(UCameraShakePattern* Pattern, const FCameraShakeStartParams& Params)
+{
+	if (!Pattern)
+	{
+		UE_LOG("PlayerCameraManager::StartCameraShakePattern - Pattern is null");
+		return nullptr;
+	}
+	// Create a base shake and attach the pattern
+	UCameraShakeBase* Shake = NewObject<UCameraShakeBase>();
+	if (!Shake) return nullptr;
+	// Apply params to base
+	Shake->SetPlayScale(Params.Scale);
+	Shake->SetBlendInTime(Params.BlendInTime);
+	Shake->SetBlendOutTime(Params.BlendOutTime);
+	if (Params.Duration > 0.0f)
+	{
+		Shake->SetDuration(Params.Duration);
+	}
+	Shake->SetRootPattern(Pattern);
+	// Start via existing path so ownership and arrays are consistent
+	return StartCameraShake(Shake, Params.Scale, Params.Duration);
+}
+
+void APlayerCameraManager::StopCameraShake(UCameraShakeBase* Shake, bool bImmediately)
+{
+	if (!Shake) return;
+	auto it = std::find(ActiveShakes.begin(), ActiveShakes.end(), Shake);
+	if (it == ActiveShakes.end()) return;
+	Shake->StopShake(bImmediately);
+	if (bImmediately)
+	{
+		delete *it;
+		ActiveShakes.erase(it);
+	}
+	UE_LOG("APlayerCameraManager - CameraShakeBase removed: {0}", Shake->GetName());
+}
+
+void APlayerCameraManager::StopAllCameraShakes(bool bImmediately)
+{
+	for (UCameraShakeBase*& Shake : ActiveShakes)
+	{
+		if (!Shake) continue;
+		Shake->StopShake(bImmediately);
+	}
+	if (bImmediately)
+	{
+		for (UCameraShakeBase*& Shake : ActiveShakes)
+		{
+			delete Shake;
+			Shake = nullptr;
+		}
+		ActiveShakes.clear();
+	}
+}
+
 UCameraModifier* APlayerCameraManager::AddCameraModifier(UCameraModifier* Modifier)
 {
 	// 0. nullptr 검사를 진행
@@ -325,6 +398,48 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 			if (Modifier->IsEnabled())
 			{
 				Modifier->ModifyCamera(DeltaTime, ViewCache.Location, ViewCache.Rotation, ViewCache.FOV);
+			}
+		}
+	}
+
+	// 3. 카메라 셰이크: offset를 업데이트하고 적용
+	if (!ActiveShakes.empty())
+	{
+		FVector AccumLoc(0,0,0);
+		FQuat   AccumRot(0,0,0,1);
+		float   AccumFOV = 0.0f;
+
+		bool bHasRot = false;
+		for (int i = 0; i < (int)ActiveShakes.size(); ++i)
+		{
+			UCameraShakeBase* Shake = ActiveShakes[i];
+			if (!Shake) continue;
+			FCameraShakeUpdateResult R = Shake->UpdateShake(DeltaTime);
+			AccumLoc = AccumLoc + R.LocationOffset;
+			AccumFOV += R.FOVOffset;
+			if (R.RotationOffset.W != 1.0f || R.RotationOffset.X != 0.0f || R.RotationOffset.Y != 0.0f || R.RotationOffset.Z != 0.0f)
+			{
+				AccumRot = R.RotationOffset.GetNormalized() * AccumRot;
+				bHasRot = true;
+			}
+		}
+
+		ViewCache.Location = ViewCache.Location + AccumLoc;
+		if (bHasRot)
+		{
+			ViewCache.Rotation = AccumRot.GetNormalized() * ViewCache.Rotation;
+		}
+		ViewCache.FOV += AccumFOV;
+
+		// Remove finished shakes
+		for (int i = (int)ActiveShakes.size() - 1; i >= 0; --i)
+		{
+			UCameraShakeBase* Shake = ActiveShakes[i];
+			if (!Shake) continue;
+			if (Shake->IsFinished())
+			{
+				delete Shake;
+				ActiveShakes.erase(ActiveShakes.begin() + i);
 			}
 		}
 	}

@@ -1,47 +1,20 @@
 #pragma once
 #include "Object.h"
 #include "Vector.h"
+#include "CameraShakeBase.h" // for FCameraShakeUpdateParams/Result
 
 class APlayerCameraManager;
-class UCameraShakePattern;
 
-// Parameters provided to a camera shake on update
-struct FCameraShakeUpdateParams
-{
-    float DeltaTime = 0.0f;
-    float ElapsedTime = 0.0f;     // time since StartShake
-    float Duration = 0.0f;        // nominal play time (not including blend-out)
-    float PlayScale = 1.0f;       // overall scaling factor
-};
-
-// Offsets produced by a camera shake for this frame
-struct FCameraShakeUpdateResult
-{
-    FVector LocationOffset{ 0,0,0 };
-    FQuat   RotationOffset{ 0,0,0,1 };
-    float   FOVOffset = 0.0f;     // in degrees
-};
-
-// Parameters to start a camera shake (creation/start overrides)
-struct FCameraShakeStartParams
-{
-    float Scale = 1.0f;
-    float Duration = 0.0f;    // 0 = use shake default (or infinite)
-    float BlendInTime = 0.1f;
-    float BlendOutTime = 0.2f;
-};
-
-// Base class for camera shakes (pattern-driven in derived classes)
-class UCameraShakeBase : public UObject
+class UCameraShakePattern : public UObject
 {
 public:
-    DECLARE_CLASS(UCameraShakeBase, UObject)
+    DECLARE_CLASS(UCameraShakePattern, UObject)
     GENERATED_REFLECTION_BODY()
 
-    UCameraShakeBase();
-    virtual ~UCameraShakeBase() override = default;
+    UCameraShakePattern();
+    virtual ~UCameraShakePattern() override = default;
 
-    // Lifecycle
+    // Lifecycle managed by the owner (e.g., UCameraShakeBase)
     virtual void StartShake(APlayerCameraManager* InCameraManager, float InScale = 1.0f, float InDuration = 0.0f);
     virtual void StopShake(bool bImmediately = false);
 
@@ -61,7 +34,7 @@ public:
     void SetPlayScale(float InScale) { PlayScale = InScale; }
 
 protected:
-    // Overridable core: generate offsets for this frame before blending/scaling
+    // Overridable core: generate raw offsets for this frame before blending/scaling
     virtual void OnStart() {}
     virtual void OnStop(bool /*bImmediately*/) {}
     virtual void OnUpdate(const FCameraShakeUpdateParams& /*Params*/, FCameraShakeUpdateResult& OutResult) { OutResult = FCameraShakeUpdateResult(); }
@@ -81,10 +54,5 @@ protected:
     float BlendInTime = 0.1f;        // seconds
     float BlendOutTime = 0.2f;       // seconds
     float PlayScale = 1.0f;          // global scale
-
-    UCameraShakePattern* RootPattern = nullptr; // not owned
-
-public:
-    void SetRootPattern(UCameraShakePattern* InPattern) { RootPattern = InPattern; }
-    UCameraShakePattern* GetRootPattern() const { return RootPattern; }
 };
+

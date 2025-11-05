@@ -1,18 +1,17 @@
 #include "pch.h"
-#include "CameraShakeBase.h"
 #include "CameraShakePattern.h"
 #include "PlayerCameraManager.h"
 
-IMPLEMENT_CLASS(UCameraShakeBase)
+IMPLEMENT_CLASS(UCameraShakePattern)
 
-BEGIN_PROPERTIES(UCameraShakeBase)
+BEGIN_PROPERTIES(UCameraShakePattern)
     ADD_PROPERTY_RANGE(float, Duration,    "CameraShake", 0.0f, 1000.0f, true, "Play duration (<=0 = infinite)")
     ADD_PROPERTY_RANGE(float, BlendInTime, "CameraShake", 0.0f,  10.0f,  true, "Blend-in time")
     ADD_PROPERTY_RANGE(float, BlendOutTime,"CameraShake", 0.0f,  10.0f,  true, "Blend-out time")
     ADD_PROPERTY_RANGE(float, PlayScale,   "CameraShake", 0.0f, 100.0f,  true, "Play scale")
 END_PROPERTIES()
 
-UCameraShakeBase::UCameraShakeBase()
+UCameraShakePattern::UCameraShakePattern()
 {
     Duration = 0.0f;
     BlendInTime = 0.1f;
@@ -20,7 +19,7 @@ UCameraShakeBase::UCameraShakeBase()
     PlayScale = 1.0f;
 }
 
-void UCameraShakeBase::StartShake(APlayerCameraManager* InCameraManager, float InScale, float InDuration)
+void UCameraShakePattern::StartShake(APlayerCameraManager* InCameraManager, float InScale, float InDuration)
 {
     CameraManager = InCameraManager;
     PlayScale = InScale;
@@ -32,13 +31,9 @@ void UCameraShakeBase::StartShake(APlayerCameraManager* InCameraManager, float I
     bIsFinished = false;
     bIsActive = true;
     OnStart();
-    if (RootPattern)
-    {
-        RootPattern->StartShake(InCameraManager, InScale, InDuration > 0.0f ? InDuration : Duration);
-    }
 }
 
-void UCameraShakeBase::StopShake(bool bImmediately)
+void UCameraShakePattern::StopShake(bool bImmediately)
 {
     if (!bIsActive) return;
     if (bImmediately)
@@ -46,22 +41,14 @@ void UCameraShakeBase::StopShake(bool bImmediately)
         bIsActive = false;
         bIsFinished = true;
         OnStop(true);
-        if (RootPattern)
-        {
-            RootPattern->StopShake(true);
-        }
         return;
     }
     // Trigger blend-out from current time by clamping duration to now
     Duration = ElapsedTime;
     OnStop(false);
-    if (RootPattern)
-    {
-        RootPattern->StopShake(false);
-    }
 }
 
-FCameraShakeUpdateResult UCameraShakeBase::UpdateShake(float DeltaTime)
+FCameraShakeUpdateResult UCameraShakePattern::UpdateShake(float DeltaTime)
 {
     FCameraShakeUpdateResult Result; // defaults to zero offsets
     if (!bIsActive || bIsFinished)
@@ -78,25 +65,17 @@ FCameraShakeUpdateResult UCameraShakeBase::UpdateShake(float DeltaTime)
     Params.Duration = Duration;
     Params.PlayScale = PlayScale;
 
-    // Ask root pattern (if any) or derived class to provide raw offsets
-    if (RootPattern)
-    {
-        Result = RootPattern->UpdateShake(DeltaTime);
-    }
-    else
-    {
-        OnUpdate(Params, Result);
-    }
+    // Ask derived pattern to provide raw offsets
+    OnUpdate(Params, Result);
 
     // Compute blend alpha (handles in/out)
     const float Alpha = ComputeBlendAlpha(ElapsedTime, Duration);
 
     // Apply blend alpha and scale
     Result.LocationOffset = Result.LocationOffset * (Alpha * PlayScale);
-    // Scale FOV (degrees)
     Result.FOVOffset *= (Alpha * PlayScale);
-    // Slerp rotation offset towards identity by (1-Alpha*PlayScale) is not ideal; instead scale by Alpha*Scale for small angles.
-    // Approximate by nlerp between identity and delta rotation.
+
+    // Approximate rotation scaling by normalized lerp from identity
     const float rotScale = std::clamp(Alpha * PlayScale, 0.0f, 1.0f);
     if (rotScale < 1.0f)
     {
@@ -107,7 +86,7 @@ FCameraShakeUpdateResult UCameraShakeBase::UpdateShake(float DeltaTime)
         Result.RotationOffset = Result.RotationOffset.GetNormalized();
     }
 
-    // Finish condition: if we had a finite duration and finished blend-out
+    // Finish condition for finite shakes
     if (Duration > 0.0f)
     {
         const float outAlpha = (BlendOutTime > 0.0f) ? std::max(0.0f, 1.0f - (ElapsedTime - Duration) / BlendOutTime) : (ElapsedTime <= Duration ? 1.0f : 0.0f);
@@ -121,7 +100,7 @@ FCameraShakeUpdateResult UCameraShakeBase::UpdateShake(float DeltaTime)
     return Result;
 }
 
-float UCameraShakeBase::ComputeBlendAlpha(float Elapsed, float InDuration) const
+float UCameraShakePattern::ComputeBlendAlpha(float Elapsed, float InDuration) const
 {
     // Blend-in
     float alphaIn = 1.0f;
@@ -144,3 +123,4 @@ float UCameraShakeBase::ComputeBlendAlpha(float Elapsed, float InDuration) const
 
     return std::min(alphaIn, alphaOut);
 }
+

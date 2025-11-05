@@ -3,6 +3,9 @@
 
 class UCameraComponent;
 class UCameraModifier;
+class UCameraShakeBase;
+class UCameraShakePattern;
+struct FCameraShakeStartParams;
 struct FPostProcessSettings;
 
 enum class ECameraBlendType : uint8
@@ -77,6 +80,13 @@ public:
 	void SetLetterboxHeight(float Height);
 	void SetLetterboxColor(const FLinearColor& Color);
 
+    UCameraShakeBase* StartCameraShake(UCameraShakeBase* Shake, float Scale = 1.0f, float Duration = 0.0f);
+	void StopCameraShake(UCameraShakeBase* Shake, bool bImmediately = false);
+	void StopAllCameraShakes(bool bImmediately = false);
+	
+	// CameraShakeBase 만들고, CameraShakePattern 붙이고, 시작해줌
+    UCameraShakeBase* StartCameraShakePattern(UCameraShakePattern* Pattern, const FCameraShakeStartParams& Params);
+
 	UCameraModifier* AddCameraModifier(UCameraModifier* ModifierClass);
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
@@ -127,5 +137,5 @@ private:
 	FCameraCache ViewCache;
 
 	TArray<UCameraModifier*> ModifierList;
-
+	TArray<UCameraShakeBase*> ActiveShakes;
 };
