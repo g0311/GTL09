@@ -778,6 +778,18 @@ void UScriptManager::RegisterActor(sol::state* state)
                 return nullptr;
             })
 
+        // Box component accessor
+        ADD_LUA_FUNCTION("GetBoxComponent", [](AActor* actor) -> UBoxComponent*
+            {
+                if (!actor) return nullptr;
+                for (UActorComponent* Comp : actor->GetOwnedComponents())
+                {
+                    if (auto* B = Cast<UBoxComponent>(Comp))
+                        return B;
+                }
+                return nullptr;
+            })
+
         // Name/Visibility
         ADD_LUA_FUNCTION("GetName", [](AActor* actor) -> std::string {
         return actor->GetName().ToString();
