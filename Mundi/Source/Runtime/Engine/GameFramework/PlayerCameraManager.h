@@ -56,7 +56,7 @@ public:
 	void Tick(float DeltaSeconds)  override;
 	void EndPlay(EEndPlayReason Reason)  override;
 
-	// Fade In & Out
+	// Fade In & Out (UCameraModifier_Fade에 위임)
 	void StartFadeOut(float Duration, FLinearColor ToColor = FLinearColor(0, 0, 0, 1));
 	void StartFadeIn(float Duration, FLinearColor FromColor = FLinearColor(0, 0, 0, 1));
 
@@ -67,10 +67,6 @@ public:
 	AActor* GetViewTarget() const { return ViewTarget.Target; }
 
 	UCameraComponent* GetViewTargetCameraComponent() const;
-
-	float GetFadeAmount() const { return FadeAmount; }
-
-	FLinearColor GetFadeColor() const { return FadeColor; }
 
 	/**
 	 * @brief 현재 후처리 설정을 반환 (Renderer에 전달용)
@@ -91,20 +87,28 @@ public:
 	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 private:
-	void UpdateFade(float DeltaTime);
 	void UpdateCamera(float DeltaTime);
+
+	/**
+	 * @brief 특정 타입의 CameraModifier를 찾습니다
+	 * @return 찾은 모디파이어, 없으면 nullptr
+	 */
+	template<typename T>
+	T* FindModifier() const
+	{
+		for (UCameraModifier* Modifier : ModifierList)
+		{
+			if (T* CastedModifier = dynamic_cast<T*>(Modifier))
+			{
+				return CastedModifier;
+			}
+		}
+		return nullptr;
+	}
 
 	FViewTarget ViewTarget;
 	FCameraCache ViewCache;
 
 	TArray<UCameraModifier*> ModifierList;
-
-	// Fade 관련 변수
-	FLinearColor FadeColor;           // Fade 색상
-	float FadeAmount;                 // 현재 Fade Alpha (0~1)
-	float FadeTime;                   // Fade 총 시간
-	float FadeTimeRemaining;          // 남은 시간
-	bool bIsFading;                   // Fade 중인지
-	bool bIsFadingOut;                // true = Out, false = In
 
 };

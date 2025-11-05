@@ -129,7 +129,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)ThirdParty\sol\;$(ProjectDir)Source\Runtime\Core\Object;$(ProjectDir)Source\Runtime\Core\Math;$(ProjectDir)Source\Runtime\Core\Containers;$(ProjectDir)Source\Runtime\Core\Misc;$(ProjectDir)Source\Runtime\Core\Memory;$(ProjectDir)Source\Runtime\Core\Delegates;$(ProjectDir)Source\Runtime\Engine\GameFramework;$(ProjectDir)Source\Runtime\Engine\Components;$(ProjectDir)Source\Runtime\Engine\Collision;$(ProjectDir)Source\Runtime\Engine\Spatial;$(ProjectDir)Source\Runtime\RHI;$(ProjectDir)Source\Runtime\Renderer;$(ProjectDir)Source\Runtime\AssetManagement;$(ProjectDir)Source\Runtime\InputCore;$(ProjectDir)Source\Editor;$(ProjectDir)Source\Slate;$(ProjectDir)ThirdParty;$(ProjectDir)ThirdParty\DirectXTex\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)ThirdParty\sol\;$(ProjectDir)Source\Runtime\Core\Object;$(ProjectDir)Source\Runtime\Core\Math;$(ProjectDir)Source\Runtime\Core\Containers;$(ProjectDir)Source\Runtime\Core\Misc;$(ProjectDir)Source\Runtime\Core\Memory;$(ProjectDir)Source\Runtime\Core\Delegates;$(ProjectDir)Source\Runtime\Engine\GameFramework;$(ProjectDir)Source\Runtime\Engine\Camera;$(ProjectDir)Source\Runtime\Engine\Components;$(ProjectDir)Source\Runtime\Engine\Collision;$(ProjectDir)Source\Runtime\Engine\Spatial;$(ProjectDir)Source\Runtime\RHI;$(ProjectDir)Source\Runtime\Renderer;$(ProjectDir)Source\Runtime\AssetManagement;$(ProjectDir)Source\Runtime\InputCore;$(ProjectDir)Source\Editor;$(ProjectDir)Source\Slate;$(ProjectDir)ThirdParty;$(ProjectDir)ThirdParty\DirectXTex\Include</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -214,7 +214,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <ClCompile Include="Source\Runtime\Core\Delegates\Delegate.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\GameFramework\CameraModifier.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifier.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Camera\CameraModifierFade.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\CameraShakeBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Camera\SpringArmComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
@@ -516,7 +517,8 @@
   <ItemGroup>
     <ClInclude Include="Source\Runtime\Core\Delegates\Delegate.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PostProcessSettings.h" />
-    <ClInclude Include="Source\Runtime\Engine\GameFramework\CameraModifier.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifier.h" />
+    <ClInclude Include="Source\Runtime\Engine\Camera\CameraModifierFade.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\CameraShakeBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Camera\SpringArmComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
@@ -527,7 +529,6 @@
     <ClInclude Include="Source\Runtime\InputCore\InputMappingTypes.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingContext.h" />
     <ClInclude Include="Source\Runtime\InputCore\InputMappingSubsystem.h" />
-    <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h" />
     <ClInclude Include="Source\Runtime\Core\Game\CoroutineHelper.h" />
     <ClInclude Include="Source\Runtime\Core\Game\YieldInstruction.h" />
@@ -686,7 +687,6 @@
     <ClInclude Include="Source\Slate\Windows\SViewportWindow.h" />
     <ClInclude Include="Source\Slate\Windows\SWindow.h" />
     <ClInclude Include="Source\Slate\Windows\UIWindow.h" />
-    <ClInclude Include="ThirdParty\Sol2\version.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="LuaScripts\Chaser.lua" />

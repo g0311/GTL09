@@ -22,24 +22,12 @@ UCameraModifier::~UCameraModifier()
 {
 }
 
-bool UCameraModifier::ModifyCamera(float DeltaTime, FVector& InOutLocation, FQuat& InOutRotation, float& InOutFOV)
-{
-	/* 필요하다면 추가할 것 
-	 * CameraShake, CameraZoom 등
-	*/
-
-	return false;  // 카메라를 수정하지 않습니다
-}
-
 void UCameraModifier::EnableModifier(bool bImmediate)
 {
 	bDisabled = false;
 	TargetAlpha = 1.0f;
 
-	if (bImmediate)
-	{
-		Alpha = 1.0f;
-	}
+	if (bImmediate) { Alpha = 1.0f; }
 	// else: Alpha는 UpdateAlpha()에서 서서히 증가
 }
 
@@ -58,10 +46,7 @@ void UCameraModifier::DisableModifier(bool bImmediate)
 void UCameraModifier::UpdateAlpha(float DeltaTime)
 {
 	// Alpha가 이미 목표값에 도달했으면 아무 것도 안 함
-	if (Alpha == TargetAlpha)
-	{
-		return;
-	}
+	if (Alpha == TargetAlpha) { return; }
 
 	// Alpha를 TargetAlpha로 보간
 	if (Alpha < TargetAlpha)
@@ -70,10 +55,7 @@ void UCameraModifier::UpdateAlpha(float DeltaTime)
 		float AlphaSpeed = (AlphaInTime > 0.0f) ? (1.0f / AlphaInTime) : 999.0f;
 		Alpha += AlphaSpeed * DeltaTime;
 
-		if (Alpha >= TargetAlpha)
-		{
-			Alpha = TargetAlpha;
-		}
+		if (Alpha >= TargetAlpha) { Alpha = TargetAlpha; }
 	}
 	else
 	{
@@ -86,10 +68,7 @@ void UCameraModifier::UpdateAlpha(float DeltaTime)
 			Alpha = TargetAlpha;
 
 			// Alpha가 0에 도달하면 완전히 비활성화
-			if (Alpha <= 0.0f)
-			{
-				bDisabled = true;
-			}
+			if (Alpha <= 0.0f) { bDisabled = true; }
 		}
 	}
 }

@@ -2,6 +2,7 @@
 #include "PlayerCameraManager.h"
 #include "CameraComponent.h"
 #include "CameraModifier.h"
+#include "CameraModifierFade.h"
 #include "PostProcessSettings.h"
 #include "World.h"
 
@@ -12,12 +13,6 @@ BEGIN_PROPERTIES(APlayerCameraManager)
 END_PROPERTIES()
 
 APlayerCameraManager::APlayerCameraManager()
-	: FadeColor(0, 0, 0, 1)
-	, FadeAmount(0.0f)
-	, FadeTime(0.0f)
-	, FadeTimeRemaining(0.0f)
-	, bIsFading(false)
-	, bIsFadingOut(false)
 {
 	Name = "PlayerCameraManager";
 
@@ -49,9 +44,6 @@ void APlayerCameraManager::Tick(float DeltaSeconds)
 	// 카메라 상태 업데이트
 	UpdateCamera(DeltaSeconds);
 
-	// Fade 업데이트
-	UpdateFade(DeltaSeconds);
-
 	// Blend 업데이트
 	// UpdateBlend(DeltaSeconds);
 }
@@ -63,43 +55,28 @@ void APlayerCameraManager::EndPlay(EEndPlayReason Reason)
 
 void APlayerCameraManager::StartFadeOut(float Duration, FLinearColor ToColor)
 {
-	if (Duration <= 0.0f)
+	// UCameraModifier_Fade를 찾아서 위임
+	if (UFadeModifier* FadeModifier = FindModifier<UFadeModifier>())
 	{
-		// 즉시 Fade
-		FadeAmount = 1.0f;
-		FadeColor = ToColor;
-		bIsFading = false;
-		return;
+		FadeModifier->StartFadeOut(Duration, ToColor);
 	}
-
-	FadeColor = ToColor;
-	FadeAmount = 0.0f;
-	FadeTime = Duration;
-	FadeTimeRemaining = Duration;
-	bIsFading = true;
-	bIsFadingOut = true;
-
-	UE_LOG("APlayerCameraManager - Fade Out started: Duration={0}s", Duration);
+	else
+	{
+		UE_LOG("APlayerCameraManager::StartFadeOut - UCameraModifier_Fade not found! Add one first.");
+	}
 }
 
 void APlayerCameraManager::StartFadeIn(float Duration, FLinearColor FromColor)
 {
-	if (Duration <= 0.0f)
+	// UCameraModifier_Fade를 찾아서 위임
+	if (UFadeModifier* FadeModifier = FindModifier<UFadeModifier>())
 	{
-		// 즉시 Fade
-		FadeAmount = 0.0f;
-		bIsFading = false;
-		return;
+		FadeModifier->StartFadeIn(Duration, FromColor);
 	}
-
-	FadeColor = FromColor;
-	FadeAmount = 1.0f;
-	FadeTime = Duration;
-	FadeTimeRemaining = Duration;
-	bIsFading = true;
-	bIsFadingOut = false;
-
-	UE_LOG("APlayerCameraManager - Fade In started: Duration={0}s", Duration);
+	else
+	{
+		UE_LOG("APlayerCameraManager::StartFadeIn - UCameraModifier_Fade not found! Add one first.");
+	}
 }
 
 UCameraModifier* APlayerCameraManager::AddCameraModifier(UCameraModifier* Modifier)
@@ -157,11 +134,7 @@ FPostProcessSettings APlayerCameraManager::GetPostProcessSettings() const
 {
 	FPostProcessSettings Settings;
 
-	// 1. 기본 Fade 설정 (PlayerCameraManager가 직접 관리)
-	Settings.FadeColor = FadeColor;
-	Settings.FadeAmount = FadeAmount;
-
-	// 2. 모든 CameraModifier에게 후처리 기여 요청
+	// 모든 CameraModifier에게 후처리 기여 요청
 	for (UCameraModifier* Modifier : ModifierList)
 	{
 		if (Modifier && Modifier->IsEnabled())
@@ -202,26 +175,6 @@ void APlayerCameraManager::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 	Super::Serialize(bInIsLoading, InOutHandle);
 }
 
-void APlayerCameraManager::UpdateFade(float DeltaTime)
-{
-	if (!bIsFading) { return; }
-
-	FadeTimeRemaining -= DeltaTime;
-
-	if (FadeTimeRemaining <= 0.0f)
-	{
-		// Fade 완료
-		FadeAmount = bIsFadingOut ? 1.0f : 0.0f;
-		bIsFading = false;
-		UE_LOG("APlayerCameraManager - Fade completed");
-		return;
-	}
-
-	// 선형 보간 (Phase 1: Linear만)
-	float Alpha = 1.0f - (FadeTimeRemaining / FadeTime);
-	FadeAmount = bIsFadingOut ? Alpha : (1.0f - Alpha);
-}
-
 void APlayerCameraManager::UpdateCamera(float DeltaTime)
 {
 	// 1. ViewTarget의 카메라 컴포넌트에서 기본 값 가져오기
@@ -232,12 +185,18 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 	ViewCache.Rotation = CameraComp->GetWorldRotation();
 	ViewCache.FOV = CameraComp->GetFOV();
 
-	// 2. 모든 모디파이어의 Alpha 업데이트 및 적용
+	// 2. 모든 모디파이어의 Alpha 및 상태 업데이트
 	for (UCameraModifier* Modifier : ModifierList)
 	{
 		if (Modifier)
 		{
-			// Alpha 페이드 인/아웃 업데이트
+			// Fade 모디파이어는 별도로 UpdateFade() 호출
+			if (UFadeModifier* FadeModifier = dynamic_cast<UFadeModifier*>(Modifier))
+			{
+				FadeModifier->UpdateFade(DeltaTime);
+			}
+
+			// Alpha 페이드 인/아웃 업데이트 (모든 모디파이어 공통)
 			Modifier->UpdateAlpha(DeltaTime);
 
 			// 활성화된 모디파이어만 카메라에 적용
