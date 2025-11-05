@@ -84,6 +84,11 @@ public:
      */
     void SetChaserDistance(float Distance) { ChaserDistance = Distance; }
 
+    float GetChaserSpeed() const { return ChaserSpeed; }
+    void SetChaserSpeed(float Speed) { ChaserSpeed = Speed; }
+    float GetPlayerSpeed() const { return PlayerSpeed; }
+    void SetPlayerSpeed(float Speed) { PlayerSpeed = Speed; }
+    
     /**
      * @brief 게임 오버 상태 확인
      */
@@ -238,6 +243,8 @@ protected:
     int32 Score{ 0 };
     float GameTime{ 0.0f };
     float ChaserDistance{ 999.0f };  // Chaser와 플레이어 간 거리
+    float ChaserSpeed{ 0.0f };
+    float PlayerSpeed{ 0.0f };
     bool bIsGameOver{ false };
     bool bIsVictory{ false };
 

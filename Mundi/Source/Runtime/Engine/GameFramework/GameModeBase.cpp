@@ -210,6 +210,20 @@ void AGameModeBase::Tick(float DeltaSeconds)
             std::wstring w = UScriptManager::FStringToWideString(buf);
             UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
         }
+        {
+            // Enemy Speed
+            char buf[64];
+            sprintf_s(buf, "Enemy Speed: %.3f", GetChaserSpeed());
+            std::wstring w = UScriptManager::FStringToWideString(buf);
+            UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
+        }
+        {
+            // Player Speed
+            char buf[64];
+            sprintf_s(buf, "Your Speed: %.3f", GetPlayerSpeed());
+            std::wstring w = UScriptManager::FStringToWideString(buf);
+            UTextOverlayD2D::Get().EnqueueText(w, x, y, 18.0f, 1,1,1,1, L"", L"", 0.0f, width, height); y += lineH;
+        }
     }
 
     // Game Over overlay

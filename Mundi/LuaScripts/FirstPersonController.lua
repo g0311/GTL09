@@ -246,6 +246,7 @@ end
 function Tick(dt)
     local input = GetInput()
     local gm = GetGameMode()
+    gm:SetPlayerSpeed(CurrentForwardSpeed)
     if (gm and gm:IsGameOver()) then
         return
     end

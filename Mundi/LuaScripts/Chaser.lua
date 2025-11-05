@@ -21,6 +21,8 @@ local InitialRotation = nil
 -- 실행 중인 코루틴 추적
 local CurrentDelayCoroutine = nil
 
+local gm
+
 ---
 --- 추격자 시작 지연 코루틴 (5초)
 ---
@@ -60,7 +62,7 @@ function BeginPlay()
 
     -- 게임 리셋 이벤트 구독 (게임이 리셋될 때 상태 초기화)
     Log("[Chaser] Calling GetGameMode()...")
-    local gm = GetGameMode()
+    gm = GetGameMode()
     Log("[Chaser] GetGameMode() returned: " .. tostring(gm))
     if gm then
         --Log("[Chaser] Subscribing to 'OnGameReset' event...")
@@ -139,6 +141,9 @@ function Tick(dt)
     if bIsStopped then
         return
     end
+
+    MoveSpeed = MoveSpeed + 0.01
+    gm:SetChaserSpeed(MoveSpeed)
 
     -- X축 방향으로 이동
     local movement = Vector(MoveSpeed * dt, 0, 0)

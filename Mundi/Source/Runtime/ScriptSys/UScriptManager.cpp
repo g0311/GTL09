@@ -1300,6 +1300,8 @@ void UScriptManager::RegisterGameMode(sol::state* state)
         ADD_LUA_FUNCTION("GetGameTime", &AGameModeBase::GetGameTime)
         ADD_LUA_FUNCTION("GetChaserDistance", &AGameModeBase::GetChaserDistance)
         ADD_LUA_FUNCTION("SetChaserDistance", &AGameModeBase::SetChaserDistance)
+        ADD_LUA_FUNCTION("SetChaserSpeed", &AGameModeBase::SetChaserSpeed)
+        ADD_LUA_FUNCTION("SetPlayerSpeed", &AGameModeBase::SetPlayerSpeed)
         ADD_LUA_FUNCTION("IsGameOver", &AGameModeBase::IsGameOver)
         ADD_LUA_FUNCTION("EndGame", &AGameModeBase::EndGame)
 
