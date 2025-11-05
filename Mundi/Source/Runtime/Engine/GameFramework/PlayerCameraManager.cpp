@@ -22,6 +22,8 @@ APlayerCameraManager::APlayerCameraManager()
 	// PlayerCameraManager는 일반 Actor Tick 루프에서 제외
 	// World::Tick에서 모든 Actor 업데이트 후 명시적으로 호출됨
 	bTickInEditor = false;
+
+	InitializeModifiers();
 }
 
 APlayerCameraManager::~APlayerCameraManager()
@@ -46,9 +48,6 @@ void APlayerCameraManager::Tick(float DeltaSeconds)
 
 	// 카메라 상태 업데이트
 	UpdateCamera(DeltaSeconds);
-
-	// Blend 업데이트
-	// UpdateBlend(DeltaSeconds);
 }
 
 void APlayerCameraManager::EndPlay(EEndPlayReason Reason)
@@ -300,14 +299,15 @@ void APlayerCameraManager::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 void APlayerCameraManager::UpdateCamera(float DeltaTime)
 {
 	// 1. ViewTarget의 카메라 컴포넌트에서 기본 값 가져오기
-	UCameraComponent* CameraComp = GetViewTargetCameraComponent();
-	if (!CameraComp) { return; }
-
-	ViewCache.Location = CameraComp->GetWorldLocation();
-	ViewCache.Rotation = CameraComp->GetWorldRotation();
-	ViewCache.FOV = CameraComp->GetFOV();
+	if (UCameraComponent* CameraComp = GetViewTargetCameraComponent())
+	{
+		ViewCache.Location = CameraComp->GetWorldLocation();
+		ViewCache.Rotation = CameraComp->GetWorldRotation();
+		ViewCache.FOV = CameraComp->GetFOV();
+	}
 
 	// 2. 모든 모디파이어의 Alpha 및 상태 업데이트
+	// ViewTarget이 없어도 모디파이어 업데이트는 진행 (Fade 등)
 	for (UCameraModifier* Modifier : ModifierList)
 	{
 		if (Modifier)
