@@ -429,7 +429,7 @@ function OnOverlap(other, contactInfo)
         local billboard = actor:AddBillboardComponent()
         if billboard then
             billboard:SetTextureName("Data/Billboard/explosion_trans.png")
-            billboard:SetRelativeScale(Vector(5.0, 5.0, 5.0))
+            billboard:SetRelativeScale(Vector(2.5, 2.5, 2.5))
             billboard:SetHiddenInGame(false)
 
             -- Billboard를 Player의 RootComponent에 부착
@@ -438,7 +438,7 @@ function OnOverlap(other, contactInfo)
                 billboard:SetupAttachment(rootComp)
             end
 
-            billboard:SetRelativeLocation(localOffset)
+            billboard:SetRelativeLocation(localOffset + Vector(1.0, 0.0, 1.0))
 
             -- World에 등록
             local world = actor:GetWorld()
@@ -451,7 +451,7 @@ function OnOverlap(other, contactInfo)
             if not BillboardsToRemove then
                 BillboardsToRemove = {}
             end
-            table.insert(BillboardsToRemove, {billboard = billboard, lifetime = 1.0})
+            table.insert(BillboardsToRemove, {billboard = billboard, lifetime = 0.2})
         end
     end
 end
