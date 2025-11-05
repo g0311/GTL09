@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ScriptComponent.h"
 #include "UScriptManager.h"
 #include "Actor.h"
@@ -316,6 +316,15 @@ void UScriptComponent::EnsureCoroutineHelper()
 	}
 }
 
+/**
+ * @brief Periodically checks the script file modification time and triggers a reload when it has changed.
+ *
+ * Accumulates DeltaTime and, once more than one second has elapsed, resolves ScriptPath to an absolute path,
+ * compares the file's last-write time with the stored LastScriptWriteTime_ms, and calls ReloadScript() if the file is newer.
+ * Filesystem errors are caught and logged; no exception is propagated.
+ *
+ * @param DeltaTime Time elapsed since the last Tick (in seconds).
+ */
 void UScriptComponent::CheckHotReload(float DeltaTime)
 {
     HotReloadCheckTimer += DeltaTime;
@@ -349,7 +358,16 @@ void UScriptComponent::CheckHotReload(float DeltaTime)
     }
 }
 
-// ==================== Lua Events ====================
+/**
+ * @brief Forwards an overlap event to the script's OnOverlap handler, supplying contact details when available.
+ *
+ * If the Lua environment is available, invokes `OnOverlap(OtherActor, contactInfoTable)` where `contactInfoTable`
+ * contains `ContactPoint`, `ContactNormal`, and `PenetrationDepth`. If the Lua state is unavailable, invokes
+ * `OnOverlap(OtherActor)` instead.
+ *
+ * @param OtherActor The actor that overlapped this component's owner.
+ * @param ContactInfo Contact information for the overlap; fields used are `ContactPoint`, `ContactNormal`, and `PenetrationDepth`.
+ */
 void UScriptComponent::NotifyOverlap(AActor* OtherActor, const FContactInfo& ContactInfo)
 {
     if (!bScriptLoaded)
@@ -390,6 +408,15 @@ void UScriptComponent::NotifyOverlap(AActor* OtherActor, const FContactInfo& Con
     }
 }
 
+/**
+ * @brief Handles the beginning of a physics overlap by logging the event and forwarding it to the script environment.
+ *
+ * Logs a brief overlap notice including the owner and other actor names (when available), then forwards the overlap event
+ * to the Lua handler with the provided contact information.
+ *
+ * @param OtherActor The other actor involved in the overlap; may be null.
+ * @param ContactInfo Contact details for the overlap (contact point, normal, penetration depth).
+ */
 void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/, const FContactInfo& ContactInfo)
 {
 	// Debug: 충돌 감지 확인
@@ -405,6 +432,17 @@ void UScriptComponent::OnBeginOverlap(UPrimitiveComponent* /*OverlappedComp*/, A
 	NotifyOverlap(OtherActor, ContactInfo);
 }
 
+/**
+ * @brief Forwards an end-overlap event to the bound Lua script, providing contact details.
+ *
+ * If the script is loaded and a global Lua state exists, invokes the Lua function `OnEndOverlap`
+ * with the OtherActor and a table containing `ContactPoint`, `ContactNormal`, and `PenetrationDepth`.
+ * If the Lua state is unavailable, invokes `OnEndOverlap` with only the OtherActor.
+ * Does nothing when the script is not loaded or OtherActor is null.
+ *
+ * @param OtherActor The other actor involved in the overlap event.
+ * @param ContactInfo Overlap contact details: `ContactPoint` (location), `ContactNormal` (surface normal), and `PenetrationDepth` (penetration depth).
+ */
 void UScriptComponent::OnEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AActor* OtherActor, UPrimitiveComponent* /*OtherComp*/, const FContactInfo& ContactInfo)
 {
 	// Optional: call Lua if function exists

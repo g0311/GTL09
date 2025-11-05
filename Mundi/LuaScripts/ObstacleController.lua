@@ -102,6 +102,11 @@ function Tick(dt)
     -- No manual movement; projectile component handles motion when activated
 end
 
+-- Reset the obstacle to its initial inactive physical state.
+-- Stops any active hit-stop coroutine, ensures movement components exist,
+-- clears and disables projectile movement (velocity, acceleration, gravity, rotation-follow),
+-- resets rotating movement rate to zero, and restores the actor's rotation to `initialRotation`
+-- or the identity rotation if `initialRotation` is nil.
 function ResetState()
     -- 실행 중인 코루틴 중지
     if CurrentHitStopCoroutine then
@@ -144,6 +149,11 @@ function ResetState()
     end
 end
 
+-- Handles overlap with another actor and, if that actor is the player, applies knockback and related effects.
+-- Applies a horizontal knockback away from the player plus an upward impulse, enables gravity and rotation on the obstacle,
+-- plays a random collision sound, fires a "PlayerHit" gameplay event on the game mode, and starts the hit-stop then slow-motion sequence.
+-- @param other The actor that overlapped this obstacle; only the player actor will trigger effects.
+-- @param contactInfo Collision/contact information provided by the overlap event (unused by this function).
 function OnOverlap(other, contactInfo)
     if not other then return end
 

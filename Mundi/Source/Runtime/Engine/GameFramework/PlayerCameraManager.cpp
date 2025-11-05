@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PlayerCameraManager.h"
 #include "CameraComponent.h"
 #include "CameraModifier.h"
@@ -348,6 +348,13 @@ void APlayerCameraManager::SetViewTarget(AActor* NewViewTarget, const FViewTarge
            TransitionParams.BlendTime);
 }
 
+/**
+ * @brief Resolve the active camera component for the current view target.
+ *
+ * During an active blend, the pending view target is preferred; otherwise the current view target is used.
+ *
+ * @return UCameraComponent* Pointer to the camera component of the resolved view target, or `nullptr` if there is no view target or the target lacks a camera component.
+ */
 UCameraComponent* APlayerCameraManager::GetViewTargetCameraComponent() const
 {
 	// 블렌딩 중에는 도착지 타겟의 프로젝션 사용을 우선

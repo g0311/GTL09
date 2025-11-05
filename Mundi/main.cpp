@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "EditorEngine.h"
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -7,6 +7,18 @@
 #   include <crtdbg.h>
 #endif
 
+/**
+ * @brief Program entry point that initializes COM and the engine, runs the main loop, and performs cleanup.
+ *
+ * Initializes CRT debug facilities in MSVC debug builds, initializes COM for apartment-threaded components,
+ * starts the global engine, enters the engine main loop, shuts down the engine, and uninitializes COM before exit.
+ *
+ * @param hInstance Handle to the current instance of the application.
+ * @param hPrevInstance Unused; retained for compatibility with the Windows API.
+ * @param lpCmdLine The command-line for the application as a single string.
+ * @param nShowCmd Controls how the window is to be shown.
+ * @return int 0 on successful execution; -1 if initialization fails.
+ */
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 #if defined(_MSC_VER) && defined(_DEBUG)

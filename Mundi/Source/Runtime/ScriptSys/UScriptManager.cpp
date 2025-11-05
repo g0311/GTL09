@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "UScriptManager.h"
 #include "Actor.h"
 #include "ScriptComponent.h"
@@ -217,6 +217,16 @@ void UScriptManager::InitializeGlobalLuaState()
     UE_LOG("[ScriptManager] Global Lua state initialized successfully\n");
 }
 
+/**
+ * @brief Register all engine types, components, enums, and helper bindings into a Lua state.
+ *
+ * Populates the provided `sol::state` with core utilities, world and actor APIs, component
+ * usertypes (including rendering, camera, sound and scripting components), collision and
+ * movement helpers, camera-related enums and functions, input mappings and subsystem accessors,
+ * and game-mode / player controller bindings.
+ *
+ * @param state Pointer to the Lua state to populate. If `nullptr`, the function returns without action.
+ */
 void UScriptManager::RegisterTypesToState(sol::state* state)
 {
     if (!state) return;
@@ -396,6 +406,16 @@ void UScriptManager::RegisterTransform(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers UWorld-related functions and global world utilities into the given Lua state.
+ *
+ * Binds UWorld methods (actor spawn/destruction, queries, camera, game mode access, and time-dilation APIs),
+ * exposes global helper functions for game-level operations (GetGameMode, ResetGame, GetPlayerPawn, FindActorByName,
+ * FindActorsByClass, SpawnActor) and convenience spawn helpers (SpawnActor, SpawnEmptyActor), and registers Lua-accessible
+ * wrappers for hit-stop / slow-motion controls.
+ *
+ * @param state Pointer to the Lua state where UWorld bindings and global world helper functions will be registered.
+ */
 void UScriptManager::RegisterWorld(sol::state* state)
 {
     // ==================== UWorld 등록 ====================
@@ -687,6 +707,14 @@ void UScriptManager::RegisterWorld(sol::state* state)
             });
 }
 
+/**
+ * @brief Register Lua bindings for AActor and actor-related helpers.
+ *
+ * Registers a comprehensive set of Actor APIs and convenience helpers into the Lua state,
+ * including transform and movement operations, name/visibility and lifecycle controls,
+ * component management and accessors (shape, primitive, camera, static mesh, light, box),
+ * world access, owned-components enumeration, and runtime factories for ScriptComponent and BillboardComponent.
+ */
 void UScriptManager::RegisterActor(sol::state* state)
 {
     // ==================== AActor 등록 ====================
@@ -874,6 +902,15 @@ void UScriptManager::RegisterActor(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Register UActorComponent bindings into the provided Lua state.
+ *
+ * Binds commonly used UActorComponent APIs (owner access, name, active state)
+ * and lifecycle methods (RegisterComponent, InitializeComponent) under the
+ * Lua usertype "ActorComponent".
+ *
+ * @param state Pointer to the sol::state where the bindings will be registered.
+ */
 void UScriptManager::RegisterActorComponent(sol::state* state)
 {
     // ==================== UActorComponent 등록 ====================
@@ -890,6 +927,15 @@ void UScriptManager::RegisterActorComponent(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers USceneComponent bindings and helpers into the provided Lua state.
+ *
+ * Registers a Lua usertype named "SceneComponent" that exposes transform accessors and mutators
+ * (relative and world location/rotation/scale), attachment hierarchy helpers (GetAttachParent,
+ * GetAttachChildren, SetupAttachment), and visibility controls (SetHiddenInGame, GetHiddenInGame).
+ *
+ * @param state Pointer to the sol::state where the SceneComponent bindings will be added.
+ */
 void UScriptManager::RegisterSceneComponent(sol::state* state)
 {
     // ==================== USceneComponent 등록 ====================
@@ -936,6 +982,16 @@ void UScriptManager::RegisterSceneComponent(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers Lua bindings for UStaticMeshComponent.
+ *
+ * Exposes a Lua usertype "StaticMeshComponent" (derived from Primitive/Scene/ActorComponent)
+ * with the following functions:
+ * - SetStaticMesh(path): sets the component's static mesh by path.
+ * - GetStaticMesh(): returns the component's current static mesh.
+ *
+ * @param state Pointer to the Lua state to register the bindings on.
+ */
 void UScriptManager::RegisterStaticMeshComponent(sol::state* state)
 {
     // ==================== UStaticMeshComponent 등록 ====================
@@ -947,6 +1003,14 @@ void UScriptManager::RegisterStaticMeshComponent(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers the UBillboardComponent type and its Lua-facing API into the given Lua state.
+ *
+ * Exposes a Lua usertype named "BillboardComponent" (derived from Primitive/Scene/Actor component types)
+ * with functions to set the billboard texture by path and to retrieve the component's file path.
+ *
+ * @param state Pointer to the sol::state into which the bindings will be registered.
+ */
 void UScriptManager::RegisterBillboardComponent(sol::state* state)
 {
     // ==================== UBillboardComponent 등록 ====================
@@ -962,6 +1026,16 @@ void UScriptManager::RegisterBillboardComponent(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers ULightComponent bindings into the given Lua state.
+ *
+ * Exposes intensity and color APIs to Lua for ULightComponent instances:
+ * - SetIntensity / GetIntensity
+ * - SetLightColor(r, g, b) — sets RGB with alpha = 1.0
+ * - GetLightColor() — returns a Lua table with keys `r`, `g`, `b`, `a` and uppercase aliases `R`, `G`, `B`, `A`
+ *
+ * @param state Pointer to the sol::state in which the ULightComponent usertype will be registered.
+ */
 void UScriptManager::RegisterLightComponent(sol::state* state)
 {
     // ==================== ULightComponent 등록 ====================
@@ -1633,6 +1707,16 @@ void UScriptManager::RegisterPlayerCameraManager(sol::state* state)
     END_LUA_TYPE()
 }
 
+/**
+ * @brief Registers UPrimitiveComponent bindings into the provided Lua state.
+ *
+ * Exposes collision configuration, overlap queries, and Lua-friendly overlap event binding APIs
+ * for UPrimitiveComponent. Bound functions include setters/getters for collision and generate-overlap
+ * flags, IsOverlappingActor, BindOnBeginOverlap / BindOnEndOverlap (which forward an FContactInfo
+ * as a Lua table), and corresponding Unbind functions.
+ *
+ * @param state Lua state to register the UPrimitiveComponent usertype and its functions into.
+ */
 void UScriptManager::RegisterPrimitiveComponent(sol::state* state)
 {
     // ==================== UPrimitiveComponent 등록a ====================

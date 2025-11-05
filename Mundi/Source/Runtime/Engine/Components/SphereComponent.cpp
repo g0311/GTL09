@@ -76,6 +76,15 @@ void USphereComponent::DebugDraw() const
     AddCircle(AxisZ, AxisX);
 }
 
+/**
+ * @brief Computes this component's bounding sphere in world space.
+ *
+ * The returned sphere is centered at the component's world location and has a radius
+ * equal to the component's local SphereRadius multiplied by the largest component
+ * of the world scale.
+ *
+ * @return FBoundingSphere Bounding sphere in world space with scaled radius.
+ */
 FBoundingSphere USphereComponent::GetWorldSphere() const
 {
     const FVector Center = GetWorldLocation();
@@ -84,6 +93,17 @@ FBoundingSphere USphereComponent::GetWorldSphere() const
     return FBoundingSphere(Center, RadiusWS);
 }
 
+/**
+ * @brief Determines whether this sphere component overlaps another shape component.
+ *
+ * Checks collision and overlap generation flags on both components and, if enabled,
+ * tests the appropriate shape-pair overlap (sphere, box/OBB, or capsule). When provided,
+ * populates `OutContactInfo` with contact details for the detected overlap.
+ *
+ * @param Other The other shape component to test against.
+ * @param OutContactInfo Optional output pointer to receive contact information if an overlap is detected.
+ * @return true if an overlap is detected between this sphere and the other shape, `false` otherwise.
+ */
 bool USphereComponent::Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo) const
 {
     // Respect collision/overlap flags on both shapes

@@ -79,7 +79,7 @@ local ShakeCooldownDuration = 0.5  -- 쉐이크 간격 (초)
 
 ---
 --- 게임 시작 시 초기화
----
+-- Initializes the first-person controller: stores the actor's initial transform, configures input axes and camera post-processing, binds collision overlap handling, and subscribes to game-mode events (game reset, chaser distance updates, freeze/unfreeze, and frenzy enter/exit).
 function BeginPlay()
     local name = actor:GetName()
     local pos = actor:GetActorLocation()
@@ -266,7 +266,8 @@ end
 
 ---
 --- 매 프레임 업데이트
----
+-- Advances per-frame player and camera-related updates: updates dynamic max speed, applies movement, processes pending billboard removals, and updates speed vignette.
+-- @param dt Time elapsed since the last tick in seconds.
 function Tick(dt)
     local input = GetInput()
     local gm = GetGameMode()
@@ -307,7 +308,10 @@ end
 
 ---
 --- 이동 업데이트
----
+-- Update the player's velocity and translate the actor according to current input, acceleration settings, sprint state, and horizontal bounds.
+-- Applies forward and strafe acceleration/deceleration, prevents backward movement (backward input acts as braking), scales forward cap when sprinting, updates CurrentForwardSpeed and CurrentRightSpeed, moves the actor by velocity * dt, and enforces MinHorizontalPosition/MaxHorizontalPosition constraints.
+-- @param dt Delta time since the last tick.
+-- @param input Input context providing axis values and action states (expects "MoveForward", "MoveRight", and "Sprint").
 function UpdateMovement(dt, input)
     -- 플레이어가 얼어있으면 이동 불가
     if bIsFrozen then
@@ -374,7 +378,8 @@ end
 
 ---
 --- 카메라 쉐이크 업데이트 (거리 기반)
----
+-- Triggers a Perlin-noise camera shake when the chaser is within a configured threshold, scaling intensity and duration by proximity and setting a cooldown.
+-- @param dt Time elapsed since the last frame, in seconds.
 function UpdateCameraShake(dt)
     if not pcm then return end
     if bIsFrozen then return end
@@ -452,6 +457,8 @@ function OnExitFrenzyMode(payload)
     bIsInFrenzyMode = false
 end
 
+-- Handles a collision/overlap event: triggers a short camera shake, adjusts the dynamic forward speed cap and current forward speed based on frenzy state, and spawns a short-lived billboard at the contact point when available.
+-- @param other The other actor or component involved in the overlap event.
 function OnOverlap(other)
     -- 카메라 쉐이크 시작 (Perlin 노이즈 기반 - 더 자연스러운 랜덤 쉐이크)
     StartPerlinCameraShake(0.5, 0.25)

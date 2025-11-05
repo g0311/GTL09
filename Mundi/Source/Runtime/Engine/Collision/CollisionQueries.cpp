@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "CollisionQueries.h"
 #include "AABB.h"
 #include "OBB.h"
@@ -139,6 +139,20 @@ namespace
 
 namespace Collision
 {
+    /**
+     * @brief Tests overlap between an axis-aligned bounding box (AABB) and an oriented bounding box (OBB).
+     *
+     * If an overlap is detected and OutContactInfo is provided, populates OutContactInfo->ContactPoint as the midpoint
+     * between the AABB center and the OBB center, OutContactInfo->ContactNormal as the normalized direction from the
+     * AABB center to the OBB center (fallbacks to (0,0,1) when centers coincide), and OutContactInfo->PenetrationDepth
+     * with 0.0.
+     *
+     * @param Aabb Axis-aligned bounding box to test.
+     * @param Obb Oriented bounding box to test.
+     * @param OutContactInfo Optional output. When non-null and an overlap occurs, receives basic contact information.
+     *                        Only ContactPoint, ContactNormal, and PenetrationDepth are written.
+     * @return true if the AABB and OBB overlap, false otherwise.
+     */
     bool OverlapAABBOBB(const FAABB& Aabb, const FOBB& Obb, FContactInfo* OutContactInfo)
     {
         const FOBB ConvertedOBB(Aabb, FMatrix::Identity());
@@ -165,6 +179,18 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Tests whether an axis-aligned bounding box and a sphere overlap.
+     *
+     * When an overlap is detected and `OutContactInfo` is provided, fills `OutContactInfo->ContactPoint`,
+     * `OutContactInfo->ContactNormal`, and `OutContactInfo->PenetrationDepth` with a simple contact estimate.
+     * If the sphere center lies inside the AABB, the contact normal defaults to (0,0,1) and penetration depth is set to the sphere radius.
+     *
+     * @param Aabb The axis-aligned bounding box to test.
+     * @param Sphere The sphere to test.
+     * @param OutContactInfo Optional output; when non-null and an overlap is found, receives contact point, normal, and penetration depth.
+     * @return true if the sphere intersects or touches the AABB, false otherwise.
+     */
     bool OverlapAABBSphere(const FAABB& Aabb, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         // Clamp sphere center to AABB, then compare squared distance to radius^2
@@ -219,6 +245,20 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Tests intersection between an oriented bounding box and a sphere.
+     *
+     * When an overlap is detected and `OutContactInfo` is provided, fills `OutContactInfo` with a contact
+     * normal (from OBB toward sphere or a default up vector when centers coincide), a contact point
+     * estimated as the midpoint between the OBB surface point and the sphere surface point, and a
+     * penetration depth (sphere radius minus center-to-closest-point distance, or sphere radius if the
+     * sphere center lies inside the OBB).
+     *
+     * @param Obb The oriented bounding box to test.
+     * @param Sphere The sphere to test.
+     * @param OutContactInfo Optional output; when non-null and an overlap occurs, receives contact data.
+     * @return true if the OBB and sphere overlap, false otherwise.
+     */
     bool OverlapOBBSphere(const FOBB& Obb, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         // Compute closest point on OBB to sphere center
@@ -259,6 +299,21 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Determines whether two oriented bounding boxes overlap.
+     *
+     * If `OutContactInfo` is provided and an overlap is detected, fills it with an approximate
+     * contact normal, contact point and a penetration depth of 0.0. When the boxes' centers
+     * coincide, a default upward normal is used.
+     *
+     * @param A First oriented bounding box.
+     * @param B Second oriented bounding box.
+     * @param OutContactInfo Optional output; when non-null and boxes overlap, populated with:
+     *        - `ContactPoint`: an estimated midpoint between the two boxes' surface points along the contact normal,
+     *        - `ContactNormal`: an approximate normal pointing from A toward B (or up if centers coincide),
+     *        - `PenetrationDepth`: set to 0.0.
+     * @return true if the two OBBs overlap, false otherwise.
+     */
     bool OverlapOBBOBB(const FOBB& A, const FOBB& B, FContactInfo* OutContactInfo)
     {
         bool bOverlaps = A.Intersects(B);
@@ -304,6 +359,19 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Tests two spheres for overlap and optionally computes contact information.
+     *
+     * When `OutContactInfo` is provided and the spheres overlap, fills:
+     * - `ContactPoint`: midpoint between the two surface contact points along the center-to-center line (or the common center if centers coincide).
+     * - `ContactNormal`: unit vector pointing from A's center toward B's center (or (0,0,1) if centers coincide).
+     * - `PenetrationDepth`: (A.Radius + B.Radius) minus center distance (or A.Radius + B.Radius if centers coincide).
+     *
+     * @param A First bounding sphere.
+     * @param B Second bounding sphere.
+     * @param OutContactInfo Optional output; when non-null and an overlap is detected, populated with contact point, normal, and penetration depth.
+     * @return `true` if the spheres overlap, `false` otherwise.
+     */
     bool OverlapSphereSphere(const FBoundingSphere& A, const FBoundingSphere& B, FContactInfo* OutContactInfo)
     {
         bool bOverlaps = A.Intersects(B);
@@ -339,6 +407,19 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Tests overlap between a capsule and a sphere and optionally produces contact information.
+     *
+     * When `OutContactInfo` is provided and an overlap is detected, `ContactPoint`, `ContactNormal`, and
+     * `PenetrationDepth` are populated describing the approximate contact between the capsule and sphere.
+     * If the capsule's axis collapses to a point or the closest points coincide (distance near zero), the
+     * function provides reasonable defaults for the contact normal and penetration depth.
+     *
+     * @param Capsule The capsule to test.
+     * @param Sphere The sphere to test.
+     * @param OutContactInfo Optional pointer to receive contact details when an overlap occurs; may be null.
+     * @return bool `true` if the capsule and sphere overlap, `false` otherwise.
+     */
     bool OverlapCapsuleSphere(const FCapsule& Capsule, const FBoundingSphere& Sphere, FContactInfo* OutContactInfo)
     {
         const float dist2 = DistPointSegmentSq(Sphere.Center, Capsule.Center1, Capsule.Center2);
@@ -387,6 +468,20 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Checks for overlap between two capsules.
+     *
+     * If an overlap is detected and `OutContactInfo` is non-null, the function populates
+     * the contact information: `ContactPoint` is set to the midpoint between the two
+     * capsules' segment midpoints, `ContactNormal` is set from capsule A toward B
+     * (or `{0,0,1}` if centers coincide), and `PenetrationDepth` is set to the amount
+     * of interpenetration (sum of radii minus the distance between the capsule centerlines).
+     *
+     * @param A First capsule.
+     * @param B Second capsule.
+     * @param OutContactInfo Optional output pointer to receive contact details when an overlap occurs.
+     * @return `true` if the capsules overlap, `false` otherwise.
+     */
     bool OverlapCapsuleCapsule(const FCapsule& A, const FCapsule& B, FContactInfo* OutContactInfo)
     {
         const float dist2 = DistSegmentSegmentSq(A.Center1, A.Center2, B.Center1, B.Center2);
@@ -416,6 +511,22 @@ namespace Collision
         return bOverlaps;
     }
 
+    /**
+     * @brief Tests overlap between an oriented bounding box (OBB) and a capsule.
+     *
+     * Checks whether the capsule volume intersects the OBB. When an overlap is detected and
+     * `OutContactInfo` is provided, basic contact information is populated.
+     *
+     * @param Obb The oriented bounding box to test.
+     * @param Capsule The capsule to test.
+     * @param OutContactInfo Optional output; if non-null and an overlap is found, the function
+     *        fills:
+     *        - `ContactPoint`: midpoint between the OBB center and the capsule segment center,
+     *        - `ContactNormal`: unit vector from the OBB center toward the capsule center (falls
+     *          back to (0,0,1) if centers coincide),
+     *        - `PenetrationDepth`: set to 0.0.
+     * @return `true` if the capsule overlaps the OBB, `false` otherwise.
+     */
     bool OverlapOBBCapsule(const FOBB& Obb, const FCapsule& Capsule, FContactInfo* OutContactInfo)
     {
         // Transform capsule segment into OBB local space

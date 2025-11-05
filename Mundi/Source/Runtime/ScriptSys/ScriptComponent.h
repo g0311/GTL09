@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "ActorComponent.h"
 #include "sol.hpp"
 #include "Source/Runtime/Core/Game/YieldInstruction.h"
@@ -6,13 +6,13 @@
 class FCoroutineHelper;
 
 /**
- * @class UScriptComponent
- * @brief Actor에 Lua 스크립트를 연결하는 컴포넌트
- * 
- * 사용 순서:
- *   1. Actor에 AddComponent<UScriptComponent>()
- *   2. SetScriptPath()로 스크립트 파일 경로 설정
- *   3. Actor의 Tick/BeginPlay 등에서 Lua 함수 호출
+ * Invoke a named Lua function defined in this component's script with the provided arguments.
+ *
+ * If the script is not loaded or the function is not present, the call is a no-op.
+ * Any Lua runtime errors produced during invocation are logged.
+ *
+ * @param InFunctionName Name of the Lua function to invoke (looked up in the component's script table).
+ * @param InArgs Variadic arguments forwarded to the Lua function.
  */
 class UScriptComponent : public UActorComponent
 {
@@ -21,6 +21,104 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 	UScriptComponent();
+	/**
+	 * Clean up resources owned by the script component.
+	 */
+	
+	/**
+	 * Initialize component when gameplay begins.
+	 */
+	
+	/**
+	 * Perform per-frame processing for the component.
+	 * @param DeltaTime Time elapsed since last tick in seconds.
+	 */
+	
+	/**
+	 * Handle component shutdown at end play.
+	 * @param Reason Reason for end play.
+	 */
+	
+	/**
+	 * Set the Lua script file path and load the script into the component's environment.
+	 * @param InScriptPath Path to the Lua script file.
+	 * @return `true` if the script was loaded successfully, `false` otherwise.
+	 */
+	
+	/**
+	 * Open the associated Lua script file in the project's default editor.
+	 */
+	
+	/**
+	 * Reload the currently set Lua script into the component (hot reload).
+	 * @return `true` if the reload succeeded and the script is valid, `false` otherwise.
+	 */
+	
+	/**
+	 * Start a Lua coroutine from the given entry function and track it.
+	 * @param EntryPoint Lua function used as the coroutine entry.
+	 * @return An identifier for the started coroutine.
+	 */
+	
+	/**
+	 * Stop a running coroutine previously started by StartCoroutine.
+	 * @param CoroutineID Identifier of the coroutine to stop.
+	 */
+	
+	/**
+	 * Create a yield instruction that delays a coroutine for the given duration.
+	 * @param Seconds Delay duration in seconds.
+	 * @return A pointer to a yield instruction representing the delay.
+	 */
+	
+	/**
+	 * Stop all coroutines currently managed by this component.
+	 */
+	
+	/**
+	 * Notify the script environment of an overlap/collision event.
+	 * @param OtherActor The other actor involved in the overlap.
+	 * @param ContactInfo Contact information describing the collision (e.g., location).
+	 */
+	
+	/**
+	 * Handler invoked by a UPrimitiveComponent's BeginOverlap delegate to forward the event to Lua.
+	 * @param OverlappedComp The component that reported the overlap.
+	 * @param OtherActor The other actor involved in the overlap.
+	 * @param OtherComp The other component involved in the overlap.
+	 * @param ContactInfo Contact information describing the collision (e.g., location).
+	 */
+	
+	/**
+	 * Handler invoked by a UPrimitiveComponent's EndOverlap delegate to forward the event to Lua.
+	 * @param OverlappedComp The component that reported the end of overlap.
+	 * @param OtherActor The other actor involved in the overlap.
+	 * @param OtherComp The other component involved in the overlap.
+	 * @param ContactInfo Contact information describing the collision (e.g., location).
+	 */
+	
+	/**
+	 * Serialize or deserialize the component state to/from the provided JSON handle.
+	 * @param bInIsLoading `true` when loading state from JSON, `false` when saving.
+	 * @param InOutHandle JSON handle used for serialization.
+	 */
+	
+	/**
+	 * Hook invoked after serialization completes to perform any post-serialization steps.
+	 */
+	
+	/**
+	 * Duplicate any UObject sub-objects owned by this component.
+	 */
+	
+	/**
+	 * Perform post-duplication processing for this component.
+	 */
+	
+	/**
+	 * Return whether a script is currently loaded into the component.
+	 * @return `true` if a script is loaded, `false` otherwise.
+	 */
 	virtual ~UScriptComponent() override;
 
 	// ==================== Lifecycle ====================

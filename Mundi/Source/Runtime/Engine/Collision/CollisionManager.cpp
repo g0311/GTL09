@@ -66,6 +66,13 @@ void UCollisionManager::Update(float /*DeltaTime*/, uint32 Budget)
     }
 }
 
+/**
+ * @brief Processes a single shape's overlap state: updates spatial index, detects current overlaps, and dispatches begin/end overlap notifications.
+ *
+ * Updates the BVH entry for the given shape, computes which components it currently overlaps, adds and removes per-shape overlap entries as needed, and broadcasts begin-overlap events with per-overlap contact information and end-overlap events with an empty contact info. When a shape is disabled or no longer generates overlap events, all existing overlaps are cleared and end-overlap events are emitted for each partner.
+ *
+ * @param Shape The shape component to process; no action is taken if this is null.
+ */
 void UCollisionManager::ProcessShape(UShapeComponent* Shape)
 {
     if (!Shape) return;

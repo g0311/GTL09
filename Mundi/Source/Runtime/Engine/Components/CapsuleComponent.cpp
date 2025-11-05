@@ -58,6 +58,13 @@ FCapsule UCapsuleComponent::GetWorldCapsule() const
     return FCapsule(CapsuleEndPointTop, CapsuleEndPointBottom, CapsuleRadiusWorld);
 }
 
+/**
+ * @brief Renders a wireframe visualization of this capsule in world space.
+ *
+ * Draws the capsule as a set of line segments (end rings, longitudinal lines, and hemisphere arcs)
+ * using the active renderer and the component's ShapeColor. If no renderer is available or the
+ * computed capsule axis is degenerate (near-zero length), the function does nothing.
+ */
 void UCapsuleComponent::DebugDraw() const
 {
     URenderer* Renderer = URenderManager::GetInstance().GetRenderer();
@@ -149,6 +156,16 @@ void UCapsuleComponent::DebugDraw() const
     Renderer->AddLines(Starts, Ends, Colors);
 }
 
+/**
+ * @brief Tests whether this world-space capsule overlaps another shape and optionally returns contact details.
+ *
+ * Performs an overlap query between this component's world-space capsule and the specified Other shape.
+ * If either component has collision disabled or is not generating overlap events, the function returns false.
+ *
+ * @param Other The other shape component to test against. If `nullptr`, the function returns false.
+ * @param OutContactInfo Optional output; when provided and an overlap is detected, it is populated with contact information.
+ * @return `true` if an overlap is detected (and `OutContactInfo` is populated when non-null), `false` otherwise.
+ */
 bool UCapsuleComponent::Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo) const
 {
     // Respect collision/overlap flags on both shapes

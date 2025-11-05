@@ -26,7 +26,15 @@ USoundManager::~USoundManager()
 	Shutdown();
 }
 
-// 초기화
+/**
+ * @brief Initializes the sound manager and its underlying audio subsystems.
+ *
+ * Performs COM initialization (tolerating RPC_E_CHANGED_MODE and S_FALSE as non-fatal),
+ * creates the XAudio2 engine and the mastering voice, and marks the manager as initialized.
+ * On failure, any partially created resources are released and COM is uninitialized before returning.
+ *
+ * @return true if initialization succeeded and audio subsystems are ready, false otherwise.
+ */
 bool USoundManager::Initialize()
 {
 	if (bInitialized)

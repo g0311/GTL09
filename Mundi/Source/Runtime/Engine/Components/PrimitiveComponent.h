@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "SceneComponent.h"
 #include "Material.h"
 #include "Delegate.h"
@@ -100,11 +100,22 @@ public:
     // Overlap events (begin/end). Users can register handlers.
     DECLARE_DELEGATE(FOnOverlapSignature, UPrimitiveComponent*, AActor*, UPrimitiveComponent*, const FContactInfo&);
 
+    /**
+     * Register a handler to be invoked when this component begins overlapping another.
+     *
+     * @param Handler Delegate callback to register; it will be called with (this component, other actor, other component, contact info) when a begin-overlap occurs.
+     * @returns Handle that can be used to remove the registered delegate.
+     */
     FDelegateHandle AddOnBeginOverlap(const FOnOverlapSignature::HandlerType& Handler)
     {
         return OnBeginOverlapDelegate.Add(Handler);
     }
 
+    /**
+     * Register a handler to be invoked when this component ends an overlap with another.
+     * @param Handler Delegate handler to call when an end-overlap event occurs.
+     * @returns FDelegateHandle Handle that can be used to unregister the handler.
+     */
     FDelegateHandle AddOnEndOverlap(const FOnOverlapSignature::HandlerType& Handler)
     {
         return OnEndOverlapDelegate.Add(Handler);
@@ -134,14 +145,32 @@ public:
     }
 
     bool RemoveOnBeginOverlap(FDelegateHandle Handle) { return OnBeginOverlapDelegate.Remove(Handle); }
-    bool RemoveOnEndOverlap(FDelegateHandle Handle) { return OnEndOverlapDelegate.Remove(Handle); }
+    /**
+ * Unregisters a previously added end-overlap delegate.
+ * @param Handle Delegate handle identifying the registration to remove.
+ * @returns `true` if a matching delegate was found and removed, `false` otherwise.
+ */
+bool RemoveOnEndOverlap(FDelegateHandle Handle) { return OnEndOverlapDelegate.Remove(Handle); }
 
-    // Broadcasting is intended for the collision manager
+    /**
+     * Notify all registered begin-overlap handlers about a new overlap and provide contact details.
+     *
+     * @param OtherActor Actor that began overlapping with this component.
+     * @param OtherComp  Component on the other actor involved in the overlap.
+     * @param ContactInfo Struct containing contact point, contact normal (from this component), and optional penetration depth.
+     */
     void BroadcastBeginOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo)
     {
         OnBeginOverlapDelegate.Broadcast(this, OtherActor, OtherComp, ContactInfo);
     }
 
+    /**
+     * Broadcasts an end-overlap event to all registered end-overlap handlers.
+     *
+     * @param OtherActor The other actor involved in the overlap that ended (may be nullptr).
+     * @param OtherComp The other component involved in the overlap that ended (may be nullptr).
+     * @param ContactInfo Contact information describing the overlap event (contact point, normal, and penetration).
+     */
     void BroadcastEndOverlap(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FContactInfo& ContactInfo)
     {
         OnEndOverlapDelegate.Broadcast(this, OtherActor, OtherComp, ContactInfo);

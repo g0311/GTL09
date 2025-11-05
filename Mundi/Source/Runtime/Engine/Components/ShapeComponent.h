@@ -1,9 +1,16 @@
-﻿#pragma once
+#pragma once
 #include "Color.h"
 #include "PrimitiveComponent.h"
 
 struct FAABB;
 
+/**
+ * Test whether this shape overlaps another shape and optionally produce contact details.
+ *
+ * @param Other The other shape component to test against.
+ * @param OutContactInfo Optional pointer to receive contact information when an overlap is detected; may be null.
+ * @returns `true` if the two shapes overlap, `false` otherwise.
+ */
 class UShapeComponent : public UPrimitiveComponent
 {
 public:

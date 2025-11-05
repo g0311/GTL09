@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "EditorEngine.h"
 #include "USlateManager.h"
 #include "SelectionManager.h"
@@ -208,6 +208,14 @@ bool UEditorEngine::CreateMainWindow(HINSTANCE hInstance)
     return true;
 }
 
+/**
+ * @brief Initializes the editor engine: creates the main window, initializes rendering, input, audio, scripting and UI subsystems, and prepares the editor world.
+ *
+ * Initializes engine-wide subsystems and resources, creates and initializes the editor world and renderer, loads the standalone scene and starts Play-In-Editor when built with _GAME, and marks the engine running on success.
+ *
+ * @param hInstance Handle to the application instance used to create the main window.
+ * @return bool `true` if initialization succeeded and the engine is ready to run, `false` if startup failed (for example, if the main window could not be created).
+ */
 bool UEditorEngine::Startup(HINSTANCE hInstance)
 {
     LoadIniFile();

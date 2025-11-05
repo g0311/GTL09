@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "BillboardComponent.h"
 
 #include "Quad.h"
@@ -19,7 +19,15 @@ BEGIN_PROPERTIES(UBillboardComponent)
 	ADD_PROPERTY_TEXTURE(UTexture*, Texture, "Billboard", true)
 END_PROPERTIES()
 
-UBillboardComponent::UBillboardComponent()
+UBillboardComponent/**
+ * @brief Initializes the billboard component and configures its default rendering resources.
+ *
+ * Loads the shared quad mesh used for billboard rendering. If the quad resource cannot be acquired,
+ * an error is logged and the component is left without a valid quad. Sets the default billboard
+ * material ("Shaders/UI/Billboard.hlsl"), assigns the default pawn icon texture (GDataDir + "/UI/Icons/Pawn_64x.png"),
+ * and marks the component as hidden in-game by default.
+ */
+::UBillboardComponent()
 {
 	auto& RM = UResourceManager::GetInstance();
 	Quad = RM.Get<UQuad>("BillboardQuad");
@@ -38,12 +46,27 @@ UBillboardComponent::UBillboardComponent()
 	bHiddenInGame = true;
 }
 
+/**
+ * @brief Sets the texture asset by path and loads the corresponding texture resource.
+ *
+ * Stores the provided asset path in the component and attempts to load the texture from the global resource manager.
+ *
+ * @param InTexturePath Path to the texture asset to use for the billboard. If loading fails, the component's Texture may be null.
+ */
 void UBillboardComponent::SetTextureName(FString InTexturePath)
 {
 	this->TexturePath = InTexturePath;
 	Texture = UResourceManager::GetInstance().Load<UTexture>(InTexturePath);
 }
 
+/**
+ * @brief Retrieve the material used by this billboard component.
+ *
+ * The component uses a single shared material; the provided section index is ignored.
+ *
+ * @param InSectionIndex Section index (ignored).
+ * @return UMaterialInterface* Pointer to the assigned material, or `nullptr` if no material is set.
+ */
 UMaterialInterface* UBillboardComponent::GetMaterial(uint32 InSectionIndex) const
 {
 	return Material;

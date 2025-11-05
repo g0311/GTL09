@@ -1,9 +1,66 @@
-﻿#pragma once
+#pragma once
 
 /**
- * @brief 전역 Lua 타입 바인딩을 관리하는 싱글톤 매니저
- * @note 엔진 시작 시 최초 1회 InitializeGlobalBindings()를 호출하면 
- *       모든 ScriptComponent가 해당 타입 바인딩을 사용할 수 있습니다.
+ * Singleton manager for global Lua type bindings used by ScriptComponent instances.
+ *
+ * InitializeGlobalLuaState() should be called once at engine startup to prepare bindings.
+ */
+
+/**
+ * Returns the singleton UScriptManager instance.
+ *
+ * @returns Reference to the single UScriptManager instance.
+ */
+
+/**
+ * Initialize the global Lua state and register core bindings for engine-wide use.
+ */
+
+/**
+ * Get the global Lua state managed by this singleton.
+ *
+ * @returns Pointer to the global sol::state instance, or nullptr if not initialized.
+ */
+
+/**
+ * Create a new Lua script by copying a template file for the specified scene and actor.
+ *
+ * @param SceneName Name of the scene the script belongs to.
+ * @param ActorName Name of the actor the script is associated with.
+ * @param OutScriptPath [out] Relative path of the created script (e.g., "test.lua").
+ * @returns `true` if the script was created successfully, `false` otherwise.
+ */
+
+/**
+ * Open the given script file in the system's default editor, resolving relative paths first.
+ *
+ * @param ScriptPath Relative path to the script to edit.
+ */
+
+/**
+ * Register all global and engine bindings into the provided Lua state.
+ *
+ * @param state Lua state to register types into.
+ */
+
+/**
+ * Resolve a relative script path to an absolute filesystem path.
+ *
+ * @param RelativePath Relative script path (for example: "MyScript.lua").
+ * @returns Absolute filesystem path (for example: "C:/Project/LuaScripts/MyScript.lua").
+ */
+
+/**
+ * Convert an FString (UTF-8) to a std::wstring (UTF-16) suitable for Windows filesystem APIs.
+ *
+ * @param UTF8Str FString containing UTF-8 encoded text.
+ * @returns std::wstring encoded in UTF-16 representing the same text.
+ */
+
+/**
+ * Register core, engine-wide type bindings into the given Lua state.
+ *
+ * @param state Lua state to register core types into.
  */
 class UScriptManager : public UObject
 {

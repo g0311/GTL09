@@ -67,6 +67,13 @@ void UBoxComponent::DebugDraw() const
     Renderer->AddLines(StartPoints, EndPoints, Colors);
 }
 
+/**
+ * @brief Constructs the oriented bounding box representing this component in world space.
+ *
+ * Uses the component's half extents (BoxExtent) as a local axis-aligned box and applies the component's world transform to produce a world-space OBB.
+ *
+ * @return FOBB Oriented bounding box in world space.
+ */
 FOBB UBoxComponent::GetWorldOBB() const
 {
     const FVector Ext = BoxExtent; // half extents in local space
@@ -74,6 +81,15 @@ FOBB UBoxComponent::GetWorldOBB() const
     return FOBB(LocalAABB, GetWorldMatrix());
 }
 
+/**
+ * @brief Tests whether this box component overlaps another collision shape.
+ *
+ * Performs an overlap test between this component's world-oriented bounding box and the provided shape.
+ *
+ * @param Other The other shape component to test against.
+ * @param OutContactInfo Optional output; if non-null and an overlap is detected, receives contact information describing the overlap.
+ * @return `true` if this box overlaps `Other`, `false` otherwise.
+ */
 bool UBoxComponent::Overlaps(const UShapeComponent* Other, FContactInfo* OutContactInfo) const
 {
     // Respect collision/overlap flags on both shapes
