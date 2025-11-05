@@ -34,12 +34,8 @@ APlayerController::~APlayerController()
         InputContext = nullptr;
     }
 
-	// PlayerCameraManager 파괴
-	if(PlayerCameraManager && !PlayerCameraManager->IsPendingDestroy())
-	{
-		GetWorld()->DestroyActor(PlayerCameraManager);
-		PlayerCameraManager = nullptr;
-	}
+	// PlayerCameraManager는 World에 의해 소유되므로, World가 소멸될 때 자동으로 파괴됩니다.
+	// 여기서 수동으로 파괴하면 이중 삭제의 위험이 있습니다.
 }
 
 void APlayerController::BeginPlay()
