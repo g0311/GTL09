@@ -3,6 +3,9 @@
 #include "CameraComponent.h"
 #include "CameraModifier.h"
 #include "CameraModifierFade.h"
+#include "CameraModifierVignette.h"
+#include "CameraModifierGammaCorrection.h"
+#include "CameraModifierLetterbox.h"
 #include "PostProcessSettings.h"
 #include "World.h"
 
@@ -76,6 +79,125 @@ void APlayerCameraManager::StartFadeIn(float Duration, FLinearColor FromColor)
 	else
 	{
 		UE_LOG("APlayerCameraManager::StartFadeIn - UCameraModifier_Fade not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::EnableVignette(float Intensity, float Smoothness, bool bImmediate)
+{
+	// UVignetteModifier를 찾아서 위임
+	if (UVignetteModifier* VignetteModifier = FindModifier<UVignetteModifier>())
+	{
+		VignetteModifier->SetIntensity(Intensity);
+		VignetteModifier->SetSmoothness(Smoothness);
+		VignetteModifier->EnableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::EnableVignette - UVignetteModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::DisableVignette(bool bImmediate)
+{
+	// UVignetteModifier를 찾아서 위임
+	if (UVignetteModifier* VignetteModifier = FindModifier<UVignetteModifier>())
+	{
+		VignetteModifier->DisableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::DisableVignette - UVignetteModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::SetVignetteIntensity(float Intensity)
+{
+	if (UVignetteModifier* VignetteModifier = FindModifier<UVignetteModifier>())
+	{
+		VignetteModifier->SetIntensity(Intensity);
+	}
+}
+
+void APlayerCameraManager::SetVignetteSmoothness(float Smoothness)
+{
+	if (UVignetteModifier* VignetteModifier = FindModifier<UVignetteModifier>())
+	{
+		VignetteModifier->SetSmoothness(Smoothness);
+	}
+}
+
+void APlayerCameraManager::EnableGammaCorrection(float Gamma, bool bImmediate)
+{
+	if (UGammaCorrectionModifier* GammaModifier = FindModifier<UGammaCorrectionModifier>())
+	{
+		GammaModifier->SetGamma(Gamma);
+		GammaModifier->EnableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::EnableGammaCorrection - UGammaCorrectionModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::DisableGammaCorrection(bool bImmediate)
+{
+	if (UGammaCorrectionModifier* GammaModifier = FindModifier<UGammaCorrectionModifier>())
+	{
+		GammaModifier->DisableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::DisableGammaCorrection - UGammaCorrectionModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::SetGamma(float Gamma)
+{
+	if (UGammaCorrectionModifier* GammaModifier = FindModifier<UGammaCorrectionModifier>())
+	{
+		GammaModifier->SetGamma(Gamma);
+	}
+}
+
+void APlayerCameraManager::EnableLetterbox(float Height, FLinearColor Color, bool bImmediate)
+{
+	if (ULetterboxModifier* LetterboxModifier = FindModifier<ULetterboxModifier>())
+	{
+		LetterboxModifier->SetHeight(Height);
+		LetterboxModifier->SetColor(Color);
+		LetterboxModifier->EnableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::EnableLetterbox - ULetterboxModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::DisableLetterbox(bool bImmediate)
+{
+	if (ULetterboxModifier* LetterboxModifier = FindModifier<ULetterboxModifier>())
+	{
+		LetterboxModifier->DisableModifier(bImmediate);
+	}
+	else
+	{
+		UE_LOG("APlayerCameraManager::DisableLetterbox - ULetterboxModifier not found! Add one first.");
+	}
+}
+
+void APlayerCameraManager::SetLetterboxHeight(float Height)
+{
+	if (ULetterboxModifier* LetterboxModifier = FindModifier<ULetterboxModifier>())
+	{
+		LetterboxModifier->SetHeight(Height);
+	}
+}
+
+void APlayerCameraManager::SetLetterboxColor(const FLinearColor& Color)
+{
+	if (ULetterboxModifier* LetterboxModifier = FindModifier<ULetterboxModifier>())
+	{
+		LetterboxModifier->SetColor(Color);
 	}
 }
 

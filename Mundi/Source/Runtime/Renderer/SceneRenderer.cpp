@@ -1141,8 +1141,8 @@ void FSceneRenderer::RenderFogPass()
 
 void FSceneRenderer::RenderVignettingPass()
 {
-	UCameraComponent* Camera = View->Camera;
-	if (!Camera || !Camera->IsVignettingEnabled())
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableVignette)
 	{
 		return;
 	}
@@ -1176,8 +1176,8 @@ void FSceneRenderer::RenderVignettingPass()
 	}
 	RHIDevice->PrepareShader(VS, PS);
 
-	// Update Constant Buffer
-	RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(Camera->GetVignettingIntensity(), Camera->GetVignettingSmoothness(), { 0.f, 0.f }));
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	RHIDevice->SetAndUpdateConstantBuffer(FVignetteBufferType(PPSettings.VignetteIntensity, PPSettings.VignetteSmoothness, { 0.f, 0.f }));
 
 	RHIDevice->DrawFullScreenQuad();
 	SwapGuard.Commit();
@@ -1185,8 +1185,8 @@ void FSceneRenderer::RenderVignettingPass()
 
 void FSceneRenderer::RenderGammaCorrectionPass()
 {
-	UCameraComponent* Camera = View->Camera;
-	if (!Camera || !Camera->IsGammaCorrectionEnabled())
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableGammaCorrection)
 	{
 		return;
 	}
@@ -1220,8 +1220,8 @@ void FSceneRenderer::RenderGammaCorrectionPass()
 	}
 	RHIDevice->PrepareShader(VS, PS);
 
-	// Update Constant Buffer
-	RHIDevice->SetAndUpdateConstantBuffer(FGammaCorrectionBufferType(Camera->GetGammaValue(), { 0.f, 0.f, 0.f }));
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
+	RHIDevice->SetAndUpdateConstantBuffer(FGammaCorrectionBufferType(PPSettings.Gamma, { 0.f, 0.f, 0.f }));
 
 	RHIDevice->DrawFullScreenQuad();
 	SwapGuard.Commit();
@@ -1229,8 +1229,8 @@ void FSceneRenderer::RenderGammaCorrectionPass()
 
 void FSceneRenderer::RenderLetterBoxPass()
 {
-	UCameraComponent* Camera = View->Camera;
-	if (!Camera || !Camera->IsLetterboxEnabled())
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
+	if (!PPSettings.bEnableLetterbox)
 	{
 		return;
 	}
@@ -1264,9 +1264,9 @@ void FSceneRenderer::RenderLetterBoxPass()
 	}
 	RHIDevice->PrepareShader(VS, PS);
 
-	// Update Constant Buffer
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
 	RHIDevice->SetAndUpdateConstantBuffer(
-		FLetterBoxBufferType(Camera->GetLetterboxHeight(),{0.f, 0.f, 0.f}, Camera->GetLetterboxColor()));
+		FLetterBoxBufferType(PPSettings.LetterboxHeight, {0.f, 0.f, 0.f}, PPSettings.LetterboxColor));
 
 	RHIDevice->DrawFullScreenQuad();
 	SwapGuard.Commit();
@@ -1274,17 +1274,10 @@ void FSceneRenderer::RenderLetterBoxPass()
 
 void FSceneRenderer::RenderFadePass()
 {
-	// PlayerCameraManager 가져오기
-	APlayerController* PC = World->GetPlayerController();
-	if (!PC) return;
-
-	APlayerCameraManager* CameraManager = PC->GetPlayerCameraManager();
-	if (!CameraManager) return;
-
-	const FPostProcessSettings& Settings = CameraManager->GetPostProcessSettings();
+	const FPostProcessSettings& PPSettings = View->PostProcessSettings;
 
 	// Fade가 비활성화되어 있으면 건너뛰기
-	if (Settings.FadeAmount <= 0.0f) return;
+	if (PPSettings.FadeAmount <= 0.0f) return;
 
 	FSwapGuard SwapGuard(RHIDevice, 0, 1);
 
@@ -1315,10 +1308,10 @@ void FSceneRenderer::RenderFadePass()
 	}
 	RHIDevice->PrepareShader(VS, PS);
 
-	// Update Constant Buffer
+	// Update Constant Buffer (FPostProcessSettings에서 가져옴)
 	FFadeBufferType FadeBuffer;
-	FadeBuffer.FadeColor = Settings.FadeColor;
-	FadeBuffer.FadeAmount = Settings.FadeAmount;
+	FadeBuffer.FadeColor = PPSettings.FadeColor;
+	FadeBuffer.FadeAmount = PPSettings.FadeAmount;
 	FadeBuffer.Padding[0] = 0.0f;
 	FadeBuffer.Padding[1] = 0.0f;
 	FadeBuffer.Padding[2] = 0.0f;

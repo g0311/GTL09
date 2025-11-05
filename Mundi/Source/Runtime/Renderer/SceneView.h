@@ -2,6 +2,7 @@
 #include "Vector.h" // FMatrix
 #include "Enums.h"
 #include "CameraComponent.h"
+#include "PostProcessSettings.h"
 
 #include "Frustum.h"
 // 전방 선언
@@ -48,4 +49,6 @@ public:
 	EViewModeIndex ViewMode = EViewModeIndex::VMI_Lit_Phong;
     ECameraProjectionMode ProjectionMode = ECameraProjectionMode::Perspective;
     float ZNear{}, ZFar{};
+
+    FPostProcessSettings PostProcessSettings{}; // 카메라 프로세스 설정 
 };
