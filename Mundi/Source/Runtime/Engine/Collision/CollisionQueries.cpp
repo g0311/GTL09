@@ -201,7 +201,10 @@ namespace Collision
             if (distance > KINDA_SMALL_NUMBER)
             {
                 OutContactInfo->ContactNormal = toSphere / distance;
-                OutContactInfo->ContactPoint = closestPoint;
+                // ContactPoint: AABB 표면과 Sphere 표면의 중간 지점
+                FVector aabbSurface = closestPoint;
+                FVector sphereSurface = Sphere.Center - OutContactInfo->ContactNormal * Sphere.Radius;
+                OutContactInfo->ContactPoint = (aabbSurface + sphereSurface) * 0.5f;
                 OutContactInfo->PenetrationDepth = Sphere.Radius - distance;
             }
             else
@@ -238,7 +241,10 @@ namespace Collision
             if (distance > KINDA_SMALL_NUMBER)
             {
                 OutContactInfo->ContactNormal = toSphere / distance;
-                OutContactInfo->ContactPoint = closest;
+                // ContactPoint: OBB 표면과 Sphere 표면의 중간 지점
+                FVector obbSurface = closest;
+                FVector sphereSurface = Sphere.Center - OutContactInfo->ContactNormal * Sphere.Radius;
+                OutContactInfo->ContactPoint = (obbSurface + sphereSurface) * 0.5f;
                 OutContactInfo->PenetrationDepth = Sphere.Radius - distance;
             }
             else
@@ -259,19 +265,39 @@ namespace Collision
 
         if (bOverlaps && OutContactInfo)
         {
-            // 간단하게 두 OBB 중심의 중간 지점을 충돌 위치로 사용
-            OutContactInfo->ContactPoint = (A.Center + B.Center) * 0.5f;
-
             FVector AtoB = B.Center - A.Center;
             float distance = AtoB.Size();
+
             if (distance > KINDA_SMALL_NUMBER)
             {
                 OutContactInfo->ContactNormal = AtoB / distance;
+
+                // A 박스에서 B 방향으로의 표면점 계산 (간단한 근사)
+                FVector surfaceA = A.Center;
+                for (int i = 0; i < 3; ++i)
+                {
+                    float proj = FVector::Dot(OutContactInfo->ContactNormal, A.Axes[i]);
+                    surfaceA += A.Axes[i] * (proj > 0 ? A.HalfExtent[i] : -A.HalfExtent[i]);
+                }
+
+                // B 박스에서 A 방향으로의 표면점 계산
+                FVector surfaceB = B.Center;
+                for (int i = 0; i < 3; ++i)
+                {
+                    float proj = FVector::Dot(-OutContactInfo->ContactNormal, B.Axes[i]);
+                    surfaceB += B.Axes[i] * (proj > 0 ? B.HalfExtent[i] : -B.HalfExtent[i]);
+                }
+
+                // 두 표면점의 중간을 ContactPoint로 사용
+                OutContactInfo->ContactPoint = (surfaceA + surfaceB) * 0.5f;
             }
             else
             {
+                // 중심이 같은 경우
+                OutContactInfo->ContactPoint = A.Center;
                 OutContactInfo->ContactNormal = FVector(0, 0, 1);
             }
+
             OutContactInfo->PenetrationDepth = 0.0f; // OBB vs OBB는 계산 복잡
         }
 
@@ -294,7 +320,9 @@ namespace Collision
                 OutContactInfo->ContactNormal = AtoB / distance;
 
                 // ContactPoint: A 표면과 B 표면의 중간 지점
-                OutContactInfo->ContactPoint = A.Center + OutContactInfo->ContactNormal * A.Radius;
+                FVector surfaceA = A.Center + OutContactInfo->ContactNormal * A.Radius;
+                FVector surfaceB = B.Center - OutContactInfo->ContactNormal * B.Radius;
+                OutContactInfo->ContactPoint = (surfaceA + surfaceB) * 0.5f;
 
                 // PenetrationDepth: 겹친 깊이
                 OutContactInfo->PenetrationDepth = (A.Radius + B.Radius) - distance;
@@ -342,7 +370,10 @@ namespace Collision
             if (distance > KINDA_SMALL_NUMBER)
             {
                 OutContactInfo->ContactNormal = toSphere / distance;
-                OutContactInfo->ContactPoint = closestOnSegment + OutContactInfo->ContactNormal * Capsule.Radius;
+                // ContactPoint: Capsule 표면과 Sphere 표면의 중간 지점
+                FVector capsuleSurface = closestOnSegment + OutContactInfo->ContactNormal * Capsule.Radius;
+                FVector sphereSurface = Sphere.Center - OutContactInfo->ContactNormal * Sphere.Radius;
+                OutContactInfo->ContactPoint = (capsuleSurface + sphereSurface) * 0.5f;
                 OutContactInfo->PenetrationDepth = (Capsule.Radius + Sphere.Radius) - distance;
             }
             else

@@ -271,6 +271,25 @@ function Tick(dt)
 
     -- ==================== 카메라 처리 ====================
     UpdateCameraShake(dt)
+
+    -- ==================== Billboard 제거 처리 ====================
+    if BillboardsToRemove then
+        local i = 1
+        while i <= #BillboardsToRemove do
+            local entry = BillboardsToRemove[i]
+            entry.lifetime = entry.lifetime - dt
+
+            if entry.lifetime <= 0 then
+                if entry.billboard and actor then
+                    actor:RemoveOwnedComponent(entry.billboard)
+                    entry.billboard:SetHiddenInGame(true)
+                end
+                table.remove(BillboardsToRemove, i)
+            else
+                i = i + 1
+            end
+        end
+    end
 end
 
 ---
@@ -386,18 +405,53 @@ function OnExitFrenzyMode(payload)
     bIsInFrenzyMode = false
 end
 
-function OnOverlap(other)
+function OnOverlap(other, contactInfo)
     ShakeTime = ShakeDuration
     ShakeSeed = math.random() * 1000
-    
+
     -- 최고 속도 패널티 적용 및 현재 속도 상한 클램프
     if not (bIsInFrenzyMode) then
         CurrentMaxSpeed = math.max(MinMaxSpeed, CurrentMaxSpeed - OverlapMaxSpeedPenalty)
     else
         CurrentMaxSpeed = math.min(MaxSpeedCap, CurrentMaxSpeed + OverlapMaxSpeedReward)
     end
-    
+
     if CurrentForwardSpeed > CurrentMaxSpeed then
         CurrentForwardSpeed = CurrentMaxSpeed
     end
-end 
+
+    -- 충돌 이펙트 생성
+    if contactInfo and contactInfo.ContactPoint then
+        local playerPos = actor:GetActorLocation()
+        local localOffset = contactInfo.ContactPoint - playerPos
+
+        -- Player Actor에 Billboard Component 추가
+        local billboard = actor:AddBillboardComponent()
+        if billboard then
+            billboard:SetTextureName("Data/Billboard/explosion_trans.png")
+            billboard:SetRelativeScale(Vector(5.0, 5.0, 5.0))
+            billboard:SetHiddenInGame(false)
+
+            -- Billboard를 Player의 RootComponent에 부착
+            local rootComp = actor:GetRootComponent()
+            if rootComp then
+                billboard:SetupAttachment(rootComp)
+            end
+
+            billboard:SetRelativeLocation(localOffset)
+
+            -- World에 등록
+            local world = actor:GetWorld()
+            if world then
+                billboard:RegisterComponent(world)
+                billboard:InitializeComponent()
+            end
+
+            -- Billboard 제거 목록에 추가
+            if not BillboardsToRemove then
+                BillboardsToRemove = {}
+            end
+            table.insert(BillboardsToRemove, {billboard = billboard, lifetime = 1.0})
+        end
+    end
+end

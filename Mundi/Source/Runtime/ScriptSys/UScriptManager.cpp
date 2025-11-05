@@ -724,6 +724,9 @@ void UScriptManager::RegisterActor(sol::state* state)
         // Lifecycle
         ADD_LUA_FUNCTION("Destroy", &AActor::Destroy)
 
+        // Component Management
+        ADD_LUA_FUNCTION("RemoveOwnedComponent", &AActor::RemoveOwnedComponent)
+
         // Component access helpers
         ADD_LUA_FUNCTION("GetShapeComponent", [](AActor* actor) -> UShapeComponent* {
             return actor ? actor->GetComponent<UShapeComponent>() : nullptr;
@@ -823,39 +826,24 @@ void UScriptManager::RegisterActor(sol::state* state)
 
         // Billboard 컴포넌트 추가 (충돌 이펙트 등에 사용)
         ADD_LUA_FUNCTION("AddBillboardComponent", [](AActor* actor) -> class UBillboardComponent* {
-            if (!actor)
-            {
-                UE_LOG("[AddBillboardComponent] Actor is null!\n");
-                return nullptr;
-            }
-
-            UE_LOG("[AddBillboardComponent] Creating billboard component...\n");
+            if (!actor) return nullptr;
 
             // 런타임에 동적으로 Billboard 컴포넌트 생성
             auto* comp = ObjectFactory::NewObject<UBillboardComponent>();
-            if (!comp)
-            {
-                UE_LOG("[AddBillboardComponent] Failed to create component!\n");
-                return nullptr;
-            }
-
-            UE_LOG("[AddBillboardComponent] Component created successfully\n");
+            if (!comp) return nullptr;
 
             // Actor에 컴포넌트 추가
             actor->AddOwnedComponent(comp);
-            UE_LOG("[AddBillboardComponent] Component added to actor\n");
 
             // RootComponent로 설정 (SceneComponent는 Transform을 가지므로 필수)
             if (!actor->GetRootComponent())
             {
                 actor->SetRootComponent(comp);
-                UE_LOG("[AddBillboardComponent] Set as root component\n");
             }
             else
             {
                 // 기존 RootComponent가 있으면 Attach
                 comp->SetupAttachment(actor->GetRootComponent());
-                UE_LOG("[AddBillboardComponent] Attached to existing root component\n");
             }
 
             // World가 있으면 컴포넌트 등록 및 초기화
@@ -863,11 +851,6 @@ void UScriptManager::RegisterActor(sol::state* state)
             {
                 comp->RegisterComponent(world);
                 comp->InitializeComponent();
-                UE_LOG("[AddBillboardComponent] Component registered and initialized\n");
-            }
-            else
-            {
-                UE_LOG("[AddBillboardComponent] Warning: World is null, component not registered\n");
             }
 
             return comp;
@@ -884,6 +867,10 @@ void UScriptManager::RegisterActorComponent(sol::state* state)
             return comp->GetName();
         })
         ADD_LUA_FUNCTION("IsActive", &UActorComponent::IsActive)
+
+        // Lifecycle
+        ADD_LUA_FUNCTION("RegisterComponent", &UActorComponent::RegisterComponent)
+        ADD_LUA_FUNCTION("InitializeComponent", &UActorComponent::InitializeComponent)
     END_LUA_TYPE()
 }
 
@@ -916,6 +903,11 @@ void UScriptManager::RegisterSceneComponent(sol::state* state)
                 children[index++] = child;
             }
             return children;
+        })
+        ADD_LUA_FUNCTION("SetupAttachment", [](USceneComponent* comp, USceneComponent* parent) {
+            if (comp && parent) {
+                comp->SetupAttachment(parent);
+            }
         })
 
         // Visibility
