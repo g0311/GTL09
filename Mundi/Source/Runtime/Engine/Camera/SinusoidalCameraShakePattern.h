@@ -2,14 +2,14 @@
 #include "CameraShakePattern.h"
 
 // Simple sinusoidal camera shake pattern (location, rotation, FOV)
-class SinusoidalCameraShakePattern : public UCameraShakePattern
+class USinusoidalCameraShakePattern : public UCameraShakePattern
 {
 public:
-    DECLARE_CLASS(SinusoidalCameraShakePattern, UCameraShakePattern)
+    DECLARE_CLASS(USinusoidalCameraShakePattern, UCameraShakePattern)
     GENERATED_REFLECTION_BODY()
 
-    SinusoidalCameraShakePattern();
-    virtual ~SinusoidalCameraShakePattern() override = default;
+    USinusoidalCameraShakePattern();
+    virtual ~USinusoidalCameraShakePattern() override = default;
 
 protected:
     void OnStart() override;

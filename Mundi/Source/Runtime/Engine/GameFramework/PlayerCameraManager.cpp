@@ -219,29 +219,6 @@ UCameraShakeBase* APlayerCameraManager::StartCameraShake(UCameraShakeBase* Shake
 	return Shake;
 }
 
-UCameraShakeBase* APlayerCameraManager::StartCameraShakePattern(UCameraShakePattern* Pattern, const FCameraShakeStartParams& Params)
-{
-	if (!Pattern)
-	{
-		UE_LOG("PlayerCameraManager::StartCameraShakePattern - Pattern is null");
-		return nullptr;
-	}
-	// Create a base shake and attach the pattern
-	UCameraShakeBase* Shake = NewObject<UCameraShakeBase>();
-	if (!Shake) return nullptr;
-	// Apply params to base
-	Shake->SetPlayScale(Params.Scale);
-	Shake->SetBlendInTime(Params.BlendInTime);
-	Shake->SetBlendOutTime(Params.BlendOutTime);
-	if (Params.Duration > 0.0f)
-	{
-		Shake->SetDuration(Params.Duration);
-	}
-	Shake->SetRootPattern(Pattern);
-	// Start via existing path so ownership and arrays are consistent
-	return StartCameraShake(Shake, Params.Scale, Params.Duration);
-}
-
 void APlayerCameraManager::StopCameraShake(UCameraShakeBase* Shake, bool bImmediately)
 {
 	if (!Shake) return;

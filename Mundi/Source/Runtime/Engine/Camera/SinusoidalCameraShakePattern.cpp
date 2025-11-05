@@ -2,9 +2,9 @@
 #include "SinusoidalCameraShakePattern.h"
 #include <cstdlib>
 
-IMPLEMENT_CLASS(SinusoidalCameraShakePattern)
+IMPLEMENT_CLASS(USinusoidalCameraShakePattern)
 
-BEGIN_PROPERTIES(SinusoidalCameraShakePattern)
+BEGIN_PROPERTIES(USinusoidalCameraShakePattern)
     // Location
     ADD_PROPERTY(FVector, LocationAmplitude, "CameraShake|Sin", true, "Location amplitude (units)")
     ADD_PROPERTY(FVector, LocationFrequency, "CameraShake|Sin", true, "Location frequency (Hz)")
@@ -21,13 +21,13 @@ BEGIN_PROPERTIES(SinusoidalCameraShakePattern)
     ADD_PROPERTY(bool, bRandomizePhase, "CameraShake|Sin", true, "Randomize phases at Start")
 END_PROPERTIES()
 
-SinusoidalCameraShakePattern::SinusoidalCameraShakePattern()
+USinusoidalCameraShakePattern::USinusoidalCameraShakePattern()
 {
 }
 
 static inline float TwoPi() { return 6.28318530717958647692f; }
 
-void SinusoidalCameraShakePattern::OnStart()
+void USinusoidalCameraShakePattern::OnStart()
 {
     if (bRandomizePhase)
     {
@@ -38,7 +38,7 @@ void SinusoidalCameraShakePattern::OnStart()
     }
 }
 
-void SinusoidalCameraShakePattern::OnUpdate(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
+void USinusoidalCameraShakePattern::OnUpdate(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
     const float t = Params.ElapsedTime;
 

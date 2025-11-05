@@ -4,6 +4,7 @@
 #include "CameraComponent.h"
 #include "ActorComponent.h"
 #include "PlayerCameraManager.h"
+#include "SinusoidalCameraShakePattern.h"
 #include "World.h"
 #include "Source/Runtime/InputCore/InputMappingContext.h"
 #include "Source/Runtime/InputCore/InputMappingSubsystem.h"
@@ -43,6 +44,34 @@ void APlayerController::BeginPlay()
 
     // 입력 컨텍스트 설정
     SetupInputContext();
+
+    if (!PlayerCameraManager)
+    {
+        PlayerCameraManager = GetWorld()->SpawnActor<APlayerCameraManager>();
+    }
+
+    if (!GetViewTarget())
+    {
+        // Prefer your possessed pawn if it has a camera, otherwise a camera actor you placed.
+        SetViewTarget(PossessedPawn /* or some camera actor */);
+    }
+    
+    auto* Pattern = NewObject<USinusoidalCameraShakePattern>();
+    Pattern->LocationAmplitude = FVector(10, 10, 5);
+    Pattern->LocationFrequency = FVector(2, 2, 1);
+    Pattern->RotationAmplitudeDeg = FVector(1.5f, 1.5f, 2.0f);
+    Pattern->RotationFrequency = FVector(3, 2, 1);
+    Pattern->FOVAmplitude = 0.5f;
+    Pattern->FOVFrequency = 1.0f;
+    Pattern->bRandomizePhase = true;
+	
+    auto* Shake = NewObject<UCameraShakeBase>();
+    Shake->SetBlendInTime(0.25f);
+    Shake->SetBlendOutTime(0.35f);
+    Shake->SetRootPattern(Pattern);
+	
+    // Start shake (0.0f duration here means use shake’s Duration)
+    PlayerCameraManager->StartCameraShake(Shake, /*Scale*/1.0f, /*Duration*/0.0f);
 }
 
 void APlayerController::Tick(float DeltaSeconds)

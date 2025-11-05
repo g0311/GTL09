@@ -84,9 +84,6 @@ public:
 	void StopCameraShake(UCameraShakeBase* Shake, bool bImmediately = false);
 	void StopAllCameraShakes(bool bImmediately = false);
 	
-	// CameraShakeBase 만들고, CameraShakePattern 붙이고, 시작해줌
-    UCameraShakeBase* StartCameraShakePattern(UCameraShakePattern* Pattern, const FCameraShakeStartParams& Params);
-
 	UCameraModifier* AddCameraModifier(UCameraModifier* ModifierClass);
 	void RemoveCameraModifier(UCameraModifier* Modifier);
 
@@ -101,9 +98,10 @@ public:
 	 */
 	FPostProcessSettings GetPostProcessSettings() const;
 
-	FMatrix GetViewMatrix() const;
-	
-	FMatrix GetProjectionMatrix(FViewport* Viewport) const;
+    FMatrix GetViewMatrix() const;
+    
+    FMatrix GetProjectionMatrix(FViewport* Viewport) const;
+    float GetFOV() const { return ViewCache.FOV; }
 	
 	FVector GetCameraLocation() const { return ViewCache.Location; }
 	
